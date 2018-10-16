@@ -1,4 +1,4 @@
-# Ocean Successive Orders with Atmosphere - Advanced   (OSOAA V1.4)
+# Ocean Successive Orders with Atmosphere - Advanced (OSOAA V1.4)
 
 Accurate computation of the radiative tranfer into the Ocean-Atmosphere system including polarisation, coupling terms, and the agitated surface.  
       

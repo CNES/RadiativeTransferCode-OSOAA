@@ -1,0 +1,99 @@
+OSOAA V1.0 : 2015, April 2nd
+-----------
+Initial OSOAA code
+
+
+OSOAA V1.1 : 2015, June 16th
+----------
+- All comments for log files are now in english
+- Changing the way of reading the formatted files (angles, ...)
+  to be compatible with the compiler gfortran.
+
+  
+OSOAA V1.2 : 2015, June 24th
+----------
+- User Manual now available.
+- GUI: minor syntax correction.
+
+  
+OSOAA V1.3 : 2016, October 21st
+----------
+- Correction of some aerosols data in files:
+	fic/Data_SF 	replaced by 	fic/Data_SF_cor_2015_12_16 
+	fic/Data_WMO 	replaced by 	fic/Data_WMO_cor_2015_12_16  
+	fic/IRefrac_LU 	replaced by 	fic/IRefrac_LU_cor_2015_12_16
+	fic/IRefrac_OM 	replaced by 	fic/IRefrac_OM_cor_2015_12_16
+	fic/IRefrac_SR 	replaced by 	fic/IRefrac_SR_cor_2015_12_16
+	fic/IRefrac_SU 	replaced by 	fic/IRefrac_SU_cor_2015_12_16
+
+  The inc/OSOAA.h file is adapted concequently
+
+- Changes of the OSOAA_AEROSOLS.F file : V1.1 --> V1.2
+    * Adaptations for reading the file of defined angles
+      (to enable a gfortran compilation - linux system)
+
+- Changes of the OSOAA_ANGLES.F file : V1.1 --> V1.2
+    * Minor adjustments of string lengths
+    * Modification to avoid duplicating the angle 0 degree in the list of angles
+
+- Changes of the OSOAA_HYDROSOLS.F file : V1.1 --> V1.2
+    * Adaptations for reading the file of defined angles
+      (to enable a gfortran compilation - linux system)
+    * New log information : integration of the phase function over all 
+      directions or only over backward directions
+     
+- Changes of the OSOAA_MAIN.F file : V1.1 --> V1.2
+    * Major improvement of software performances: 
+      Introduction of the capability to perform a new simulation 
+      based on same bio-physical parameters but for different output 
+      parameters (Phi, Z, ...) without recalculating the radiance field as a
+      Fourier series expansion but by using that of a previous process.
+    * Introduction of the possibility to not perform a radiative transfer  
+      calculation if IGMAX = 0. In this case, only profiles and phase                           
+      functions are calculated.
+    * Introduction of a new file, called "Flux.txt":
+       --> Profile of downwelling and upwelling flux from TOA 
+           to the sea bottom normalised to the solar irradiance at TOA.
+       
+- Changes of the OSOAA_SOS.F file : V1.1 --> V1.2
+    * Adaptations for reading the file of defined angles
+      (to enable a gfortran compilation - linux system)
+    * Introduction of the new output file "Flux.txt" 
+    * Minor adjustement of the format of result files.
+    
+- Changes of the OSOAA_SOS_CORE.F file : V1.1 --> V1.2
+    * Calculation of the flux profile (downwelling and upwelling)  
+      from sea bottom to TOA, normalised to the solar irradiance at TOA 
+      --> Results are written in the file "Advanced_outputs/Flux.txt" 
+    
+- Changes of the OSOAA_SURFACE.F file : V1.1 --> V1.2
+    * Adaptations for reading the file of defined angles
+      (to enable a gfortran compilation - linux system)    
+    
+
+  
+OSOAA V1.4 : 2016, November 3rd
+----------
+- Changes of the OSOAA_PROFILE.F file : V1.1 --> V1.2
+    * Improvement of the calculation for the number of layers NZ
+      -> use of the NINT() function to avoid a potential truncation effect.
+
+- Changes of the OSOAA_AEROSOLS.F file :  V1.2 --> V1.3
+  Changes of the OSOAA_HYDROSOLS.F file : V1.2 --> V1.3
+  Changes of the OSOAA_SURFACE.F file :   V1.2 --> V1.3
+    Changes to be compliant with a f77 compilation:
+    * CALL FLUSH() changed to CALL FLUSH(6)
+    * Change a variable type to read the file including the list of angles for
+      Mie or radiance computations
+
+- Changes of the OSOAA_MAIN.F file : V1.2 --> V1.3
+    * CALL FLUSH() changed to CALL FLUSH(6)
+      (to enable a correct execution for a f77 compilation)
+
+- Changes of the OSOAA_SOS.F file : V1.2 --> V1.3
+    * Change a variable type to read the file including the list of angles for
+      radiance computations 
+      (to enable a correct execution for a f77 compilation)
+
+- The option -w is added in the makefile gen/Makefile_OSOAA.f77 
+  to avoid warning messages 
