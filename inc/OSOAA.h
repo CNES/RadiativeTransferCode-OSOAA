@@ -7,7 +7,9 @@ C* AUTHOR: B.Lafrance ( CS )
 C* DATE: 02/04/2015
 C*
 C* MOD:VERSION:1.0
-C* 
+C* MOD:VERSION:1.1: 30/05/2018:  
+C*     - New constants are introduced for tabulated data of sea bottom 
+C*       spectral reflectance : CTE_FIC_BOT_SPECTRAL_DATA and CTE_NB_WA_FIC_BOT 
 C******************************************************************************
 
 C#######################################################################
@@ -289,6 +291,12 @@ C    --> Specific constant to the file OSOAA_TRPHI.F
 C--------------------------------------------------------------
 #define CTE_SOLAR_DISC_SOLID_ANGLE 6.8D-05
 
+C    Filename defining the sea bottom spectral reflectance
+C    for tabulated data and number of spectral data
+C    --> Specific constant to the file OSOAA_MAIN.F
+C--------------------------------------------------------------
+#define CTE_FIC_BOT_SPECTRAL_DATA "OSOAA_SEA_BOTTOM_REFLECTANCES.txt"
+#define CTE_NB_WA_FIC_BOT 91
 
 
 C#######################################################################

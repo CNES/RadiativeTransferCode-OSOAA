@@ -63,7 +63,8 @@ C*
 C*
 C* MOD:VERSION:1.0: 02/04/2015: Initial version of the OSOAA code
 C* MOD:VERSION:1.1: 15/06/2015: All comments for log files are now in english
-
+C* MOD:VERSION:1.2: 23/05/2018: 
+C*      Routine OSOAA_ENREG_GRANU is changed in version VERSION:1.1    
 C*
 C*                                   
 C*   
@@ -98,7 +99,7 @@ C==============================================================================
 C PROCEDURE: SOS_INTERPOL
 C ==========
 C      Cette procédure permet d'interpoler linéairement en X une fonction f
-C      dont on connait les valeurs (X1,Y1) et (XOUT,Y2).
+C      dont on connait les valeurs (X1,Y1) et (X2,Y2).
 C
 C Description des paramètres
 C --------------------------
@@ -1509,6 +1510,11 @@ C
 C      Cette procédure réalise l'enregistrement d'un fichier GRANU 
 C      des paramètres radiatifs et de décomposition de la matrice de phase.
 C
+C MOD:VERSION:1.1: 23/05/2018:
+C      Changement du format d'enregistrement de la valeur de l'indice de réfraction moyen
+C      (etiquette : 45 FORMAT) : F8.4 --> F10.4
+C
+C
 C Description des paramètres
 C ----------------------------
 
@@ -1690,7 +1696,7 @@ C---------
    42 FORMAT(38hASYMMETRY FACTOR (no truncation)     :,E13.5)  
    43 FORMAT(38hMEAN PARTICULES ALTITUDE/DEPTH (m)   :,F10.3) 
    44 FORMAT(38hVOLUME OF A MEAN PARTICULE (mic^3)   :,E13.5) 
-   45 FORMAT(38hMEAN REFRACTIVE INDEX (real part)    :,F8.4) 
+   45 FORMAT(38hMEAN REFRACTIVE INDEX (real part)    :,F10.4) 
    46 FORMAT(38hTRUNCATION COEFFICIENT               :,F9.5)  
    47 FORMAT(38hSINGLE SCATTERING ALBEDO (truncation):,F9.5) 
    48 FORMAT(36hPHASE MATRIX COEFFICIENTS FOR K=0 TO,I4)

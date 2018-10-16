@@ -52,8 +52,8 @@ C* MOD:VERSION:1.1: 15/06/2015: All comments for log files are now in english
 C* MOD:VERSION:1.2: 03/11/2016: 
 C*      Improvement of the calculation for the number of layers NZ
 C*      --> use of the NINT() function to avoid a potential truncation effect.
-C*
-C*                                   
+C* MOD:VERSION:1.3: 23/05/2018: 
+C*      Routine OSOAA_SEA_PHY_COEFFS is changed in version VERSION:1.1                               
 C*   
 C******************************************************************************
 
@@ -1534,6 +1534,24 @@ C      l'information que l'absorption est posée nulle si la longueur d'onde de
 C      simulation est hors domaine couvert par le fichier de données tabulées : 
 C      WATAB_MIN et WATAB_MAX
 C
+C
+C
+C MOD:VERSION:1.1: 23/05/2018:
+C     - Corrections pour l'usage du fichier de profil défini par l'utilisateur FICPHYTO_USER 
+C         * Correction du premier indice lu dans le fichier FICPHYTO_USER :
+C           1 au lieu de 0 pour être cohérent avec la taille des tables USER_Z(1:CTE_NZ_MAX) 
+C           et USER_CHL(1:CTE_NZ_MAX).
+C         * Nombre de lignes stockés dans NROWS_FICUSER au lieu de NROWS pour éviter un conflit
+C           sur le contenu de cette variable avec le nombre de ligne du fichier FICDATA.
+C           (contenant les coefficients AP, EP)
+C         * Complément d'informations pour label 1500.
+C
+C     - Corrections pour la lecture du fichier des coefficients AP, EP de la chlorophylle FICDATA 
+C         * Nombre de lignes stockés dans NROWS_FICDATA au lieu de NROWS pour éviter un conflit
+C           sur le contenu de cette variable avec le nombre de ligne du fichier FICPHYTO_USER.
+C
+C
+C
 C Description des paramètres
 C --------------------------
 C      WA  (double)  (E)   Longueur d'onde en microns.
@@ -1606,8 +1624,11 @@ C-- Variables globales
       
       DOUBLE PRECISION WA    ! (E) Longueur d'onde de simulation des luminances (en microns)
       DOUBLE PRECISION WANM  ! (E) Longueur d'onde de simulation des luminances (en nm)
-      INTEGER*4  NZ	     ! (E)  Nombre de couches dans le profil de profondeurs
-      INTEGER*4  NROWS	     ! (E)  Nombre de lignes dans un fichier utilisateur
+      INTEGER*4  NZ	        ! (E)  Nombre de couches dans le profil de profondeurs
+      INTEGER*4  NROWS_FICUSER	 !  Nombre de lignes dans un fichier utilisateur de profil
+                                    !  de concentration de chlorophylle
+      INTEGER*4  NROWS_FICDATA	 !  Nombre de lignes dans un fichier de données
+                                    !  spectrales d'absorption et diffusion de la chlorophylle
       DOUBLE PRECISION Z(0:CTE_NZ_MAX)	! (E)  Profil en profondeurs
       
       INTEGER*4 I	     ! Niveau du profil en entrée
@@ -1683,7 +1704,7 @@ C*----------------------------------------------
          IF (I.GT.CTE_NBWA_MAX) GOTO 2020         
       GOTO 20
    30 CLOSE(30)
-      NROWS=I-1       
+      NROWS_FICDATA=I-1       
            	
 C* Profil de concentration en fonction de la profondeur       
 C*-----------------------------------------
@@ -1706,18 +1727,20 @@ C*-----------------------------------------
       
          !Lecture du fichier utilisateur
       	 OPEN(40,FILE=FICPHYTO_USER,ERR=1000,STATUS='OLD')  
-	 NROWS=0
-      	 DO I=0,CTE_NZ_MAX
+	 NROWS_FICUSER=0
+      	 DO I=1,CTE_NZ_MAX 	! MOD: 23/05/2018 : La première valeur de 
+				! l'indice vaut 1 au lieu de 0
          	READ(40,*,err=1010,end=1020),USER_Z(I),USER_CHL(I)
-		NROWS=NROWS+1
+		NROWS_FICUSER=NROWS_FICUSER+1
       	 ENDDO
 	 CLOSE(40)
       
         
         !Vérification que le profil utilisateur contient les valeurs
 	!min et max du profil en profondeurs en entrée
-1020	IF (Z(0).LT.USER_Z(1).OR.Z(NZ).GT.USER_Z(NROWS)) GOTO 1500
-    
+1020	IF (Z(0).LT.USER_Z(1).OR.Z(NZ).GT.USER_Z(NROWS_FICUSER)) THEN
+           GOTO 1500
+       ENDIF
 	
       	!Calcul des concentrations sur les profondeurs fournies en entrée
 	DO I=0,NZ
@@ -1749,10 +1772,10 @@ C*-------------------------------------------------------------------
       ! Conversion de la longueur d'onde en nanomètres
       WANM=WA*1000.   
       
-      ! Longueur d'onde min et max des données tabulées
+      ! Longueur d'onde min et max des données tabulées dans FICDATA
       WATAB_MIN = TAB_WL(1)
-      WATAB_MAX = TAB_WL(NROWS)
-      
+      WATAB_MAX = TAB_WL(NROWS_FICDATA)
+
       IF ((WANM.LT.WATAB_MIN).OR.(WANM.GT.WATAB_MAX)) THEN
          !Cas : longueur d'onde en entrée en dehors de la table de coeffs
 	 ! ==> On suppose nulle l'absorption du phytoplancton
@@ -1761,7 +1784,7 @@ C*-------------------------------------------------------------------
 	 
 	 WRITE(6,*) "Warning : Exceeding the spectral range in file of "
 	 WRITE(6,*) "          phytoplankton absorption coef.:", FICDATA
-         WRITE(6,*) "    - Radiance simulation wavelength (nm) :", WANM
+        WRITE(6,*) "    - Radiance simulation wavelength (nm) :", WANM
 	 WRITE(6,*) "    - File spectral range (nm):", WATAB_MIN,
      &	                                               WATAB_MAX
 	 WRITE(6,*) " ==> Phytoplankton absorption is FORCED to be null"
@@ -1812,7 +1835,13 @@ C----------------------------------------------
       GOTO 9998 
       
  1500 WRITE(6,*) '  OSOAA_SEA_PHY_COEFFS : ERROR_1500 '
-      WRITE(6,*) '  depth is outside bounds of user profile depths'
+      WRITE(6,*) '  depth is outside bounds of user profile depths:'
+      WRITE(6,*) 
+     &'  - User profile for phytoplancton is defined between depths:',
+     &   USER_Z(1), USER_Z(NROWS_FICUSER)
+      WRITE(6,*) 
+     &'  - while the complete sea profile is defined between depths:',
+     &   Z(0),Z(NZ)
       GOTO 9998             
 
  1600 WRITE(6,*) '  OSOAA_SEA_PHY_COEFFS : ERROR_1600 '

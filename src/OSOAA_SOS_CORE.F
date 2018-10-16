@@ -76,14 +76,25 @@ C*
 C* MOD:VERSION:1.0: 02/04/2015: Initial version of the OSOAA code
 C* MOD:VERSION:1.1: 15/06/2015: All comments for log files are now in english
 C* MOD:VERSION:1.2: 27/04/2016:  
-C*     - New output file FIC_FLUX : Profile of downwelling and upwelling 
-C*                                  flux from TOA to the sea bottom 
+C*     - New output file FIC_FLUX : Profile of downward and upward 
+C*                                  fluxes from TOA to the sea bottom 
 C*                                  normalised to the solar irradiance at TOA     
 C*     - New arguments : 
 C*          - FIC_FLUX           
 C*          - PROFIL_Z(0:NT_TOT) the profile of altitudes in the atmosphere (m) 
 C*                               or the sea depth (m) with respect of each level                  
+C* MOD:VERSION:1.3: 18/07/2018:  
+C*     - Correction of anomalies for the calculation of the upward direct flux
+C*       in the atmosphere provided in the Flux.txt file : 
+C*       Both the case of a rough sea and the case of a flat sea were impacted by
+C*       an error of calculation of the atmospheric transmission from the surface
+C*       to any level in the atmosphere.
+C*       Moreover, the normalisation by the solar irradiance (PI) was forgotten.
 C*   
+C*     - The ratio Eu/Ed is provided in the Flux.txt file (column n°9).
+C*   
+C*     - Flux given in the trace file are normalized by the solar irradiance (PI)
+C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
@@ -375,11 +386,11 @@ C      ==> Fichier Ascii formaté du profil de flux montant descendant du TOA au 
 C          normalisé par l'éclairement solaire au TOA
 C
 C		format : 5 lignes d'entete
-C                        4 colonnes pour chaque niveau du profil (0 à NT_TOT)
-C                           --> Level, Z in meters, Direct_Downwelling_Flux, Diffuse_Downwelling_Flux, 
-C                               Total_Downwelling_Flux, Direct_Upwelling_Flux, Diffuse_Upwelling_Flux, 
-C                               Total_Upwelling_Flux,
-C				FORMAT(2X,I4,1X,F12.5,2X,6(2X,E12.6))
+C                        9 colonnes pour chaque niveau du profil (0 à NT_TOT)
+C                           --> Level, Z in meters, Direct_Downward_Flux, Diffuse_Downward_Flux, 
+C                               Total_Downward_Flux, Direct_Upward_Flux, Diffuse_Upward_Flux, 
+C                               Total_Upward_Flux, (Total_Upward_Flux/Total_Downward_Flux)
+C				FORMAT(2X,I4,1X,F12.5,2X,7(2X,E12.6))
 C 
 C
 C Common utilisé:
@@ -1187,18 +1198,22 @@ C* du code en Mode expert spécifique
 C------------------------------------------------------
       IF (EXPERT_MODE_FORCED_FATM_NULL.AND.TRACE) THEN 
       	 !annulation de la diffusion atmosphérique
+         WRITE (IDLOG,*,ERR=1010) " "
          WRITE (IDLOG,*,ERR=1010) 
-     &	 " \n ********************************************** \n",
+     &	 "  ********************************************** ",
      &	 "  WARNING : ATMOS SOURCE FUNCTION FORCED TO NULL ",
-     &	 " \n ********************************************** \n"
+     &	 "  ********************************************** "
+         WRITE (IDLOG,*,ERR=1010) " "
       ENDIF
      
       IF (EXPERT_MODE_FORCED_FSEA_NULL.AND.TRACE) THEN 
       	!annulation de la diffusion marine
+         WRITE (IDLOG,*,ERR=1010) " "
          WRITE (IDLOG,*,ERR=1010) 
-     &	 " \n ******************************************** \n",
+     &	 "  ******************************************** ",
      &	 "  WARNING : SEA SOURCE FUNCTION FORCED TO NULL ",
-     &	 " \n ******************************************** \n"
+     &	 "  ******************************************** "
+         WRITE (IDLOG,*,ERR=1010) " "
       ENDIF
       
       
@@ -1215,7 +1230,7 @@ C---------------------------------------------------------------------
       ALPHA2_MOL_AIR=3.*AAA
 
       IF (TRACE) THEN
-         WRITE (IDLOG,*,ERR=1010) "MOLECULAR PHASE MATRIX "
+        WRITE (IDLOG,*,ERR=1010) "MOLECULAR PHASE MATRIX "
 	 WRITE (IDLOG,*,ERR=1010) "**********************"
 	 WRITE (IDLOG,*,ERR=1010) " "
 	 WRITE (IDLOG,*,ERR=1010) " In the air : "
@@ -1223,7 +1238,7 @@ C---------------------------------------------------------------------
      &	 "   - Depolarization factor: ", CTE_MDF_AIR 
 	 WRITE (IDLOG,*,ERR=1010)  
      &	 "   - Coef F for the depolarization correction : ", AAA   
-         WRITE (IDLOG,*,ERR=1010)"   - BETA0 : ", BETA0_MOL_AIR
+        WRITE (IDLOG,*,ERR=1010)"   - BETA0 : ", BETA0_MOL_AIR
 	 WRITE (IDLOG,*,ERR=1010)"   - BETA2 : ", BETA2_MOL_AIR
 	 WRITE (IDLOG,*,ERR=1010)"   - GAMMA2 : ", GAMMA2_MOL_AIR
 	 WRITE (IDLOG,*,ERR=1010)"   - ALPHA2 : ", ALPHA2_MOL_AIR 
@@ -1245,7 +1260,7 @@ C---------------------------------------------------------------------
      &	 "   - Depolarization factor : ", CTE_MDF_SEA 
 	 WRITE (IDLOG,*,ERR=1010)  
      &	 "   - Coef F for the depolarization correction : ", AAA   
-         WRITE (IDLOG,*,ERR=1010)"   - BETA0 : ", BETA0_MOL_SEA
+        WRITE (IDLOG,*,ERR=1010)"   - BETA0 : ", BETA0_MOL_SEA
 	 WRITE (IDLOG,*,ERR=1010)"   - BETA2 : ", BETA2_MOL_SEA
 	 WRITE (IDLOG,*,ERR=1010)"   - GAMMA2 : ", GAMMA2_MOL_SEA
 	 WRITE (IDLOG,*,ERR=1010)"   - ALPHA2 : ", ALPHA2_MOL_SEA 
@@ -1316,9 +1331,9 @@ C----------------------------------------------------------
      &      DACOS(-TAB)*180.D+00/INCTE_PI
 	 WRITE (IDLOG,*,ERR=1010) 
      &	    " Cosine of the solar incidence angle in the air :",TAB
-         WRITE (IDLOG,*,ERR=1010) 
+        WRITE (IDLOG,*,ERR=1010) 
      &	    " Cosine of the solar incidence angle in the sea :",TABW
-         WRITE (IDLOG,*,ERR=1010) 
+        WRITE (IDLOG,*,ERR=1010) 
      &	    " Solar incidence angle in the sea water :",
      &      DACOS(TABW)*180.D+00/INCTE_PI,
      &      DACOS(-TABW)*180.D+00/INCTE_PI
@@ -1359,14 +1374,14 @@ C----------------------------------------------------
 	 WRITE (IDLOG,*,ERR=1010) " "
 	 WRITE (IDLOG,*,ERR=1010) 
      &	    " Attenuation /4 toward the solar incidence direction :"
-         WRITE (IDLOG,*,ERR=1010) 
+        WRITE (IDLOG,*,ERR=1010) 
      &	    "           level      Opt_thick    Attenuation"
 	 DO I=0,CTE_NT_ATM
 	    WRITE (IDLOG,30,ERR=1010) '    Atm : ', 
      &	                             I, ATM_TAUEXT_TR(I), 4*CH_ATM(I)
 	 ENDDO
 	 CH_ATM_TOT=CH_ATM(CTE_NT_ATM)
-         WRITE (IDLOG,*,ERR=1010) "           level     Opt_thick"//
+        WRITE (IDLOG,*,ERR=1010) "           level     Opt_thick"//
      &   "     Attenuation   Tot_attenuation"
 	 DO I=0,CTE_NT_SEA
 	    WRITE (IDLOG,31,ERR=1010) '    Sea : ', 
@@ -1398,7 +1413,7 @@ C
 C--------------------------------------------------------------
 
       IF (TRACE) THEN
-          WRITE (IDLOG,*,ERR=1010) " " 
+         WRITE (IDLOG,*,ERR=1010) " " 
 	  WRITE (IDLOG,*,ERR=1010) "FOURIER SERIES EXPANSION"
 	  WRITE (IDLOG,*,ERR=1010) "************************"
 	  WRITE (IDLOG,*,ERR=1010) " " 
@@ -1550,13 +1565,13 @@ C* ====> I2_ATM, Q2_ATM, U2_ATM
 C-----------------------------------------------------------------------
          IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) 
-     &	       "\n Calculation of the atmospheric source function \n"
+     &	       " Calculation of the atmospheric source function "
 	 ENDIF
 	 
          CALL OSOAA_FSOURCE_ATM_ORDRE1(IS,NBMU,JK,
-     &	 			       ATM_PCAER_TR,ATM_PCRAY_TR,
+     &	 			           ATM_PCAER_TR,ATM_PCRAY_TR,
      &                                 BETA0_MOL_AIR,BETA2_MOL_AIR,
-     &				       GAMMA2_MOL_AIR,
+     &				           GAMMA2_MOL_AIR,
      &                                 XPL,XRL,XTL,
      &                                 BP_AER,GR_AER,GT_AER,CH_ATM,
      &                                 I2_ATM,Q2_ATM,U2_ATM)       
@@ -1590,10 +1605,11 @@ C* ====> I2_SEA, Q2_SEA, U2_SEA
 C-------------------------------------------------------------------    
          IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) 
-     &	    "\n Calculation ot the air / sea transmitted direct"//
-     &      " solar radiance"
+     &	    " Calculation ot the air / sea transmitted direct"//
+     &     " solar radiance"
      	    WRITE(IDLOG,*,ERR=1010) 
-     &	    " Calculation of the marine source function of order 1 \n"
+     &	    " Calculation of the marine source function of order 1"
+           WRITE (IDLOG,*,ERR=1010) " "
 	 ENDIF
 
          !Initialisation à zéro du champ marin d'ordre 0 (toutes directions confondues)
@@ -1681,19 +1697,20 @@ C-------------------------------------------------------------------
 	    
 	    !******* Traces d'expertise ********************************
             IF (TRACE_DEBUG) THEN
+	       WRITE(IDLOG,*,ERR=1010) " "
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	       "\n Transm. solar radiance just below the surface: IS=",
+     &	       " Transm. solar radiance just below the surface: IS=",
      &         IS
-               WRITE(IDLOG,*,ERR=1010) 
+              WRITE(IDLOG,*,ERR=1010) 
      &	       "   K    MU       ANGLE     I           Q           U"
-               II2=0.
+              II2=0.
 	       QQ2=0.			
 	       DO K=-NBMU,-1
 	          WRITE(IDLOG,401,ERR=1010) K,RMU(K),
      &		          -DACOS(RMU(-K))*180.D+00/INCTE_PI,
-     &			  I1_SEA(0,K),Q1_SEA(0,K),U1_SEA(0,K)
+     &			   I1_SEA(0,K),Q1_SEA(0,K),U1_SEA(0,K)
 	          II2 = II2 +GA(K)*I1_SEA(0,K)
-		  QQ2 = QQ2 +GA(K)*Q1_SEA(0,K)
+		   QQ2 = QQ2 +GA(K)*Q1_SEA(0,K)
 	       ENDDO
 	       WRITE(IDLOG,*,ERR=1010) " "
 	       WRITE(IDLOG,*,ERR=1010) "Integrated values : ",II2,QQ2
@@ -1769,10 +1786,10 @@ C-------------------------------------------------------------------
 	    QSUNDIR_DOWN_SSURF_MP= QDEV(M0)*(TAB/TABW)/(SEA_IND*SEA_IND)
 	   
             IF (TRACE) THEN
-	       WRITE(IDLOG,*,ERR=1010) 
+	        WRITE(IDLOG,*,ERR=1010) 
      &          '        Att. of direct solar flux: TOA to surface'//
      &          ' (level 0+) :', 4*CH_ATM(CTE_NT_ATM)
-	       WRITE(IDLOG,*,ERR=1010)
+	        WRITE(IDLOG,*,ERR=1010)
      &          '        Solar irradiance on surface (0+) / PI :',
      &                   IINC(N0)
                WRITE(IDLOG,*,ERR=1010) 
@@ -1855,7 +1872,7 @@ C-------------------------------------------------------------------
      &			I,K,RMU(K),I2_SEA(I,K),Q2_SEA(I,K),U2_SEA(I,K)
 	       ENDDO
 	    ENDDO  
-	 ENDIF
+	  ENDIF
 	 !**************************************************************
 	 
 
@@ -1893,7 +1910,7 @@ C                       (possible car seul IS=0 compte
 C                        et car la surface est lambertienne)
 C*******************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &      " Order S =",IS," / Order IG = 1 - Step 1"
 	    WRITE(IDLOG,*,ERR=1010) "             Sea bottom reflection"
@@ -1926,7 +1943,7 @@ C*******************************************************************
      &	             '  - Solar direct irradiance / PI,'//
      &	             ' at sea bottom   - Flat sea :',  
      &	             ISUNDIR_DOWN_SSURF_MP*4.*CH_SEA_MUS(CTE_NT_SEA)
-               ENDIF
+              ENDIF
 	       
 	       WRITE(IDLOG,*,ERR=1010) 
      &	          '  - Direct solar flux, transm. and att.'//
@@ -1947,7 +1964,8 @@ C		    --> Intégration du champ de luminance montant (mu > 0)
 C			du fond de mer à la surface
 C*************************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) " "
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010) 
      &	    " Order S =",IS," / Order IG = 1 - Step 2"
 	    WRITE(IDLOG,*,ERR=1010) "          Integr bottom -> surf"
@@ -1984,7 +2002,8 @@ C                   au passage mer -> air
 C*******************************************************************
 
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) " "
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010) 
      &	    " Order S =",IS," / Order IG = 1 - Step 3"
 	    WRITE(IDLOG,*,ERR=1010) "             Transm. Sea -> air"
@@ -1996,7 +2015,7 @@ C*******************************************************************
 	    				!Etape 3 : Cas mer agitée
 					!************************
 
-            IF (TRACE) WRITE(IDLOG,*,ERR=1010) "\n Rough sea : \n"
+            IF (TRACE) WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 
 
             DO K=1,NBMU		!K direction de transmission
@@ -2025,8 +2044,9 @@ C*******************************************************************
 	    ENDDO
 
             IF (TRACE) THEN
+	       WRITE(IDLOG,*,ERR=1010) " "
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	     "\n Upwelling field 0- / Upwelling field transmitted 0+ :"
+     &	     " Upward field 0- / Upward field transmitted 0+ :"
 	       WRITE(IDLOG,*,ERR=1010)"  - Incident field by direction"
 	       WRITE(IDLOG,*,ERR=1010) 
      &	       "  - Transmitted field = spatially integrated"
@@ -2040,15 +2060,15 @@ C*******************************************************************
                   WRITE(IDLOG,500,ERR=1010)
      &             ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
      &             ' I_INC ',I1_SEA(0,K),
-     &		   ' Q_INC ',Q1_SEA(0,K),
-     &		   ' U_INC ',U1_SEA(0,K),
+     &		     ' Q_INC ',Q1_SEA(0,K),
+     &		     ' U_INC ',U1_SEA(0,K),
      &             ' Ang trans :',DACOS(RMU(K))*180./INCTE_PI,
      &             ' I_TR ',I1_ATM(CTE_NT_ATM,K),
-     &		   ' Q_TR ',Q1_ATM(CTE_NT_ATM,K),
-     &		   ' U_TR ',U1_ATM(CTE_NT_ATM,K),
+     &		     ' Q_TR ',Q1_ATM(CTE_NT_ATM,K),
+     &		     ' U_TR ',U1_ATM(CTE_NT_ATM,K),
      &             ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		   ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		   ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		     ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		     ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
                ENDDO
 	    ENDIF
 	     	 	    	   
@@ -2062,10 +2082,10 @@ C*******************************************************************
 	       IINC(K) = I1_SEA(0,K)
 	       QINC(K) = Q1_SEA(0,K)
 	       UINC(K) = U1_SEA(0,K)
-	    ENDDO
+	     ENDDO
 	    
-	    CALL  OSOAA_INTERF_MERPLATE("TWA",SEA_IND,RMU,NBMU,
-     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
+	     CALL  OSOAA_INTERF_MERPLATE("TWA",SEA_IND,RMU,NBMU,
+     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -2080,27 +2100,27 @@ C*******************************************************************
 	       I1_ATM(CTE_NT_ATM,K) = IDEV(K)
 	       Q1_ATM(CTE_NT_ATM,K) = QDEV(K)
 	       U1_ATM(CTE_NT_ATM,K) = UDEV(K)
-	    ENDDO     
+	     ENDDO     
 
 
             IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	     "\n Upwelling field 0- / Upwelling field transmitted 0+ :"
+     &	     " Upward field 0- / Upward field transmitted 0+ :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
      &             ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
      &             ' I_INC ',IINC(K),
-     &		   ' Q_INC ',QINC(K),
-     &		   ' U_INC ',UINC(K),
+     &		     ' Q_INC ',QINC(K),
+     &		     ' U_INC ',UINC(K),
      &             ' Ang trans :',DACOS(RMU(K))*180./INCTE_PI,
      &             ' I_TR ',IDEV(K),
-     &		   ' Q_TR ',QDEV(K),
-     &		   ' U_TR ',UDEV(K),
+     &		     ' Q_TR ',QDEV(K),
+     &		     ' U_TR ',UDEV(K),
      &             ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		   ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		   ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		     ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		     ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
                ENDDO
-	    ENDIF
+	     ENDIF
 	    	    	    
          ENDIF  !Fin test mer plate ou agitée
 
@@ -2114,11 +2134,11 @@ C******** Etape 4 : Signal montant
 C                   Réflexion lambertienne de l'écume
 C*******************************************************************
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG = 1 - Step 4"
 	    WRITE(IDLOG,*,ERR=1010) "             Foam reflection     "
-	    WRITE(IDLOG,*,ERR=1010) "-------------------------------\n"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 	 
          IF ((RHO_SURF.NE.0.).AND.(IS.EQ.0)) THEN
@@ -2165,11 +2185,13 @@ C                     solaire direct réfléchi en surface selon la loi
 C                     de Fresnel (cas mer plate)
 C*************************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) " "
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG = 1 - Step 5"
 	    WRITE(IDLOG,*,ERR=1010) "             Integr surf -> TOA"
-	    WRITE(IDLOG,*,ERR=1010) "-------------------------------\n"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) " "
 	 ENDIF
 
 	 !Intégration de la surface au TOA 
@@ -2301,16 +2323,16 @@ C                   Calcul de la luminance atmosphérique descendante
 C		    du TOA à la surface
 C*************************************************************************		     	 
 	 IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG = 1 - Step 6"
 	    WRITE(IDLOG,*,ERR=1010) "             Integr TOA -> surf "
-	    WRITE(IDLOG,*,ERR=1010) "-------------------------------\n"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 
 	 CALL OSOAA_INTEGR_EPOPT_ATM_DOWN(NBMU,RMU,ATM_TAUEXT_TR,
-     &				          I2_ATM,Q2_ATM,U2_ATM,
-     &  	                          I1_ATM,Q1_ATM,U1_ATM)		
+     &				             I2_ATM,Q2_ATM,U2_ATM,
+     &  	                           I1_ATM,Q1_ATM,U1_ATM)		
   		
          !******* Traces d'expertise ***********************************
          IF (TRACE_DEBUG) THEN
@@ -2341,11 +2363,11 @@ C                   Calcul de la luminance descendante transmise
 C                   au passage air -> mer
 C*************************************************************************
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG = 1 - Step 7"
 	    WRITE(IDLOG,*,ERR=1010) "             Transm. Air -> sea"
-	    WRITE(IDLOG,*,ERR=1010) "-------------------------------\n"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 
 
@@ -2353,7 +2375,7 @@ C*************************************************************************
 	    				!Etape 7 : Cas mer agitée
 					!************************
 
-            IF (TRACE) WRITE(IDLOG,*,ERR=1010) "\n Rough sea : \n"
+            IF (TRACE) WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 
 
             DO K=1,NBMU		!K direction de transmission
@@ -2387,21 +2409,22 @@ C*************************************************************************
 	    ENDDO !Fin boucle sur K
 
             IF (TRACE) THEN
+	       WRITE(IDLOG,*,ERR=1010) " "
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	      "\n Downwelling radiance O+ / Transmitted radiance 0- :"
+     &	      " Downward radiance O+ / Transmitted radiance 0- :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
      &              ' Ang inc :',DACOS(RMU(-K))*180./INCTE_PI,
      &              ' I_INC ',I1_ATM(CTE_NT_ATM,-K),
-     &		    ' Q_INC ',Q1_ATM(CTE_NT_ATM,-K),
-     &		    ' U_INC ',U1_ATM(CTE_NT_ATM,-K),
+     &		      ' Q_INC ',Q1_ATM(CTE_NT_ATM,-K),
+     &		      ' U_INC ',U1_ATM(CTE_NT_ATM,-K),
      &              ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
      &              ' I_TR ',I1_SEA(0,-K),
-     &		    ' Q_TR ',Q1_SEA(0,-K),
-     &		    ' U_TR ',U1_SEA(0,-K),
+     &		      ' Q_TR ',Q1_SEA(0,-K),
+     &		      ' U_TR ',U1_SEA(0,-K),
      &              ' I_D_SSURF ',I1_SEA(0,-K),
-     &		    ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		    ' U_D_SSURF ',U1_SEA(0,-K)
+     &		      ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		      ' U_D_SSURF ',U1_SEA(0,-K)
                ENDDO
 	    ENDIF	        	   
 	   
@@ -2418,7 +2441,7 @@ C*************************************************************************
             
 	    
 	    CALL  OSOAA_INTERF_MERPLATE("TAW",SEA_IND,RMU,NBMU,
-     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
+     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -2434,20 +2457,20 @@ C*************************************************************************
 
             IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	      "\n Downwelling radiance O+ / Transmitted radiance 0- :"
+     &	      " Downward radiance O+ / Transmitted radiance 0- :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
      &              ' Ang inc :',DACOS(RMU(-K))*180./INCTE_PI,
      &              ' I_INC ',IINC(K),
-     &		    ' Q_INC ',QINC(K),
-     &		    ' U_INC ',UINC(K),
+     &		      ' Q_INC ',QINC(K),
+     &		      ' U_INC ',UINC(K),
      &              ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
      &              ' I_TR ',IDEV(K),
-     &		    ' Q_TR ',QDEV(K),
-     &		    ' U_TR ',UDEV(K),
+     &		      ' Q_TR ',QDEV(K),
+     &		      ' U_TR ',UDEV(K),
      &              ' I_D_SSURF ',I1_SEA(0,-K),
-     &		    ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		    ' U_D_SSURF ',U1_SEA(0,-K)
+     &		      ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		      ' U_D_SSURF ',U1_SEA(0,-K)
                ENDDO
 	    ENDIF	    
 	 
@@ -2460,21 +2483,21 @@ C                   Réflexion mer -> mer du signal marin montant
 C                   de même ordre (calculé à l'étape 2)
 C*************************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG = 1 - Step 8"
 	    WRITE(IDLOG,*,ERR=1010) "             Reflex. Sea -> sea"
-	    WRITE(IDLOG,*,ERR=1010) "-------------------------------\n"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 
 	 IF (IMAT_SURF.EQ.1) THEN	!************************
 	    				!Etape 8 : Cas mer agitée
 					!************************
 	    IF (TRACE) THEN
-	       WRITE(IDLOG,*,ERR=1010) "\n Rough sea : \n"
+	       WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 	       
 	       DO K=1,NBMU		!K direction de réflexion
-                  IINC(K) = I1_SEA(0,K)	!Stockage pour le fichier Trace
+                 IINC(K) = I1_SEA(0,K)	!Stockage pour le fichier Trace
 	          QINC(K) = Q1_SEA(0,K)
 	          UINC(K) = U1_SEA(0,K)		  
 	       ENDDO
@@ -2504,7 +2527,7 @@ C*************************************************************************
 	       QDEV(K)=QQ2*COEF_INTSPA
 	       UDEV(K)=UU2*COEF_INTSPA
 	             
-	       I1_SEA(0,-K)= I1_SEA(0,-K) + IDEV(K)	! Affectation au champ 
+	       I1_SEA(0,-K)= I1_SEA(0,-K) + IDEV(K)     ! Affectation au champ 
 	       Q1_SEA(0,-K)= Q1_SEA(0,-K) + QDEV(K)     ! descendant
 	       U1_SEA(0,-K)= U1_SEA(0,-K) + UDEV(K)
 	    ENDDO
@@ -2519,10 +2542,10 @@ C*************************************************************************
 	       IINC(K) = I1_SEA(0,K)
 	       QINC(K) = Q1_SEA(0,K)
 	       UINC(K) = U1_SEA(0,K)
-	    ENDDO
+	     ENDDO
 	    
-	    CALL  OSOAA_INTERF_MERPLATE("RWW",SEA_IND,RMU,NBMU,
-     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
+	     CALL  OSOAA_INTERF_MERPLATE("RWW",SEA_IND,RMU,NBMU,
+     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -2534,7 +2557,7 @@ C*************************************************************************
 	       I1_SEA(0,-K) = I1_SEA(0,-K) + IDEV(K)	!Affectation au champ descendant
 	       Q1_SEA(0,-K) = Q1_SEA(0,-K) + QDEV(K)
 	       U1_SEA(0,-K) = U1_SEA(0,-K) + UDEV(K)
-	    ENDDO     
+	     ENDDO     
 
 
 
@@ -2544,20 +2567,20 @@ C*************************************************************************
 
          IF (TRACE) THEN
 	     WRITE(IDLOG,*,ERR=1010) 
-     &	     "\n Upwelling radiance 0- / Downwelling radiance 0- :"
+     &	     " Upward radiance 0- / Downward radiance 0- :"
 	     DO K=1,NBMU
                 WRITE(IDLOG,500,ERR=1010)
      &             ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
      &             ' I_INC ',IINC(K),
-     &		   ' Q_INC ',QINC(K),
-     &		   ' U_INC ',UINC(K),
+     &		     ' Q_INC ',QINC(K),
+     &		     ' U_INC ',UINC(K),
      &             ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
      &             ' I_RF ',IDEV(K),
-     &		   ' Q_RF ',QDEV(K),
-     &		   ' U_RF ',UDEV(K),
+     &		     ' Q_RF ',QDEV(K),
+     &		     ' U_RF ',UDEV(K),
      &             ' I_D_SSURF ',I1_SEA(0,-K),
-     &		   ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		   ' U_D_SSURF ',U1_SEA(0,-K)
+     &		     ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		     ' U_D_SSURF ',U1_SEA(0,-K)
              ENDDO
 	 ENDIF	    
 
@@ -2568,11 +2591,11 @@ C                   Calcul de la luminance descendante
 C                   de la surface au fond de mer 
 C*************************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG = 1 - Step 9"
 	    WRITE(IDLOG,*,ERR=1010) "          Integr Surf -> bottom"
-	    WRITE(IDLOG,*,ERR=1010) "-------------------------------\n"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 
 	 CALL OSOAA_INTEGR_EPOPT_SEA_DOWN(NBMU,RMU,SEA_TAUEXT_TR,
@@ -2609,22 +2632,22 @@ C		     --> Affectation au profil atmosphérique
 C			 pour le signal montant
 C*************************************************************************
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG = 1 - Step 10"
 	    WRITE(IDLOG,*,ERR=1010) "             Reflex. Air -> air"
-	    WRITE(IDLOG,*,ERR=1010) "-------------------------------\n"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 	 	
 	 IF (IMAT_SURF.EQ.1) THEN	!*************************
 	    				!Etape 10 : Cas mer agitée
 					!*************************
 	    IF (TRACE) THEN
-	       WRITE(IDLOG,*,ERR=1010) "\n Rough sea : \n"
+	       WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 	       WRITE(IDLOG,*,ERR=1010) 
-     & 	          "  Reflexion air / air on surface :\n"
-               WRITE(IDLOG,*,ERR=1010) 
-     &	          "\n Downwelling radiance 0+ / Upwelling radiance 0+ :"
+     & 	          "  Reflexion air / air on surface :"
+              WRITE(IDLOG,*,ERR=1010) 
+     &	          " Downward radiance 0+ / Upward radiance 0+ :"
             ENDIF	     	    
 	    
             DO K=1,NBMU		!K direction de réflexion montante
@@ -2668,11 +2691,11 @@ C*************************************************************************
      &              ' Ang inc :',-DACOS(RMU(-K))*180./INCTE_PI,
      &              ' Ang refl  :',DACOS(RMU(K))*180./INCTE_PI,
      &              ' I_RF ',I1_REFL_L1ATM_SURF,
-     &		    ' Q_RF ',Q1_REFL_L1ATM_SURF,
-     &		    ' U_RF ',U1_REFL_L1ATM_SURF,
+     &		      ' Q_RF ',Q1_REFL_L1ATM_SURF,
+     &		      ' U_RF ',U1_REFL_L1ATM_SURF,
      &              ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		    ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		    ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		      ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		      ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
 	       ENDIF	     	 
 	                        
 	    ENDDO !Fin boucle sur direction propagation montante
@@ -2697,8 +2720,9 @@ C*************************************************************************
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
 
 	    IF (TRACE) THEN
+	        WRITE(IDLOG,*,ERR=1010) " "
                WRITE(IDLOG,*,ERR=1010) 
-     &	         "\n Downwelling radiance 0+ / Upwelling radiance 0+ :"
+     &	         " Downward radiance 0+ / Upward radiance 0+ :"
             ENDIF	     	    	    
 	    	    
             !Affectation du champ montant réfléchi au tableau du champ dans l'air
@@ -2723,15 +2747,15 @@ C*************************************************************************
                    WRITE(IDLOG,500,ERR=1010)
      &              ' Ang inc :',-DACOS(RMU(-K))*180./INCTE_PI,
      &              ' I_INC ',IINC(K),
-     &		    ' Q_INC ',QINC(K),
-     &		    ' U_INC ',UINC(K),
+     &		      ' Q_INC ',QINC(K),
+     &		      ' U_INC ',UINC(K),
      &              ' Ang refl  :',DACOS(RMU(K))*180./INCTE_PI,
      &              ' I_RF ',IDEV(K),
-     &		    ' Q_RF ',QDEV(K),
-     &		    ' U_RF ',UDEV(K),
+     &		      ' Q_RF ',QDEV(K),
+     &		      ' U_RF ',UDEV(K),
      &              ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		    ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		    ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		      ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		      ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
 	       ENDDO
 	    ENDIF	     	 
 	       
@@ -2871,7 +2895,7 @@ C-----------------------------------------------------------------------
 
          IF (TRACE) THEN
             WRITE(IDLOG,*,ERR=1010) 
-     &       '\n     Scattering order : IG = ',IG
+     &       '     Scattering order : IG = ',IG
             WRITE(IDLOG,*,ERR=1010) 
      &       '     ------------------------------'
             WRITE(IDLOG,*,ERR=1010) ' '	   
@@ -3014,11 +3038,11 @@ C                      au fond divisé par PI.
 C                              -------------
 C*******************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 1"
 	    WRITE(IDLOG,*,ERR=1010) "          Sea bottom reflection "
-	    WRITE(IDLOG,*,ERR=1010) "-------------------------------\n"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 
          I_REFL_BOT = 0.
@@ -3044,11 +3068,11 @@ C                   Calcul de la luminance remontante
 C                   du fond de mer à la surface
 C*******************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------" 
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------" 
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 2"
 	    WRITE(IDLOG,*,ERR=1010) "          Integr bottom -> surf"
-	    WRITE(IDLOG,*,ERR=1010) "-------------------------------\n"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 	 
 	 CALL OSOAA_INTEGR_EPOPT_SEA_UP(NBMU,RMU,SEA_TAUEXT_TR,
@@ -3063,7 +3087,7 @@ C                   au passage mer -> air
 C*******************************************************************	
 
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------" 
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------" 
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 3"
 	    WRITE(IDLOG,*,ERR=1010) "             Transm. Sea -> air"
@@ -3079,7 +3103,7 @@ C     à l'initialisation à zéro près de I1_ATM, Q1_ATM et U1_ATM.
 	    				!Etape 3 : Cas mer agitée	 
 					!************************	 
 
-            IF (TRACE) WRITE(IDLOG,*,ERR=1010) "\n Rough sea : \n"
+            IF (TRACE) WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 
             DO K=1,NBMU		!K direction de transmission
 	    
@@ -3113,20 +3137,20 @@ C     à l'initialisation à zéro près de I1_ATM, Q1_ATM et U1_ATM.
 
             IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	     "\n Upwelling field 0- / Upwelling field transmitted 0+ :"
+     &	     " Upward field 0- / Upward field transmitted 0+ :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
      &               ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
      &               ' I_INC ',I1_SEA(0,K),
-     &		     ' Q_INC ',Q1_SEA(0,K),
-     &		     ' U_INC ',U1_SEA(0,K),
+     &		       ' Q_INC ',Q1_SEA(0,K),
+     &		       ' U_INC ',U1_SEA(0,K),
      &               ' Ang trans :',DACOS(RMU(K))*180./INCTE_PI,
      &               ' I_TR ',I1_ATM(CTE_NT_ATM,K),
-     &		     ' Q_TR ',Q1_ATM(CTE_NT_ATM,K),
-     &		     ' U_TR ',U1_ATM(CTE_NT_ATM,K),
+     &		       ' Q_TR ',Q1_ATM(CTE_NT_ATM,K),
+     &		       ' U_TR ',U1_ATM(CTE_NT_ATM,K),
      &               ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		     ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		     ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		       ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		       ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
                ENDDO
 	    ENDIF	    	    	   
 	   
@@ -3139,10 +3163,10 @@ C     à l'initialisation à zéro près de I1_ATM, Q1_ATM et U1_ATM.
 	       IINC(K) = I1_SEA(0,K)
 	       QINC(K) = Q1_SEA(0,K)
 	       UINC(K) = U1_SEA(0,K)
-	    ENDDO
+	     ENDDO
 	    
-	    CALL  OSOAA_INTERF_MERPLATE("TWA",SEA_IND,RMU,NBMU,
-     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
+	     CALL  OSOAA_INTERF_MERPLATE("TWA",SEA_IND,RMU,NBMU,
+     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -3157,25 +3181,25 @@ C     à l'initialisation à zéro près de I1_ATM, Q1_ATM et U1_ATM.
 	       I1_ATM(CTE_NT_ATM,K) = IDEV(K)
 	       Q1_ATM(CTE_NT_ATM,K) = QDEV(K)
 	       U1_ATM(CTE_NT_ATM,K) = UDEV(K)
-	    ENDDO     
+	     ENDDO     
 
 
             IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	     "\n Upwelling field 0- / Upwelling field transmitted 0+ :"
+     &	     " Upward field 0- / Upward field transmitted 0+ :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
      &               ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
      &               ' I_INC ',IINC(K),
-     &		     ' Q_INC ',QINC(K),
-     &		     ' U_INC ',UINC(K),
+     &		       ' Q_INC ',QINC(K),
+     &		       ' U_INC ',UINC(K),
      &               ' Ang trans :',DACOS(RMU(K))*180./INCTE_PI,
      &               ' I_TR ',IDEV(K),
-     &		     ' Q_TR ',QDEV(K),
-     &		     ' U_TR ',UDEV(K),
+     &		       ' Q_TR ',QDEV(K),
+     &		       ' U_TR ',UDEV(K),
      &               ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		     ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		     ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		       ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		       ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
                ENDDO
 	    ENDIF	    
 	    	    
@@ -3189,7 +3213,7 @@ C******** Etape 4 : Signal montant
 C                   Réflexion lambertienne de l'écume
 C*******************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 4"
 	    WRITE(IDLOG,*,ERR=1010) "             Foam reflection"
@@ -3218,7 +3242,7 @@ C******** Etape 5 : Signal montant
 C                   Calcul de la luminance remontante de la surface au TOA
 C*************************************************************************
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------" 
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------" 
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 5"
 	    WRITE(IDLOG,*,ERR=1010) "             Integr surf -> TOA"
@@ -3226,7 +3250,7 @@ C*************************************************************************
 	 ENDIF
 
 	 CALL OSOAA_INTEGR_EPOPT_ATM_UP(NBMU,RMU,ATM_TAUEXT_TR,
-     &				        I2_ATM,Q2_ATM,U2_ATM,
+     &				          I2_ATM,Q2_ATM,U2_ATM,
      &  	                        I1_ATM,Q1_ATM,U1_ATM)
  
 
@@ -3259,7 +3283,7 @@ C                   Calcul de la luminance atmosphérique descendante
 C		    du TOA à la surface
 C*************************************************************************		     
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------" 
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------" 
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 6"
 	    WRITE(IDLOG,*,ERR=1010) "             Integr TOA -> surf"
@@ -3306,7 +3330,7 @@ C                   Calcul de la luminance descendante transmise
 C                   au passage air -> mer
 C*************************************************************************			
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------" 
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------" 
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 7"
 	    WRITE(IDLOG,*,ERR=1010) "             Transm. Air -> sea"
@@ -3320,7 +3344,7 @@ C NB: traitements identiques à l'étape 7 ordre 1.
 	    				!Etape 7 : Cas mer agitée	 
 					!************************	 
 
-            IF (TRACE) WRITE(IDLOG,*,ERR=1010) "\n Rough sea : \n"
+            IF (TRACE) WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 
             DO K=1,NBMU		!K direction de transmission
 	       
@@ -3353,21 +3377,22 @@ C NB: traitements identiques à l'étape 7 ordre 1.
 	    ENDDO
     	   
             IF (TRACE) THEN
+	       WRITE(IDLOG,*,ERR=1010) " "
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	      "\n Downwelling radiance O+ / Transmitted radiance 0- :"
+     &	      " Downward radiance O+ / Transmitted radiance 0- :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
      &              ' Ang inc :',DACOS(RMU(-K))*180./INCTE_PI,
      &              ' I_INC ',I1_ATM(CTE_NT_ATM,-K),
-     &		    ' Q_INC ',Q1_ATM(CTE_NT_ATM,-K),
-     &		    ' U_INC ',U1_ATM(CTE_NT_ATM,-K),
+     &		      ' Q_INC ',Q1_ATM(CTE_NT_ATM,-K),
+     &		      ' U_INC ',U1_ATM(CTE_NT_ATM,-K),
      &              ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
      &              ' I_TR ',I1_SEA(0,-K),
-     &		    ' Q_TR ',Q1_SEA(0,-K),
-     &		    ' U_TR ',U1_SEA(0,-K),
+     &		      ' Q_TR ',Q1_SEA(0,-K),
+     &		      ' U_TR ',U1_SEA(0,-K),
      &              ' I_D_SSURF ',I1_SEA(0,-K),
-     &		    ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		    ' U_D_SSURF ',U1_SEA(0,-K)
+     &		      ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		      ' U_D_SSURF ',U1_SEA(0,-K)
                ENDDO
 	    ENDIF	        	   
 	    	   
@@ -3399,21 +3424,22 @@ C NB: traitements identiques à l'étape 7 ordre 1.
 	    ENDDO     
 
             IF (TRACE) THEN
+	       WRITE(IDLOG,*,ERR=1010) " "
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	      "\n Downwelling radiance O+ / Transmitted radiance 0- :"
+     &	      " Downward radiance O+ / Transmitted radiance 0- :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
      &              ' Ang inc :',DACOS(RMU(-K))*180./INCTE_PI,
      &              ' I_INC ',IINC(K),
-     &		    ' Q_INC ',QINC(K),
-     &		    ' U_INC ',UINC(K),
+     &		      ' Q_INC ',QINC(K),
+     &		      ' U_INC ',UINC(K),
      &              ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
      &              ' I_TR ',IDEV(K),
-     &		    ' Q_TR ',QDEV(K),
-     &		    ' U_TR ',UDEV(K),
+     &		      ' Q_TR ',QDEV(K),
+     &		      ' U_TR ',UDEV(K),
      &              ' I_D_SSURF ',I1_SEA(0,-K),
-     &		    ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		    ' U_D_SSURF ',U1_SEA(0,-K)
+     &		      ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		      ' U_D_SSURF ',U1_SEA(0,-K)
                ENDDO
 	    ENDIF	    
 	
@@ -3428,7 +3454,7 @@ C                   Réflexion mer -> mer du signal marin montant
 C                   de même ordre (calculé à l'étape 2)
 C*************************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 8"
 	    WRITE(IDLOG,*,ERR=1010) "             Reflex. Sea -> sea"
@@ -3442,10 +3468,10 @@ C NB: traitements identiques à l'étape 8 ordre 1.
 	    				!Etape 8 : Cas mer agitée	 
 					!************************	 
             IF (TRACE) THEN
-	       WRITE(IDLOG,*,ERR=1010) "\n Rough sea : \n"
+	       WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 	       
 	       DO K=1,NBMU		!K direction de réflexion
-                  IINC(K) = I1_SEA(0,K)	!Stockage pour le fichier Trace
+                 IINC(K) = I1_SEA(0,K)	!Stockage pour le fichier Trace
 	          QINC(K) = Q1_SEA(0,K)
 	          UINC(K) = U1_SEA(0,K)		  
 	       ENDDO
@@ -3491,10 +3517,10 @@ C NB: traitements identiques à l'étape 8 ordre 1.
 	       IINC(K) = I1_SEA(0,K)
 	       QINC(K) = Q1_SEA(0,K)
 	       UINC(K) = U1_SEA(0,K)
-	    ENDDO
+	     ENDDO
 	    
-	    CALL  OSOAA_INTERF_MERPLATE("RWW",SEA_IND,RMU,NBMU,
-     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
+	     CALL  OSOAA_INTERF_MERPLATE("RWW",SEA_IND,RMU,NBMU,
+     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -3506,7 +3532,7 @@ C NB: traitements identiques à l'étape 8 ordre 1.
 	       I1_SEA(0,-K) = I1_SEA(0,-K) + IDEV(K)	!Affectation au champ descendant
 	       Q1_SEA(0,-K) = Q1_SEA(0,-K) + QDEV(K)
 	       U1_SEA(0,-K) = U1_SEA(0,-K) + UDEV(K)
-	    ENDDO     
+	     ENDDO     
 
 
 
@@ -3515,20 +3541,20 @@ C NB: traitements identiques à l'étape 8 ordre 1.
 	
          IF (TRACE) THEN
 	     WRITE(IDLOG,*,ERR=1010) 
-     &	     "\n Upwelling radiance 0- / Downwelling radiance 0- :"
+     &	     " Upward radiance 0- / Downward radiance 0- :"
 	     DO K=1,NBMU
                 WRITE(IDLOG,500,ERR=1010)
      &             ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
      &             ' I_INC ',IINC(K),
-     &		   ' Q_INC ',QINC(K),
-     &		   ' U_INC ',UINC(K),
+     &		     ' Q_INC ',QINC(K),
+     &		     ' U_INC ',UINC(K),
      &             ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
      &             ' I_RF ',IDEV(K),
-     &		   ' Q_RF ',QDEV(K),
-     &		   ' U_RF ',UDEV(K),
+     &		     ' Q_RF ',QDEV(K),
+     &		     ' U_RF ',UDEV(K),
      &             ' I_D_SSURF ',I1_SEA(0,-K),
-     &		   ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		   ' U_D_SSURF ',U1_SEA(0,-K)
+     &		     ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		     ' U_D_SSURF ',U1_SEA(0,-K)
              ENDDO
 	 ENDIF	    		
 		
@@ -3539,7 +3565,7 @@ C                   Calcul de la luminance descendante
 C                   de la surface au fond de mer 
 C*************************************************************************	
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------"
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 9"
 	    WRITE(IDLOG,*,ERR=1010) "          Integr Surf -> bottom"
@@ -3587,7 +3613,7 @@ C		     --> Affectation au profil atmosphérique
 C			 pour le signal montant
 C*************************************************************************
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) "\n-------------------------------" 
+	    WRITE(IDLOG,*,ERR=1010) "-------------------------------" 
 	    WRITE(IDLOG,*,ERR=1010)  
      &	    " Order S =",IS," / Order IG =",IG," - Step 10"
 	    WRITE(IDLOG,*,ERR=1010) "             Reflex. Air -> air"
@@ -3600,10 +3626,10 @@ C NB: traitements identiques à l'étape 10 ordre 1.
 	 IF (IMAT_SURF.EQ.1) THEN	!*************************
 	    				!Etape 10 : Cas mer agitée	 
 					!*************************	 
-	    IF (TRACE) THEN
-	       WRITE(IDLOG,*,ERR=1010) "\n Rough sea : \n"
+	     IF (TRACE) THEN
+	       WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 	       WRITE(IDLOG,*,ERR=1010) 
-     & 	            "  Reflexion air / air on surface :\n"
+     & 	            "  Reflexion air / air on surface :"
             ENDIF	     	 
 	    
             DO K=1,NBMU		!K direction de réflexion montante
@@ -3636,22 +3662,22 @@ C NB: traitements identiques à l'étape 10 ordre 1.
 	          DTAU = ATM_TAUEXT_TR(I)-ATM_TAUEXT_TR_TOT
 	          ATTVIS = DEXP(DTAU/RMU(K))
 		  
-		  I1_ATM(I,K) = I1_ATM(I,K) + I1_REFL_L1ATM_SURF*ATTVIS
-		  Q1_ATM(I,K) = Q1_ATM(I,K) + Q1_REFL_L1ATM_SURF*ATTVIS
-		  U1_ATM(I,K) = U1_ATM(I,K) + U1_REFL_L1ATM_SURF*ATTVIS
+		   I1_ATM(I,K) = I1_ATM(I,K) + I1_REFL_L1ATM_SURF*ATTVIS
+		   Q1_ATM(I,K) = Q1_ATM(I,K) + Q1_REFL_L1ATM_SURF*ATTVIS
+		   U1_ATM(I,K) = U1_ATM(I,K) + U1_REFL_L1ATM_SURF*ATTVIS
 	       
 	       ENDDO !Fin boucle sur profil atmosphérique
 
                IF (TRACE) THEN
                    WRITE(IDLOG,511,ERR=1010)
      &              ' Ang inc :',-DACOS(RMU(-K))*180./INCTE_PI,
-     &              ' Ang refl  :',DACOS(RMU(K))*180./INCTE_PI,
+     &              ' Ang refl:',DACOS(RMU(K))*180./INCTE_PI,
      &              ' I_RF ',I1_REFL_L1ATM_SURF,
-     &		    ' Q_RF ',Q1_REFL_L1ATM_SURF,
-     &		    ' U_RF ',U1_REFL_L1ATM_SURF,
+     &		      ' Q_RF ',Q1_REFL_L1ATM_SURF,
+     &		      ' U_RF ',U1_REFL_L1ATM_SURF,
      &              ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		    ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		    ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		      ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		      ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
 	       ENDIF	     	 
 	                        
 	    ENDDO !Fin boucle sur direction propagation montante
@@ -3667,10 +3693,10 @@ C NB: traitements identiques à l'étape 10 ordre 1.
 	       IINC(K) = I1_ATM(CTE_NT_ATM,-K)
 	       QINC(K) = Q1_ATM(CTE_NT_ATM,-K)
 	       UINC(K) = U1_ATM(CTE_NT_ATM,-K)
-	    ENDDO         
+	     ENDDO         
 	    
-	    CALL  OSOAA_INTERF_MERPLATE("RAA",SEA_IND,RMU,NBMU,
-     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
+	     CALL  OSOAA_INTERF_MERPLATE("RAA",SEA_IND,RMU,NBMU,
+     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -3690,12 +3716,12 @@ C NB: traitements identiques à l'étape 10 ordre 1.
 	       
 	       ENDDO !Fin boucle sur profil atmosphérique
                  
-	    ENDDO !Fin boucle sur direction propagation montante
+	     ENDDO !Fin boucle sur direction propagation montante
 
 
             IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	       "\n Downwelling radiance 0+ / Upwelling radiance 0+ :"
+     &	       " Downward radiance 0+ / Upward radiance 0+ :"
 	       DO K=1,NBMU		
                    WRITE(IDLOG,500,ERR=1010)
      &              ' Ang inc :',-DACOS(RMU(-K))*180./INCTE_PI,
@@ -4137,7 +4163,6 @@ C----------------------------------------------------
 
 	    !Flux montant direct au TOA 
 	    IF (IMAT_SURF.EQ.1) THEN !Cas mer agitée
-	        FLUX_UP_TOA_DIR = -999.
 		FLUX_UP_TOA_DIR = 0.
 		DO J=1,NBMU
 		   FLUX_UP_TOA_DIR = FLUX_UP_TOA_DIR 
@@ -4225,9 +4250,26 @@ C----------------------------------------------------
 	       !   Flux descendant = Es*cosThetas*exp(-TAU/cosThetas) avec Es = PI
 	       PROFIL_FLUX_DOWN_DIR(I) = 4.*CH_ATM(I)*(-TAB)  
 	       !   Flux montant = (Flux surface glitter direct)*exp[-(TAUatm-TAU)/cosThetas]
-	       PROFIL_FLUX_UP_DIR(I) 
-     &	       = FLUX_UP_SURF_DIR * 4.*CH_ATM(I)/CH_ATM_TOT
-	       
+
+              IF (IMAT_SURF.EQ.1) THEN !Cas mer agitée		! MOD V1.3: 30/05/2018 : 
+									! Distinction cas mer agitée / mer plate
+		    DTAU =  ATM_TAUEXT_TR(I) - ATM_TAUEXT_TR_TOT
+
+                  PROFIL_FLUX_UP_DIR(I) = 0.
+		    DO J=1,NBMU
+		       PROFIL_FLUX_UP_DIR(I) = PROFIL_FLUX_UP_DIR(I) 
+     &		   	+ RAA11(N0,J)*DEXP(DTAU/RMU(J))*GA(J)		
+		    ENDDO
+		    PROFIL_FLUX_UP_DIR(I) = 
+     &            PROFIL_FLUX_UP_DIR(I)*0.5*CH_ATM_TOT  ! Integration incluant la normalisation par Es=PI
+
+              ELSE ! Cas mer plate					! MOD V1.3: 30/05/2018 : 
+									! Correction des trajets optiques
+									! et normalisation par Es=PI
+		    PROFIL_FLUX_UP_DIR(I) = FLUX_UP_SURF_DIR * CH_ATM_TOT 
+     &	                                 / (4.*CH_ATM(I)*INCTE_PI) 
+              ENDIF	   
+ 	       
 	       !Flux descendant et montant total : direct + diffus, , normalisé par rapport 
 	       !à l'éclairement TOA Es (Es=PI)  
 	       PROFIL_FLUX_DOWN_TOT(I) = PROFIL_FLUX_DOWN_DIR(I) 
@@ -4298,13 +4340,13 @@ C* Fichier trace
 C------------------------------------------------------  
          IF (TRACE) THEN
             WRITE(IDLOG,*,ERR=1010) '  '
-	    WRITE(IDLOG,*,ERR=1010) 
+	     WRITE(IDLOG,*,ERR=1010) 
      &      '    Scattering accumulation : IS = ',IS
-	    WRITE(IDLOG,*,ERR=1010) '    ------------------------'
-	    WRITE(IDLOG,*,ERR=1010) '  '
-	    WRITE(IDLOG,*,ERR=1010)	    
-     &      '  --> Upwelling radiance at TOA '//
-     &      '& Downwelling radiance at sea bottom:'
+	     WRITE(IDLOG,*,ERR=1010) '    ------------------------'
+	     WRITE(IDLOG,*,ERR=1010) '  '
+	     WRITE(IDLOG,*,ERR=1010)	    
+     &      '  --> Upward radiance at TOA '//
+     &      '& Downward radiance at sea bottom:'
             WRITE(IDLOG,*,ERR=1010) '  '	   	    
             DO K=1,NBMU
               WRITE(IDLOG,20,ERR=1010) RMU(K),
@@ -4314,10 +4356,10 @@ C------------------------------------------------------
      &                             '  IM ',I3(0,K),
      &                             '  QM ',Q3(0,K),
      &                             '  UM ',U3(0,K) 
- 	    ENDDO
+ 	     ENDDO
             WRITE(IDLOG,*,ERR=1010) ' '
-	    WRITE(IDLOG,*,ERR=1010) ' '	 
-	    WRITE(IDLOG,*,ERR=1010)	    
+	     WRITE(IDLOG,*,ERR=1010) ' '	 
+	     WRITE(IDLOG,*,ERR=1010)	    
      &        '  --> Field above sea surface (level 0+) :'
             WRITE(IDLOG,*,ERR=1010) '  ' 
             DO K=1,NBMU
@@ -4328,10 +4370,10 @@ C------------------------------------------------------
      &                             '  IM ',I3(CTE_NT_ATM,K),
      &                             '  QM ',Q3(CTE_NT_ATM,K),
      &                             '  UM ',U3(CTE_NT_ATM,K)
- 	    ENDDO
+ 	     ENDDO
             WRITE(IDLOG,*,ERR=1010) ' '  	    	 
-	    WRITE(IDLOG,*,ERR=1010) ' '	 
-	    WRITE(IDLOG,*,ERR=1010)	    
+	     WRITE(IDLOG,*,ERR=1010) ' '	 
+	     WRITE(IDLOG,*,ERR=1010)	    
      &        '  --> Field just below sea surface (level 0-) :'
             WRITE(IDLOG,*,ERR=1010) '  '	   	    
             DO K=1,NBMU
@@ -4342,12 +4384,12 @@ C------------------------------------------------------
      &                             '  IM ',I3(CTE_NT_ATM+1,K),
      &                             '  QM ',Q3(CTE_NT_ATM+1,K),
      &                             '  UM ',U3(CTE_NT_ATM+1,K)
- 	    ENDDO
+ 	     ENDDO
             WRITE(IDLOG,*,ERR=1010) ' '  	    	 
-	    WRITE(IDLOG,*,ERR=1010) ' '	 
-	    WRITE(IDLOG,*,ERR=1010)	    
-     &        '  --> Upwelling radiance  '//
-     &        '& Downwelling radiance at sea bottom:'
+	     WRITE(IDLOG,*,ERR=1010) ' '	 
+	     WRITE(IDLOG,*,ERR=1010)	    
+     &        '  --> Upward radiance  '//
+     &        '& Downward radiance at sea bottom:'
 
             WRITE(IDLOG,*,ERR=1010) '  '	   	    
             DO K=1,NBMU
@@ -4358,7 +4400,7 @@ C------------------------------------------------------
      &                             '  IM ',I3(NT_TOT,K),
      &                             '  QM ',Q3(NT_TOT,K),
      &                             '  UM ',U3(NT_TOT,K)
- 	    ENDDO
+ 	     ENDDO
             WRITE(IDLOG,*,ERR=1010) ' '
          ENDIF
 
@@ -4369,8 +4411,8 @@ C* Bornes d'enregistrement des tableaux limitées au dimensionnement
 C* utile en angles : -NBMU:NBMU
 C--------------------------------------------------------------
          WRITE(IDFICOS,ERR=1061)((I3(I,K),I=0,NT_TOT),K=-NBMU,NBMU),
-     & 			        ((Q3(I,K),I=0,NT_TOT),K=-NBMU,NBMU),
-     &			        ((U3(I,K),I=0,NT_TOT),K=-NBMU,NBMU)
+     & 			    ((Q3(I,K),I=0,NT_TOT),K=-NBMU,NBMU),
+     &			           ((U3(I,K),I=0,NT_TOT),K=-NBMU,NBMU)
       
 
 
@@ -4401,107 +4443,118 @@ C----------------------
 
 
       IF (TRACE) THEN
-         WRITE(IDLOG,*,ERR=1010) ' '
+        WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) "--> End of the Fourier series"//
      & 				 " expansion for the order : ", IS
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' '
-	 WRITE(IDLOG,*,ERR=1010) 'FLUX : '
-	 WRITE(IDLOG,*,ERR=1010) '****** '
+	 WRITE(IDLOG,*,ERR=1010) 
+     &  'FLUX (normalized by TOA solar irradiance): '
+	 WRITE(IDLOG,*,ERR=1010) 
+     &  '***************************************** '
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' TOA level:'
 	 WRITE(IDLOG,*,ERR=1010) ' ----------'
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up diffuse :',FLUX_UP_TOA_DIFF
+     &	    '   - Flux Up diffuse :',FLUX_UP_TOA_DIFF / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up direct  :',FLUX_UP_TOA_DIR
+     &	    '   - Flux Up direct  :',FLUX_UP_TOA_DIR / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up total (diffuse + direct) :',FLUX_UP_TOA_TOT
+     &	    '   - Flux Up total (diffuse + direct) :',
+     &     FLUX_UP_TOA_TOT / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down direct (incident solar flux):',
-     &      FLUX_DOWN_TOA_DIR
-         WRITE(IDLOG,*,ERR=1010) ' '
+     &      FLUX_DOWN_TOA_DIR / INCTE_PI
+        WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' Level 0+ (surface):'
 	 WRITE(IDLOG,*,ERR=1010) ' -------------------'
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up diffuse :',FLUX_UP_SURF_DIFF
+     &	    '   - Flux Up diffuse :',FLUX_UP_SURF_DIFF / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up direct  :',FLUX_UP_SURF_DIR
+     &	    '   - Flux Up direct  :',FLUX_UP_SURF_DIR / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up total (diffuse + direct) :',FLUX_UP_SURF_TOT
+     &	    '   - Flux Up total (diffuse + direct) :',
+     &     FLUX_UP_SURF_TOT / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Down diffus :',FLUX_DOWN_SURF_DIFF
+     &	    '   - Flux Down diffus :',
+     &     FLUX_DOWN_SURF_DIFF / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down direct (incident solar flux):',
-     &      FLUX_DOWN_SURF_DIR
+     &      FLUX_DOWN_SURF_DIR / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down total (diffus + direct) :',
-     &      FLUX_DOWN_SURF_TOT
+     &      FLUX_DOWN_SURF_TOT / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux diffus total (up + down) :', FLUX_TOT_SURF_DIFF
-         WRITE(IDLOG,*,ERR=1010) ' '
+     &	    '   - Flux diffus total (up + down) :',
+     &     FLUX_TOT_SURF_DIFF / INCTE_PI
+        WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' Level 0- (below surface):'
 	 WRITE(IDLOG,*,ERR=1010) ' -------------------------'
 	 WRITE(IDLOG,*,ERR=1010) ' '
-	 WRITE(IDLOG,*,ERR=1010) '   - Flux Up :',FLUX_UP_SSURF
+	 WRITE(IDLOG,*,ERR=1010) '   - Flux Up :',
+     &  FLUX_UP_SSURF / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Down diffuse :',FLUX_DOWN_SSURF_DIFF
+     &	    '   - Flux Down diffuse :',
+     &     FLUX_DOWN_SSURF_DIFF / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down direct (transmitted incident solar flux):',
-     &      FLUX_DOWN_SSURF_DIR
+     &      FLUX_DOWN_SSURF_DIR / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down total (diffuse + direct) :',
-     &      FLUX_DOWN_SSURF_TOT
+     &      FLUX_DOWN_SSURF_TOT / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux diffus total (up + down) :', FLUX_TOT_SSURF_DIFF
+     &	    '   - Flux diffus total (up + down) :', 
+     &     FLUX_TOT_SSURF_DIFF / INCTE_PI
        
-         WRITE(IDLOG,*,ERR=1010) ''
+        WRITE(IDLOG,*,ERR=1010) ''
 	 WRITE(IDLOG,*,ERR=1010) '   - Spherical Flux Up:', 
-     &	    FLUX_SPHE_UP_SSURF
+     &	    FLUX_SPHE_UP_SSURF / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Spherical Flux Down diffuse :',
-     &      FLUX_SPHE_DOWN_SSURF_DIFF
+     &      FLUX_SPHE_DOWN_SSURF_DIFF / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Spherical Flux Down direct :',
-     &      FLUX_SPHE_DOWN_SSURF_DIR
+     &      FLUX_SPHE_DOWN_SSURF_DIR / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Spherical Flux total diffuse (up + down) :',
-     &      FLUX_SPHE_TOT_SSURF_DIFF
+     &      FLUX_SPHE_TOT_SSURF_DIFF / INCTE_PI
 	 WRITE(IDLOG,*,ERR=1010) ' ' 
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' Ratio Flux down total 0- /0+ :',
      &	        FLUX_DOWN_SSURF_TOT / FLUX_DOWN_SURF_TOT
-         WRITE(IDLOG,*,ERR=1010) ' Ratio Flux down direct 0- /0+ :',
+        WRITE(IDLOG,*,ERR=1010) ' Ratio Flux down direct 0- /0+ :',
      &	        FLUX_DOWN_SSURF_DIR / FLUX_DOWN_SURF_DIR
-         WRITE(IDLOG,*,ERR=1010) ' Ratio Flux down diffuse 0- /0+ :',
+        WRITE(IDLOG,*,ERR=1010) ' Ratio Flux down diffuse 0- /0+ :',
      &	        FLUX_DOWN_SSURF_DIFF / FLUX_DOWN_SURF_DIFF
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	 ' Profile of downwelling and upwelling flux'//
+     &	 ' Profile of downward and upward flux'//
      &	 ' from TOA to the sea bottom '
-         WRITE(IDLOG,*,ERR=1010) 
-     &	 ' normalised to the solar irradiance at TOA :'
-         WRITE(IDLOG,*,ERR=1010) 
+        WRITE(IDLOG,*,ERR=1010) 
+     &	 ' normalized by the solar irradiance at TOA :'
+        WRITE(IDLOG,*,ERR=1010) 
      &	 ' -----------------------------------------------------------'
-         WRITE(IDLOG,*,ERR=1010) 'Level    Z(m)         Direct_Down'//
+        WRITE(IDLOG,*,ERR=1010) 'Level    Z(m)         Direct_Down'//
      &	 '   Diffuse_Down  Total_Down '//
-     &	 '   Direct_Up     Diffuse_Up    Total_Up '
+     &	 '   Direct_Up     Diffuse_Up    Total_Up   Total_Up/Total_Down'
 	 
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 DO I=0,NT_TOT
-	    WRITE(IDLOG,600,ERR=1010) I,PROFIL_Z(I),
-     &                                  PROFIL_FLUX_DOWN_DIR(I),
-     &	                                PROFIL_FLUX_DOWN_DIFF(I),
-     &                                  PROFIL_FLUX_DOWN_TOT(I),
-     &					PROFIL_FLUX_UP_DIR(I),
-     &	                                PROFIL_FLUX_UP_DIFF(I),
-     &                                  PROFIL_FLUX_UP_TOT(I)
+	    WRITE(IDLOG,600,ERR=1010) 
+     &           I,PROFIL_Z(I),
+     &           PROFIL_FLUX_DOWN_DIR(I),
+     &	          PROFIL_FLUX_DOWN_DIFF(I),
+     &           PROFIL_FLUX_DOWN_TOT(I),
+     &		   PROFIL_FLUX_UP_DIR(I),
+     &	          PROFIL_FLUX_UP_DIFF(I),
+     &           PROFIL_FLUX_UP_TOT(I),
+     &           (PROFIL_FLUX_UP_TOT(I)/PROFIL_FLUX_DOWN_TOT(I))
 	 ENDDO
 	 
       ENDIF !fin Trace  
@@ -4511,7 +4564,7 @@ C* Enregistrement du profil de flux dans le fichier "Flux.txt"
 C------------------------------------------------------------------
       OPEN(UNIT=11,FILE=FIC_FLUX,ERR=1300) 
       WRITE(11,*,ERR=1301) 
-     &' Profile of downwelling and upwelling  flux'//
+     &' Profile of downward and upward fluxes'//
      &' from TOA to the sea bottom '
       WRITE(11,*,ERR=1301) 
      &' normalised to the solar irradiance at TOA :'
@@ -4519,17 +4572,19 @@ C------------------------------------------------------------------
      &' ------------------------------------------------------'
       WRITE(11,*,ERR=1301) 'Level    Z(m)         Direct_Down'//
      &	 '   Diffuse_Down  Total_Down '//
-     &	 '   Direct_Up     Diffuse_Up    Total_Up '
+     &	 '   Direct_Up     Diffuse_Up    Total_Up   Total_Up/Total_Down'
 	 
       WRITE(11,*,ERR=1301) ' '
       DO I=0,NT_TOT
-	 WRITE(11,600,ERR=1301) I,PROFIL_Z(I),
-     &                            PROFIL_FLUX_DOWN_DIR(I),
-     &	                          PROFIL_FLUX_DOWN_DIFF(I),
-     &                            PROFIL_FLUX_DOWN_TOT(I),
-     &                            PROFIL_FLUX_UP_DIR(I),
-     &	                          PROFIL_FLUX_UP_DIFF(I),
-     &                            PROFIL_FLUX_UP_TOT(I)
+	 WRITE(11,600,ERR=1301) 
+     &       I,PROFIL_Z(I),
+     &       PROFIL_FLUX_DOWN_DIR(I),
+     &	      PROFIL_FLUX_DOWN_DIFF(I),
+     &       PROFIL_FLUX_DOWN_TOT(I),
+     &       PROFIL_FLUX_UP_DIR(I),
+     &	      PROFIL_FLUX_UP_DIFF(I),
+     &       PROFIL_FLUX_UP_TOT(I),
+     &       (PROFIL_FLUX_UP_TOT(I)/PROFIL_FLUX_DOWN_TOT(I))
       ENDDO
       CLOSE(11)
 	     	 
@@ -4620,7 +4675,7 @@ C---------
   402 FORMAT(I4,2X,I4,2X,F10.6,2X,3(2X,E10.4))              
   500 FORMAT(A10,F9.3,3(A7,E9.3),1X,A12,F8.4,3(A6,E9.3),3(A11,E9.3))   
   511 FORMAT(A10,F9.3,1X,A12,F8.4,3(A6,E9.3),3(A11,E9.3))   
-  600 FORMAT(2X,I4,1X,F12.5,2X,6(2X,E12.6))     
+  600 FORMAT(2X,I4,1X,F12.5,2X,7(2X,E12.6))     
       END      !FIN DE LA PROCEDURE OSOAA_SOS_CORE
       
       
@@ -8066,7 +8121,7 @@ C
 C
 C==============================================================================
       SUBROUTINE OSOAA_INTERF_MERPLATE(CINTER,IND,RMU,NBMU,
-     & 				       I_INC,Q_INC,U_INC,
+     & 				I_INC,Q_INC,U_INC,
      &				       I_DEV_INTERPO,Q_DEV_INTERPO,
      &				       U_DEV_INTERPO, TRACE, IER)
       
@@ -8189,19 +8244,19 @@ C---------------------------------------------------------------------------
          WRITE(IDLOG,*,ERR=910) "\n Flat sea :"
 	 
          IF (CINTER.EQ."RAA") THEN
-	    WRITE(IDLOG,*,ERR=910) " Reflection Air -> Air \n "
+	    WRITE(IDLOG,*,ERR=910) " Reflection Air -> Air  "
 	 ENDIF   
 
          IF (CINTER.EQ."RWW") THEN
-	    WRITE(IDLOG,*,ERR=910) " Reflection Sea -> Sea \n "
+	    WRITE(IDLOG,*,ERR=910) " Reflection Sea -> Sea  "
 	 ENDIF   
 	 
          IF (CINTER.EQ."TAW") THEN
-	    WRITE(IDLOG,*,ERR=910) " Transmission Air -> Sea \n "
+	    WRITE(IDLOG,*,ERR=910) " Transmission Air -> Sea  "
 	 ENDIF  
 
          IF (CINTER.EQ."TWA") THEN
-	    WRITE(IDLOG,*,ERR=910) " Transmission Sea -> Air \n "
+	    WRITE(IDLOG,*,ERR=910) " Transmission Sea -> Air  "
 	 ENDIF   	  	 
       ENDIF 
       
@@ -8272,7 +8327,7 @@ C----------------------------------------------------------------
 C* Passage de l'interface : champ pour les angles de transmissions
 C*                          directement associés aux angles de Gauss incident	
 C--------------------------------------------------------------
-         I_DEV(J) = F11(J)*I_INC(J) + F12(J)*Q_INC(J)
+        I_DEV(J) = F11(J)*I_INC(J) + F12(J)*Q_INC(J)
 	 Q_DEV(J) = F12(J)*I_INC(J) + F11(J)*Q_INC(J)
 	 U_DEV(J) = F33(J)*U_INC(J) 
 	 
@@ -8286,15 +8341,17 @@ C-----------------
      &           ' Ang trans :',DACOS(RMUT(J))*180./INCTE_PI,
      &           ' F11 ',F11(J),' F12 ',F12(J),' F33 ',F33(J),
      &           ' I_I ',I_INC(J),' I_D ',I_DEV(J),
-     &		 ' Q_I ',Q_INC(J),' Q_D ',Q_DEV(J),
-     &		 ' U_I ',U_INC(J),' U_D ',U_DEV(J)
+     &		   ' Q_I ',Q_INC(J),' Q_D ',Q_DEV(J),
+     &		   ' U_I ',U_INC(J),' U_D ',U_DEV(J)
 
          ENDIF
 	 
  104  CONTINUE
  
-      IF (TRACE) WRITE(IDLOG,*,ERR=910) "\n\n "
-
+      IF (TRACE) THEN
+         WRITE(IDLOG,*,ERR=910) " "
+         WRITE(IDLOG,*,ERR=910) " "
+      ENDIF
 
 C* Interpolation du champ pour les angles de transmissions
 C* directement associés aux angles de Gauss incident (=angles de propagation)
@@ -8322,17 +8379,17 @@ C--------------------------------------------------------------
 	 
 	 CALL SOS_INTERPO_SPLINT(NBMUT, RMUT, I_DEV(1),
      &	                         NBMU_INTERPO, RMU(1), I_DEV_INTERPO, 
-     &                           IER)	
+     &                          IER)	
 	 IF (IER.NE.0) GOTO 920   ! cas d'erreur  
 
 	 CALL SOS_INTERPO_SPLINT(NBMUT, RMUT, Q_DEV(1),
      &	                         NBMU_INTERPO, RMU(1), Q_DEV_INTERPO, 
-     &                           IER)	
+     &                          IER)	
 	 IF (IER.NE.0) GOTO 920   ! cas d'erreur  
 	 
 	 CALL SOS_INTERPO_SPLINT(NBMUT, RMUT, U_DEV(1),
      &	                         NBMU_INTERPO, RMU(1), U_DEV_INTERPO, 
-     &                           IER)	
+     &                          IER)	
 	 IF (IER.NE.0) GOTO 920   ! cas d'erreur  
 	 
 

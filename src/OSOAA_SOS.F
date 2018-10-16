@@ -77,6 +77,9 @@ C*           (if L = 0).
 C* MOD:VERSION:1.3: 03/11/2016:
 C*         - Change a variable type to read the file FICANGLES
 C*           to be compliant with a f77 compilation
+C* MOD:VERSION:1.4: 04/06/2018:
+C*         - Routine OSOAA_POLAR is changed in version VERSION:1.1    
+C*         - The unit for I, Q and U is added in output files (steradian-1)
 C*   
 C******************************************************************************
 
@@ -100,6 +103,9 @@ C Constantes spécifiques :
 C    INCTE_IDLOG_SOS : ID du ficher Trace de la routine
 C    INCTE_PI : Valeur de PI (calculé par la machine)
 C    LENLINE  : Longueur maximale d'une ligne de données lue dans un fichier
+C    VALEUR_INDEFINIE : Valeur par défaut pour les grandeurs indéfinies
+C                       (angle de polarisation si polarisation nulle,
+C                        taux de polarisation si intensité nulle).
 C----------------------------------------------------------------------------
 #include "OSOAA.h"
 #define INCTE_IDLOG_SOS 99
@@ -1822,7 +1828,7 @@ C **************************************************************
          
 	  OPEN(10,FILE=FICSOS_RES_ADV_UP,FORM='FORMATTED',ERR=1100)
 
-          WRITE(10,*) 'ADVANCED RESULTS : UPWARD RADIANCE FIELD'
+         WRITE(10,*) 'ADVANCED RESULTS : UPWARD RADIANCE FIELD'
 	  WRITE(10,*) '           VERSUS ALTITUDE / DEPTH'
 	  WRITE(10,*) '           AND VERSUS THE VIEWING ZENITH ANGLE'
 	  WRITE(10,*) '           (RELATIVE AZIMUTH IS FIXED)'
@@ -1831,18 +1837,18 @@ C **************************************************************
      &    '----------'	
 	  
 	  WRITE(10,*) 'Relative azimuth (degrees) :'
-          WRITE(10,*) ' '
-          WRITE(10,*) '   Relative azimuth convention : '
-          WRITE(10,*) 
+         WRITE(10,*) ' '
+         WRITE(10,*) '   Relative azimuth convention : '
+         WRITE(10,*) 
      &     '       180° <-> Satellite and Sun in the same half-plane'
-          WRITE(10,*) 
+         WRITE(10,*) 
      &     '         0° <-> Satellite and Sun in opposite half-planes'//
      &     ' with respect to the zenith direction'
-          WRITE(10,*) ' '
-          WRITE(10,*) '   Simulated relative azimuth (degrees) :'
-          WRITE(10,*) '       for VZA < 0 (sign convention):',
+         WRITE(10,*) ' '
+         WRITE(10,*) '   Simulated relative azimuth (degrees) :'
+         WRITE(10,*) '       for VZA < 0 (sign convention):',
      &	                  PHI2*180./INCTE_PI
-          WRITE(10,*) '       for VZA > 0 (sign convention):',
+         WRITE(10,*) '       for VZA > 0 (sign convention):',
      &	                  PHI1*180./INCTE_PI
         
 	  WRITE(10,*) ' '
@@ -1856,14 +1862,16 @@ C **************************************************************
 	  WRITE(10,*) '  Z       :  Altitude or depth (meters)'
 	  WRITE(10,*) '  VZA     :  Viewing Zenith Angle (deg)'
 	  WRITE(10,*) '  SCA_ANG :  Scattering angle (deg)'
-	  WRITE(10,*) '  I, Q, U :  Stokes parameters at level Z'
-          WRITE(10,*) 
+	  WRITE(10,*)  
+     &	    '  I, Q, U :  Stokes parameters at level Z (in sr-1)'
+         WRITE(10,*) 
      &	    '             normalised to the extraterrestrial solar'// 
-     &      ' irradiance (PI * L(z) / Esun)'
+     &     ' irradiance (PI * L(z) / Esun)'
 	  WRITE(10,*) '  POL_ANG :  Polarization angle (deg)'
 	  WRITE(10,*) '  POL_RATE:  Degree of polarization (%)'
-	  WRITE(10,*) '  LPOL    :  Polarized intensity at level Z'
-          WRITE(10,*) 
+	  WRITE(10,*) 
+     &	    '  LPOL    :  Polarized intensity at level Z (in sr-1)'
+         WRITE(10,*) 
      &	    '             normalised to the extraterrestrial solar'// 
      &      ' irradiance (PI * Lpol(z) / Esun)'
 	  WRITE(10,*) '---------------------------------------------' //
@@ -1945,18 +1953,18 @@ C     pour toutes les directions de propagation descendantes.
      &    '----------'	 
 	  	  
 	  WRITE(10,*) 'Relative azimuth (degrees) :'
-          WRITE(10,*) ' '
-          WRITE(10,*) '   Relative azimuth convention : '
-          WRITE(10,*) 
+         WRITE(10,*) ' '
+         WRITE(10,*) '   Relative azimuth convention : '
+         WRITE(10,*) 
      &     '       180° <-> Satellite and Sun in the same half-plane'
-          WRITE(10,*) 
+         WRITE(10,*) 
      &     '         0° <-> Satellite and Sun in opposite half-planes'//
      &     ' with respect to the zenith direction'
-          WRITE(10,*) ' '
-          WRITE(10,*) '   Simulated relative azimuth (degrees) :'
-          WRITE(10,*) '       for VZA < 0 (sign convention):',
+         WRITE(10,*) ' '
+         WRITE(10,*) '   Simulated relative azimuth (degrees) :'
+         WRITE(10,*) '       for VZA < 0 (sign convention):',
      &	                  PHI2*180./INCTE_PI
-          WRITE(10,*) '       for VZA > 0 (sign convention):',
+         WRITE(10,*) '       for VZA > 0 (sign convention):',
      &	                  PHI1*180./INCTE_PI
      
 	  WRITE(10,*) ' '	  
@@ -1970,19 +1978,21 @@ C     pour toutes les directions de propagation descendantes.
 	  WRITE(10,*) '  Z       :  Altitude or depth (meters)'
 	  WRITE(10,*) '  VZA     :  Viewing Zenith Angle (deg)'
 	  WRITE(10,*) '  SCA_ANG :  Scattering angle (deg)'
-	  WRITE(10,*) '  I, Q, U :  Stokes parameters at level Z'
-          WRITE(10,*) 
+	  WRITE(10,*) 
+     &	     '  I, Q, U :  Stokes parameters at level Z (in sr-1)'
+         WRITE(10,*) 
      &	    '             normalised to the extraterrestrial solar'// 
-     &      ' irradiance (PI * L(z) / Esun)'
+     &     ' irradiance (PI * L(z) / Esun)'
 	  WRITE(10,*) '  POL_ANG :  Polarization angle (deg)'
 	  WRITE(10,*) '  POL_RATE:  Degree of polarization (%)'
-	  WRITE(10,*) '  LPOL    :  Polarized intensity at level Z'
-          WRITE(10,*) 
+	  WRITE(10,*)  
+     &	    '  LPOL    :  Polarized intensity at level Z (in sr-1)'
+         WRITE(10,*) 
      &	    '             normalised to the extraterrestrial solar'// 
      &      ' irradiance (PI * Lpol(z) / Esun)'
 	  WRITE(10,*) '---------------------------------------------' //
-     &    '---------------------------------------------------------' //
-     &    '----------'	    
+     &   '---------------------------------------------------------' //
+     &   '----------'	    
 	  
 	  
 	  WRITE(10,*) ' LEVEL    Z         VZA     SCA_ANG'//
@@ -2249,7 +2259,7 @@ C ************************************************************
              
 	 IF (Z_OUT.GE.0.) THEN !Dans atmosphère
       
-            IF (Z_OUT.NE.USER_Z_OUT) THEN
+           IF (Z_OUT.NE.USER_Z_OUT) THEN
 	       WRITE(10,*) 'Altitude (km) :', USER_Z_OUT/1000.,
      &	                   ' limited to the maximum altitude', 
      &                     Z_OUT/1000.
@@ -2261,10 +2271,14 @@ C ************************************************************
       
             IF (Z_OUT.NE.USER_Z_OUT) THEN !Cas d'ajustement de la profondeur 
 	    				  !de sortie par le code
-	       WRITE(10,*) 'Requested sea depth (m) :', USER_Z_OUT,
+	       WRITE(10,*)  
+     &	         'Requested value of the depth for the output(m) :',  
+     &	         USER_Z_OUT,
      &	         ' ==> limited to the max computed depth :', Z_OUT	        
 	    ELSE !Cas nominal
-	       WRITE(10,*) 'Sea depth (m) :', Z_OUT
+	       WRITE(10,*) 
+     &	         'Value of the depth selected for the output (m) :', 
+     &	         Z_OUT
 	    ENDIF
 	       
          ENDIF !Fin test sur Z_OUT
@@ -2277,7 +2291,7 @@ C ************************************************************
       WRITE(10,*) '  VZA     :  Viewing Zenith Angle (deg)'
       WRITE(10,*) '  SCA_ANG :  Scattering angle (deg)'
       WRITE(10,*) 
-     &	 '  I       :  Stokes parameter at output level Z '
+     &	 '  I       :  Stokes parameter at output level Z (in sr-1)'
       WRITE(10,*) 
      &	 '             normalised to the extraterrestrial solar'//
      &   ' irradiance (PI * L(z) / Esun)'
@@ -2285,7 +2299,7 @@ C ************************************************************
      &  '  REFL    :  Reflectance at output level Z (PI * L(z) / Ed(z))'
       WRITE(10,*) '  POL_RATE:  Degree of polarization (%)'
       WRITE(10,*) 
-     &	 '  LPOL    :  Polarized intensity at output level Z'
+     &	 '  LPOL    :  Polarized intensity at output level Z (in sr-1)'
       WRITE(10,*) 
      &	 '             normalised to the extraterrestrial solar'//
      &   ' irradiance (PI * Lpol(z) / Esun)'
@@ -2620,10 +2634,10 @@ C ********************************************************
 	 ENDIF
          WRITE(10,*) ' '
          WRITE(10,*) 'Columns parameters :'
-         WRITE(10,*) '  Z       :  Sea depth (meters)'
+         WRITE(10,*) '  Z       :  Depth in the sea (meters)'
          WRITE(10,*) '  SCA_ANG :  Scattering angle (deg)'
          WRITE(10,*) 
-     &	    '  I       :  Stokes parameter at level Z '
+     &	    '  I       :  Stokes parameter at level Z (in sr-1)'
          WRITE(10,*) 
      &	    '             normalised to the extraterrestrial solar'//
      &      ' irradiance (PI * L(z) / Esun)'
@@ -2631,9 +2645,9 @@ C ********************************************************
      &   ' (PI * L(z) / Ed(z))'
          WRITE(10,*) '  POL_RATE:  Degree of polarization (%)'
          WRITE(10,*) 
-     &	 '  LPOL    :  Polarized intensity at level Z '
+     &	 '  LPOL    :  Polarized intensity at level Z (in sr-1)'
           WRITE(10,*) 
-     &	    '             normalised to the extraterrestrial solar'//
+     &	    '             normalised to the extraterrestrial solar '//
      &      ' irradiance (PI * Lpol(z) / Esun)'
 	 WRITE(10,*) '  REFL_POL:  Polarized reflectance at level Z'//
      &   ' (PI * Lpol(z) / Ed(z))'
@@ -2858,6 +2872,14 @@ C ==========
 C      Routine calculant l'angle de la polarisation, le taux de polarisation
 C      et l'intensité polarisée pour un vecteur (I,Q,U) en entrée
 C
+C      L'angle de polarisation XAN est définie de -PI/2 à +PI/2.
+C
+C      Les cas Q>0 et Q<0 sont établis à partir de l'analyse des valeurs de
+C      cos(2*XAN) et sin(2*XAN) couplés au domaine de définition de XAN.
+C
+C      Le cas Q = 0 est établi à partir des valeurs possibles de XAN pour Q = 0.
+C      Q = U = 0 correspond à une absence de polarisation ==> Angle indéterminé.
+C
 C Description des paramètres 			
 C ------------------------------
 C
@@ -2880,6 +2902,12 @@ C
 C  Sous programmes utilisés:
 C -------------------------
 C  Aucun
+C
+C
+C MOD:VERSION:1.0: 02/04/2015: Initial version of the OSOAA code
+C MOD:VERSION:1.1: 04/06/2018: 
+C    - Change of the global implementation
+C    - Improvement for case Q = U = 0
 C
 C==============================================================================
 
@@ -2906,40 +2934,39 @@ C*-----------------------------------------------------------------
 C* Traitements                       
 C*------------      
       
-      IF (XQ.EQ.0.) THEN 
+      IF (XQ.NE.0.) THEN !Cas XQ!=0
+ 
+         XT= XU/XQ
+		 
+         IF (XQ.GT.0.) THEN ! Cas si XQ > 0
+
+            XAN= 90.*ATAN(XT)/INCTE_PI    
+   
+         ELSE ! Cas si XQ < 0
+
+	     IF (XU.GT.0.) THEN
+               XAN=90.+90.*DATAN(XT)/INCTE_PI
+            ELSE
+              XAN= -90.+90.*DATAN(XT)/INCTE_PI
+            ENDIF
+
+         ENDIF             
+
+      ELSE !Cas XQ=0
+
           IF (XU.GT.0.) THEN
               XAN=  45.
           ELSE
-              XAN= -45.
+             IF (XU.LT.0) THEN
+                XAN= -45.
+             ELSE !Cas XQ=XU indéfinie
+                XAN= VALEUR_INDEFINIE
+             ENDIF
           ENDIF
-          GOTO 357
+
       ENDIF
-		   
-		   
-      IF (XU.EQ.0) THEN
-          IF (XQ.GT.0.) THEN 
-              XAN=0.
-          ELSE
-              XAN=90.
-          ENDIF
-          GOTO 357
-      ENDIF
-       
-               
-      XT= XU/XQ
-		
-      
-      IF (XQ.GT.0.) THEN 
-          XAN= 90.*ATAN(XT)/INCTE_PI       
-      ELSE ! Cas si XQ < 0
-	  IF (XU.GT.0.) THEN
-              XAN=90.+90.*DATAN(XT)/INCTE_PI
-          ELSE
-              XAN= -90.+90.*DATAN(XT)/INCTE_PI
-          ENDIF
-      ENDIF              
-		
-  357 LPOL = SQRT(XQ*XQ+XU*XU)
+	
+      LPOL = SQRT(XQ*XQ+XU*XU)
       
       IF (XI.NE.0.D+00) THEN
          TPOL = 100.*LPOL/XI

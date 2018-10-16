@@ -711,8 +711,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		getFormFieldsPanel().add(SeaSurfAlb_Spinner, "4, 3");
 
 		JLabel lblSeaSurfaceAlbedo = DefaultComponentFactory.getInstance()
-				.createLabel(
-						"Sea surface albedo for the  simulation wavelength  ");
+				.createLabel("Foam lambertian reflectance for the  simulation wavelength (albedo of the foam at the sea surface)");
 		getFormFieldsPanel().add(lblSeaSurfaceAlbedo, "9, 3");
 
 		Seabottype_title = DefaultComponentFactory.getInstance().createLabel(

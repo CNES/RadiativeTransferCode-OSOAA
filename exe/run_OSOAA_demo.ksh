@@ -7,6 +7,18 @@
 # List of all available -Keyword parameter
 # (see the end of this script to a complete description of -Keyword parameters)
 #
+#   --------------------------------------------------------------------------------------------
+#   Note: A given simulation requires defining only the useful input parameters. 
+#         The useless input parameters should not be defined
+#         (i.e, those who are not concerned by the options selected for the given simulation). 
+#
+#         However, note that if a useless parameter is still defined, it will not be taken into 
+#         account by the software during the run.
+#
+#         Note also that if a useful parameter is missing, the software stops processing the run 
+#         and the user is informed about the name of the parameter that should be filled
+#   --------------------------------------------------------------------------------------------
+#
 #
 #   Definition of the working folder :
 #   ----------------------------------  
@@ -26,8 +38,8 @@
 #  
 #        -SEA.SurfAlb  -SEA.BotType  -SEA.BotAlb 
 #   
-#	 -OSOAA.View.Phi
-#	 -OSOAA.View.Level
+#        -OSOAA.View.Phi
+#        -OSOAA.View.Level
 #        -OSOAA.View.Z    -OSOAA.ResFile.vsVZA
 #        -OSOAA.View.VZA  -OSOAA.ResFile.vsZ  
 #        -OSOAA.ResFile.Adv.Up   -OSOAA.ResFile.Adv.Down
@@ -38,31 +50,31 @@
 #
 #   Profile parameters :
 #   -------------------
-#	 -PROFILE.Log 
+#        -PROFILE.Log 
 #
 #     Atmospheric Profile parameters
-#	 -PROFILE_ATM.ResFile  
-#	 -AP.MOT -AP.Pressure  
+#        -PROFILE_ATM.ResFile  
+#        -AP.MOT -AP.Pressure  
 #        -AP.HR  -AP.HA	       
 #
 #     Sea Profile parameters   
-#	 -PROFILE_SEA.ResFile
-#	 -SEA.Depth   
-#	 -PHYTO.Chl  
-#	 -PHYTO.ProfilType 
+#        -PROFILE_SEA.ResFile
+#        -SEA.Depth   
+#        -PHYTO.Chl  
+#        -PHYTO.ProfilType 
 #        -PHYTO.GP.Chlbg  -PHYTO.GP.Deep -PHYTO.GP.Width 
 #        -PHYTO.Userfile       
-#	 -SED.Csed             
-#	 -YS.Abs440  -YS.Swa               
-#	 -DET.Abs440 -DET.Swa                
+#        -SED.Csed             
+#        -YS.Abs440  -YS.Swa               
+#        -DET.Abs440 -DET.Swa                
 #
 #   Aerosols parameters :
 #   ---------------------
 #        -AER.ResFile -AER.Log
 #        -AER.DirMie  -AER.MieLog
-#	 -AER.Waref  -AER.AOTref  
-#	 -AER.Tronca 
-# 	 -AER.Model
+#        -AER.Waref  -AER.AOTref  
+#        -AER.Tronca 
+#        -AER.Model
 #     Aerosols parameters for mono-modal models :
 #        -AER.MMD.MRwa -AER.MMD.MIwa
 #        -AER.MMD.MRwaref -AER.MMD.MIwaref
@@ -75,7 +87,7 @@
 #        -AER.SF.Model -AER.SF.RH
 #     Aerosols parameters for LND bi-modal models :
 #        -AER.BMD.VCdef -AER.BMD.CoarseVC  -AER.BMD.FineVC  -AER.BMD.RAOT  \
-#	 -AER.BMD.CM.MRwa -AER.BMD.CM.MIwa -AER.BMD.CM.MRwaref -AER.BMD.CM.MIwaref -AER.BMD.CM.SDradius -AER.BMD.CM.SDvar 	\
+#        -AER.BMD.CM.MRwa -AER.BMD.CM.MIwa -AER.BMD.CM.MRwaref -AER.BMD.CM.MIwaref -AER.BMD.CM.SDradius -AER.BMD.CM.SDvar 	\
 #        -AER.BMD.FM.MRwa -AER.BMD.FM.MIwa -AER.BMD.FM.MRwaref -AER.BMD.FM.MIwaref -AER.BMD.FM.SDradius -AER.BMD.FM.SDvar 	\
 #     Aerosols parameters for external data (phase functions, scattering and extinction coefficients) :
 #        -AER.ExtData
@@ -87,31 +99,31 @@
 #        -HYD.Model
 #     Phytoplankton model : 
 #        Junge main mode :
-#        -PHYTO.JD.slope -PHYTO.JD.rmin -PHYTO.JD.rmax -PHYTO.JD.MRwa -PHYTO.JD.MIwa -PHYTO.JD.rate 
+#          -PHYTO.JD.slope -PHYTO.JD.rmin -PHYTO.JD.rmax -PHYTO.JD.MRwa -PHYTO.JD.MIwa -PHYTO.JD.rate 
 #        Secondary LND mode :
-#        -PHYTO.LND.SM.SDradius -PHYTO.LND.SM.SDvar -PHYTO.LND.SM.MRwa -PHYTO.LND.SM.MIwa -PHYTO.LND.SM.rate 
+#          -PHYTO.LND.SM.SDradius -PHYTO.LND.SM.SDvar -PHYTO.LND.SM.MRwa -PHYTO.LND.SM.MIwa -PHYTO.LND.SM.rate 
 #        Tertiary LND mode :
-#        -PHYTO.LND.TM.SDradius -PHYTO.LND.TM.SDvar -PHYTO.LND.TM.MRwa -PHYTO.LND.TM.MIwa -PHYTO.LND.TM.rate 
+#          -PHYTO.LND.TM.SDradius -PHYTO.LND.TM.SDvar -PHYTO.LND.TM.MRwa -PHYTO.LND.TM.MIwa -PHYTO.LND.TM.rate 
 #     Mineral-like particles model :
 #        Junge main mode :
-#        -SED.JD.slope -SED.JD.rmin -SED.JD.rmax -SED.JD.MRwa -SED.JD.MIwa -SED.JD.rate 
+#          -SED.JD.slope -SED.JD.rmin -SED.JD.rmax -SED.JD.MRwa -SED.JD.MIwa -SED.JD.rate 
 #        Secondary LND mode :
-#        -SED.LND.SM.SDradius -SED.LND.SM.SDvar -SED.LND.SM.MRwa -SED.LND.SM.MIwa -SED.LND.SM.rate 
+#          -SED.LND.SM.SDradius -SED.LND.SM.SDvar -SED.LND.SM.MRwa -SED.LND.SM.MIwa -SED.LND.SM.rate 
 #        Tertiary LND mode :
-#        -SED.LND.TM.SDradius -SED.LND.TM.SDvar -SED.LND.TM.MRwa -SED.LND.TM.MIwa -SED.LND.TM.rate 
+#          -SED.LND.TM.SDradius -SED.LND.TM.SDvar -SED.LND.TM.MRwa -SED.LND.TM.MIwa -SED.LND.TM.rate 
 #     Hydrosols parameters for external data (phase functions, scattering and extinction coefficients) :       
 #        -HYD.ExtData
 #			        
 #
 #   Sea / atmosphere interface parameters :
 #   --------------------------------------
-#         -SEA.Dir
-#         -SEA.Log
-#         -SEA.Ind -SEA.Wind
+#        -SEA.Dir
+#        -SEA.Log
+#        -SEA.Ind -SEA.Wind
 #
 #
 #
-#   In order to perform a simulation  : $OSOAA_ROOT/exe/run_OSOAA.ksh 
+#   In order to perform a simulation  : $OSOAA_ROOT/exe/run_OSOAA_demo.ksh 
 #
 #
 #######################################################################################
@@ -125,37 +137,30 @@ dirSURF=${OSOAA_ROOT}/DATABASE/SURF_MATR   && mkdir -p ${dirSURF}
 	 
 ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
          -OSOAA.ResRoot ${dirRESULTS} \
-         -OSOAA.Log Trace_Main.Log \
-	 -OSOAA.Wa 0.440 \
+         -OSOAA.Log Main.Log \
+	  -OSOAA.Wa 0.440 \
          -ANG.Thetas 30. \
-	 -AP.Pressure 1023.0  -AP.HR 8.0 -AP.HA 2.0 \
-	 -AER.Waref 0.550 -AER.AOTref 0.1  \
-	 -AER.DirMie ${dirMIE_AER} \
-	 -AER.Model 2 \
-	 -AER.SF.Model 3 -AER.SF.RH 98.\
-	 -AER.Log Trace_Aerosols.Log \
-	 -PHYTO.Chl 0.2 \
-	 -SED.Csed  0.0 -PHYTO.ProfilType 1 \
-	 -YS.Abs440 0.00  -DET.Abs440 0.00 \
-	 -SEA.Depth 15.000 \
-	 -PROFILE.Log Trace_Profils.Log \
-	 -PHYTO.ResFile Phyto_Granu.txt -MLP.ResFile MLP_Granu.txt \
-	 -HYD.DirMie ${dirMIE_HYD}  \
-	 -HYD.Model 1 \
-	 -PHYTO.JD.slope 3.0 -PHYTO.JD.rmin 0.01 -PHYTO.JD.rmax 200. \
-	 -PHYTO.JD.MRwa 1.05 -PHYTO.JD.MIwa -0.000 -PHYTO.JD.rate 1.0 \
-	 -HYD.Log Trace_hydrosols.Log \
-	 -SEA.Dir ${dirSURF} \
-	 -SEA.Ind 1.34  -SEA.Wind 7   \
-	 -SEA.SurfAlb 0.1  -SEA.BotType 1 -SEA.BotAlb 0.30 \
- 	 -OSOAA.View.Phi 0.0 \
-	 -OSOAA.View.Level 5\
+	  -AP.Pressure 1013.0  -AP.HR 8.0 -AP.HA 2.0 \
+	  -AER.Waref 0.550 -AER.AOTref 0.1  \
+	  -AER.DirMie ${dirMIE_AER} \
+	  -AER.Model 2 \
+	  -AER.SF.Model 3 -AER.SF.RH 98.  \
+	  -PHYTO.Chl 0.2 \
+	  -SED.Csed  0.0 -PHYTO.ProfilType 1 \
+	  -YS.Abs440 0.00  -DET.Abs440 0.00 \
+	  -SEA.Depth 15.000 \
+	  -HYD.DirMie ${dirMIE_HYD}  \
+	  -HYD.Model 1 \
+	  -PHYTO.JD.slope 4.0 -PHYTO.JD.rmin 0.01 -PHYTO.JD.rmax 200. \
+	  -PHYTO.JD.MRwa 1.05 -PHYTO.JD.MIwa -0.000 -PHYTO.JD.rate 1.0 \
+	  -SEA.Dir ${dirSURF} -SEA.Ind 1.34  -SEA.Wind 7   \
+	  -SEA.SurfAlb 0.0  -SEA.BotType 1 -SEA.BotAlb 0.30 \
+ 	  -OSOAA.View.Phi 0.0 \
+	  -OSOAA.View.Level 5\
          -OSOAA.View.Z -10.0   -OSOAA.ResFile.vsVZA RESLUM_vsVZA.txt \
-	 -OSOAA.View.VZA 0.0 -OSOAA.ResFile.vsZ RESLUM_vsZ.txt \
+	  -OSOAA.View.VZA 0.0 -OSOAA.ResFile.vsZ RESLUM_vsZ.txt \
          -OSOAA.ResFile.Adv.Up   RESLUM_Advanced_UP.txt \
-         -OSOAA.ResFile.Adv.Down RESLUM_Advanced_DOWN.txt \
-         -SOS.Log Trace_SOS.Log 
-
+         -OSOAA.ResFile.Adv.Down RESLUM_Advanced_DOWN.txt 
 
 
 
@@ -255,8 +260,8 @@ ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
 #    Keyword  : -SEA.SurfAlb  
 #    -----------------------  
 #       Status : Required      
-#       Value :  Sea surface albedo for the wavelength of radiance 
-#                calculation (lambertian component).
+#       Value :  Foam lambertian reflectance for the wavelength of radiance 
+#                calculation (i.e., albedo of the foam at the sea surface).
 #       Value format : Encoding as real F9.5 (10 characters max).
 #
 #    Keyword  : -SEA.BotType 
@@ -462,9 +467,9 @@ ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
 #    ----------------------------   
 #       Status : Optional => Associated to CHL > 0.   
 #       Value :  Type of chlorophyll profile.
-#			Cases :	1 : Homogeneous profile
-#				2 : Gaussian profile
-#				3 : User profile
+#			Cases : 1 : Homogeneous profile
+#				 2 : Gaussian profile
+#				 3 : User profile
 #       Value format : integer I4 (4 characters max)
 #
 #    Keyword  : -PHYTO.GP.Chlbg 
@@ -542,11 +547,11 @@ ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
 #    ----------------------   
 #       Status : Required (for common case with AER.AOTref > 0)     
 #       Value :  Type of aerosol model
-#      		        0 : Mono-modal
+#      		0 : Mono-modal
 #			1 : WMO multi-modal
 #			2 : Shettle & Fenn bi-modal
-#		        3 : Log-Normal bi-modal
-#                       4 : Phase function from an external source
+#		       3 : Log-Normal bi-modal
+#                    4 : Phase function from an external source
 #       Value format : Encoding as integer I2 (10 characters max).
 #					
 #    Keyword  : -AER.MMD.MRwa  
@@ -619,10 +624,10 @@ ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
 #    ------------------------- 
 #       Status : Associated to -AER.Model 1 (for common case with AER.AOT > 0)     
 #       Value :  Type of WMO model.
-#      		        1 : Continental WMO model.
+#      		1 : Continental WMO model.
 #			2 : Maritime WMO model.
 #			3 : Urban WMO model.
-#		        4 : WMO model by user definition.
+#		       4 : WMO model by user definition.
 #       Value format : Encoding as integer I2 (10 characters max).	  
 #
 #    Keyword  : -AER.WMO.DL  
@@ -653,10 +658,10 @@ ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
 #    ------------------------ 
 #       Status : Associated to -AER.Model 2 (for common case with AER.AOTref > 0)     
 #       Value :  Type of Shettle & Fenn model.
-#      		        1 : Tropospheric S&F model.
+#      		1 : Tropospheric S&F model.
 #			2 : Urban S&F model.
 #			3 : Maritime S&F model.
-#		        4 : Coastal S&F model.
+#		       4 : Coastal S&F model.
 #       Value format : Encoding as integer I2 (10 characters max).	  
 #
 #    Keyword  : -AER.SF.RH  
@@ -886,7 +891,7 @@ ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
 #    ----------------------   
 #       Status : Required (for common case with PHYTO.Chl or SED.Csed > 0)     
 #       Value :  Type of hydrosol characterization
-#      		        1 : From size distribution models.
+#      		1 : From size distribution models.
 #			2 : Use of external phase functions
 #       Value format : Encoding as integer I2 (10 characters max).
 #					

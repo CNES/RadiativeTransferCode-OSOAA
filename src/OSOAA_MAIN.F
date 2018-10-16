@@ -78,6 +78,17 @@ C* MOD:VERSION:1.3: 03/11/2016:
 C*     Changes to be compliant with a f77 compilation
 C*         - CALL FLUSH() changed to CALL FLUSH(6)
 C*
+C* MOD:VERSION:1.4: 16/05/2018:
+C*     - Change of the writing format for the SEA.BotAlb parameter in the file 
+C*       listing the process parameters (label 1917)
+C*       Format F8.5 becomes F12.5 to avoid "****" in case of this parameter 
+C*       is not defined and the associated value is CTE_NOT_DEFINED_VALUE_DBLE value.
+C*
+C*     - Introduction of the calculation of the sea bottom reflectance in case of 
+C*       use of tabulated data in CTE_FIC_BOT_SPECTRAL_DATA.
+C*       --> Estimate the RHO_BOT reflectance for light sand (IBOT_TYPE=2), 
+C*           Green algae (IBOT_TYPE=3), Brown algae (IBOT_TYPE=3), Red algae (IBOT_TYPE=4)
+C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
@@ -117,7 +128,10 @@ C    CTE_DEFAULT_HYD_JUNGE_RMIN: Valeur par défaut du rayon min d'un modèle de J
 C				 pour les hydrosols.
 C    CTE_DEFAULT_HYD_JUNGE_RMAX: Valeur par défaut du rayon max d'un modèle de Junge 
 C 				 pour les hydrosols. 
-C    CTE_WAMIN : Longueur d'onde minimale de simulation.      
+C    CTE_WAMIN : Longueur d'onde minimale de simulation.    
+C    CTE_FIC_BOT_SPECTRAL_DATA : Nom du fichier contenant les données spectrales de fond.  
+C    CTE_NB_WA_FIC_BOT : Nombre de longueurs d'onde dans le fichier des données spectrales 
+C                        de fond.
       
 C Constantes spécifiques :
 C    INCTE_IDLOG_MAIN : ID du ficher Trace principal
@@ -911,8 +925,8 @@ C			2 : Light sand		(tabulated data)
 C			3 : Green algua		(tabulated data)
 C			4 : Brown algae		(tabulated data)
 C			5 : Red algae		(tabulated data)
-C
-C         -SEA.BotAlb ==> Obligatoire 
+C    
+C         -SEA.BotAlb ==> Optionnel : Associé à -SEA.botType = 1.  #MOD: 16/05/2018
 C      	     PROG_ARG   (CHARACTER*10)  : Albédo de fond à la longueur d'onde
 C					  de simulation des luminances.
 C                             		 (format de décodage : libre --> Float)
@@ -1320,6 +1334,8 @@ C
 C     - OSOAA_COMPA_SIMU_FILENAME
 C     - OSOAA_COMPA_SIMU_VALUE
 C
+C     - SOS_INTERPOL
+C
 C============================================================================
 
 
@@ -1354,6 +1370,8 @@ C-- Variables liées à l'arborescence de travail
       CHARACTER*CTE_LENDIR RESROOT_ADV  ! Répertoire des sorties "Advanced"
 
       CHARACTER*CTE_LENDIR DIREXE       ! chemin d'accès au repertoire $OSOAA_ROOT/exe
+
+      CHARACTER*CTE_LENDIR DIRFIC	     ! chemin d'accès répertoire fic de l'arborescence OSOAA
         
       CHARACTER*CTE_LENCOM  COMMAND     ! Chaine de commande pour appel système.
          
@@ -1369,6 +1387,7 @@ C-- Variables liées à l'arborescence de travail
 
 C-- Variables globales      
       DOUBLE PRECISION WA_SIMU	! Longueur d'onde de simulation des luminances (en microns)
+      DOUBLE PRECISION WA_SIMU_NM	! Longueur d'onde de simulation des luminances (en nanometres)
       
       INTEGER*2 DEF_FICMAIN_LOG	! Indicateur d'affectation d'une valeur à FICMAIN_LOG 
       INTEGER*2 DEF_WA_SIMU	! Indicateur d'affectation d'une valeur à DEF_WA_SIMU
@@ -1773,8 +1792,18 @@ C---- Variables liées à la définition de l'interface air - mer
       CHARACTER*CTE_LENFIC2 FICSURF_LOG   ! Nom du fichier trace des calculs de matrices
       					  ! d'interface air / mer      
        
-               
-
+C-- Variables liées aux calculs de la réflectance de fond si usage d'un fichier de valeurs
+C   tabulées        
+      DOUBLE PRECISION TAB_WA(CTE_NB_WA_FIC_BOT)	   ! Table des longueurs d'onde du fichier (en nm)
+      DOUBLE PRECISION TAB_RSAND(CTE_NB_WA_FIC_BOT) ! Table des réflectances pour "clean coral sand"
+      DOUBLE PRECISION TAB_RGREEN(CTE_NB_WA_FIC_BOT)! Table des réflectances pour "green algae"
+      DOUBLE PRECISION TAB_RBROWN(CTE_NB_WA_FIC_BOT)! Table des réflectances pour "brown algae"
+      DOUBLE PRECISION TAB_RRED(CTE_NB_WA_FIC_BOT)  ! Table des réflectances pour "red algae"
+      DOUBLE PRECISION TAB_R_BOT(CTE_NB_WA_FIC_BOT) ! Table des réflectances retenues
+      DOUBLE PRECISION WA_INF, WA_SUP	! Valeurs de longueurs d'onde tabulées encadrant WA_SIMU
+      DOUBLE PRECISION R_INF, R_SUP	! Valeurs de réflectance de fond correspondant aux longueurs 
+                                          ! d'onde WA_INF et WA_SUP
+      INTEGER*4 I
 	 
 C-- Variables liées aux calculs d'Ordres Successifs et à la production
 C   des fichiers résultats
@@ -1801,10 +1830,13 @@ C   des fichiers résultats
       				!      représentation de sortie de la luminance en fonction
 				!      de la profondeur (ou altitude) (Phi et VZA fixés)
 
+
       INTEGER*4 IBOT_TYPE	! (E)  Indice de type de fond marin
       INTEGER*4 IGMAX		! (E)  Ordre maximal de diffusion.
       INTEGER*4 LEVEL_OUT	! (E)  Indice de type de niveau de sortie
-       
+
+      CHARACTER*CTE_LENFIC2 FIC_BOT_DATA  	! Nom du fichier des données spectrales 
+                                                 ! tabulées de réflectance de fond marin
       
       CHARACTER*CTE_LENFIC2 FICSOS_RES_VS_VZA  	! (S) Nom du fichier résultat donnant la
 	     				       	! luminance en fonction de l'angle zénithal
@@ -4265,7 +4297,7 @@ C     $OSOAA_ROOT/exe
 
 	 IF(IO.GE.0)  CAS_REPRISE=.FALSE.
 	 
-	 CLOSE(11,STATUS='DELETE',ERR=4002)
+	 CLOSE(11,STATUS='DELETE',ERR=4004)
 
       ELSE		
          COMMAND = 'cp '//DIREXE(1:IFIN)//'/config.txt '
@@ -6073,7 +6105,7 @@ C =========================================================
       ENDIF 
         
       IF (TRACE) THEN
-          WRITE (IDLOG,*,ERR=910) " "
+         WRITE (IDLOG,*,ERR=910) " "
 	  WRITE (IDLOG,*,ERR=910) " "
 	  WRITE (IDLOG,*,ERR=910) 
      &	  "--------------------"
@@ -6082,13 +6114,119 @@ C =========================================================
 	  WRITE (IDLOG,*,ERR=910) 
      &	  "--------------------"      
       ENDIF !Fin Trace 
-      
-      
+
+      !Estimation de la réflectance de fond dans le cas d'un modèle tabulé 	      
+      IF ((IBOT_TYPE.GE.2).AND.(IBOT_TYPE.LE.5)) THEN
+
+         !Récupération du nom du répertoire fic contenant le fichier de réflectances tabulées
+         CALL GETENV('OSOAA_ROOT',DIRFIC)
+         IFIN=INDEX(DIRFIC,' ')
+         IFIN=IFIN-1
+         IF (IFIN.LE.0) GOTO 4000
+         IF ((IFIN+4).GT.CTE_LENDIR) GOTO 4002
+
+         DIRFIC(IFIN+1:IFIN+4)='/fic'
+         IFIN=IFIN+4
+         IF (IFIN.LE.0) IFIN=CTE_LENDIR
+
+         FIC_BOT_DATA = DIRFIC(1:IFIN)//'/'
+     &                  //CTE_FIC_BOT_SPECTRAL_DATA
+
+         IF (TRACE) THEN
+            WRITE (IDLOG,*,ERR=910) " "	
+            WRITE (IDLOG,*,ERR=910) 
+     &      "   Interpolation of the sea bottom reflectance: "	  
+            WRITE (IDLOG,*,ERR=910) 
+     &      "      Data file: ", 	FIC_BOT_DATA  
+         ENDIF !Fin Trace 
+
+         !Lecture des réflectances spectrales tabulées
+         OPEN(20,FILE=FIC_BOT_DATA,STATUS='OLD',ERR=2670)
+         READ(20,'(a)',ERR=2671) LIGNE_TEXTE
+         DO I=1,CTE_NB_WA_FIC_BOT
+            READ(20,*,ERR=2671) TAB_WA(I), TAB_RSAND(I), 
+     &           TAB_RGREEN(I), TAB_RBROWN(I), TAB_RRED(I)
+
+            IF (IBOT_TYPE.EQ.2) THEN
+               TAB_R_BOT(I) = TAB_RSAND(I)
+            ELSE
+               IF (IBOT_TYPE.EQ.3) THEN
+                  TAB_R_BOT(I) = TAB_RGREEN(I)
+               ELSE
+                  IF (IBOT_TYPE.EQ.4) THEN
+                     TAB_R_BOT(I) = TAB_RBROWN(I)
+                  ELSE
+                     TAB_R_BOT(I) = TAB_RRED(I)
+                  ENDIF
+               ENDIF
+            ENDIF
+
+	  ENDDO
+3010     CLOSE(20)
+
+         
+         !Interpolation spectrale
+         !  Sortie en erreur si WA_SIMU en dehors des valeurs tabulées
+         WA_SIMU_NM = WA_SIMU * 1000.
+         IF ( (WA_SIMU_NM.LT.TAB_WA(1)).OR.
+     &       (WA_SIMU_NM.GT.TAB_WA(CTE_NB_WA_FIC_BOT)) ) THEN
+
+            IF (TRACE) THEN
+               WRITE (IDLOG,*,ERR=910) 
+     &         " Simulation wavelength out of the range of"
+               WRITE (IDLOG,*,ERR=910) 
+     &         " wavelengths for tabulated spectral data"	
+               WRITE (IDLOG,*,ERR=910) 
+     &         "   Simulation wavelength (nm): ", WA_SIMU_NM
+               WRITE (IDLOG,*,ERR=910) 
+     &         "   Min wavelength for spectral data (nm): ", TAB_WA(1)
+               WRITE (IDLOG,*,ERR=910) 
+     &         "   Max wavelength for spectral data (nm): ", 
+     &         TAB_WA(CTE_NB_WA_FIC_BOT)
+               WRITE (IDLOG,*,ERR=910)
+     &         "===> Use a wavelength is the range of spectral data."	
+            ENDIF !Fin Trace 
+
+            GOTO 4003
+
+         !  Recherche des longueurs d'onde qui encadrent WA_SIMU
+         !  et interpolation linéaire pour calculer RHO_BOT	
+         ELSE 
+
+            I=1
+            DO WHILE (TAB_WA(I).LT.WA_SIMU_NM)
+               I = I+1
+            ENDDO
+
+            !Gestion du cas WA_SIMU = WA max tabulée 
+            !(I trouvée = CTE_NB_WA_FIC_BOT+1)
+            IF (I.GT.CTE_NB_WA_FIC_BOT) I=CTE_NB_WA_FIC_BOT
+
+            WA_SUP = TAB_WA(I)
+            WA_INF = TAB_WA(I-1)
+ 
+            R_SUP = TAB_R_BOT(I)
+            R_INF = TAB_R_BOT(I-1)
+
+            CALL SOS_INTERPOL(R_INF,R_SUP,WA_INF,WA_SUP,WA_SIMU_NM,
+     &                        RHO_BOT)
+
+            IF (TRACE) THEN               
+               WRITE (IDLOG,*,ERR=910) 
+     &         " Estimated sea bottom reflectance: ", RHO_BOT
+            ENDIF !Fin Trace 
+         ENDIF 
+
+
+
+      ENDIF ! Fin cas gestion de réflectance de fond
+
+     
       !Information si IGMAX n'est pas à sa valeur par défaut 	
       IF ((DEF_IGMAX.EQ.1).AND.(TRACE))	THEN
 	  WRITE (IDLOG,*,ERR=910) " "
 	  WRITE (IDLOG,*,ERR=910) "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! "
-          WRITE (IDLOG,*,ERR=910) "WARNING : The maximal order of "
+         WRITE (IDLOG,*,ERR=910) "WARNING : The maximal order of "
 	  WRITE (IDLOG,*,ERR=910) "          interaction has been "
 	  WRITE (IDLOG,*,ERR=910) "          changed by the user."
 	  WRITE (IDLOG,*,ERR=910) "          ==> IGMAX =",IGMAX
@@ -7445,6 +7583,17 @@ C =========================================================
  2660 WRITE(6,*) '  OSOAA_MAIN : ERROR_2660 on parameters'
       WRITE(6,*) '               on file GRANU_MLP reading'
       GOTO 9998 
+ 
+ 2670 WRITE(6,*) '  OSOAA_MAIN : ERROR_2670'
+      WRITE(6,*) 
+     &     'Error while opening the sea bottom reflectance datafile',
+     &     'CTE_FIC_BOT_SPECTRAL_DATA in fic/ directory:',
+     &     CTE_FIC_BOT_SPECTRAL_DATA
+      GOTO 9998 
+
+ 2671 WRITE(6,*) '  OSOAA_MAIN : ERROR_2671 on file reading:'
+      WRITE(6,*) '  --> sea bottom spectral reflectance :',FIC_BOT_DATA 
+      GOTO 9998
            
  2700 WRITE(6,*) '  OSOAA_MAIN : ERROR_2700 on parameters'
       WRITE(6,*) '  --> External phaze functions file -HYD.ExtData'
@@ -7493,7 +7642,22 @@ C =========================================================
       WRITE(6,*) '  => CTE_LENDIR has to be adjusted.' 
       GOTO 9998
 
- 4002 WRITE(6,*) '  OSOAA_MAIN : ERROR_4002 :  '
+ 4002 WRITE(6,*) '  OSOAA_MAIN : ERROR_4002: '
+      WRITE(6,*) '  => Length of $OSOAA_ROOT/fic is too long' 
+      WRITE(6,*) '  => CTE_LENDIR has to be adjusted.' 
+      GOTO 9998
+
+ 4003 WRITE(6,*) '  OSOAA_MAIN : ERROR_4003: '
+      WRITE(6,*) '  => Simulation wavelength out of the range of' 
+      WRITE(6,*) '     wavelengths for sea bottom reflectance data.'
+      WRITE(6,*) '       Simulation wavelength (nm): ', WA_SIMU_NM     
+      WRITE(6,*) '       Min wavelength for spectral data (nm): ', 
+     &           TAB_WA(1)   
+      WRITE(6,*) '       Max wavelength for spectral data (nm): ', 
+     &           TAB_WA(CTE_NB_WA_FIC_BOT)
+      GOTO 9998
+
+ 4004 WRITE(6,*) '  OSOAA_MAIN : ERROR_4004 :  '
       WRITE(6,*) '      on file deleting temporary file : out_diff'
       GOTO 9998  
                   	               	
@@ -7768,7 +7932,9 @@ C --- Formats pour le fichier ListParam.txt
  1914 FORMAT(30h -SEA.Log               :     ,A)
  1915 FORMAT(30h -SEA.SurfAlb           :     ,F8.5)
  1916 FORMAT(30h -SEA.BotType           :     ,I4)
- 1917 FORMAT(30h -SEA.BotAlb            :     ,F8.5)
+C --- MOD: 16/05/2018 : Changement du format d'écriture de SEA.BotAlb de F8.5 -> F12.5
+ 1917 FORMAT(30h -SEA.BotAlb            :     ,F12.5) 
+C --- FIN MOD 
  1918 FORMAT(30h -OSOAA.View.Phi        :     ,F12.5)
  1919 FORMAT(30h -OSOAA.View.Level      :     ,I4)
  1920 FORMAT(30h -OSOAA.View.Z          :     ,F12.5)

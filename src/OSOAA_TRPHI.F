@@ -903,7 +903,7 @@ C--------------
 	    IF (DABS(1.-DABS(COSKI)).GE.CTE_SEUIL_EPSILON) THEN
 	        !COSKI pas trop proche de 1 ou -1
 	        COS2KI = 2.*COSKI*COSKI-1.
-                SIN2KI = 2.*COSKI*DSQRT(1.-COSKI*COSKI)
+               SIN2KI = 2.*COSKI*DSQRT(1.-COSKI*COSKI)
 	    ELSE
 	        !COSKI proche de 1 ou -1 
 	        !==> risque d'arrondi numérique donnant une valeur > 1 ou < -1.

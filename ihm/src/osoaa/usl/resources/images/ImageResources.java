@@ -16,16 +16,36 @@ public class ImageResources {
 		return getImage("CNRS_INSU_h70.png");
 	}
 	
+	public static Image getCNRSImage(){
+		return getImage("logo-CNRS_sansINSU_h90.png");
+	}
+	
 	public static Image getLogoCNESImage(){
 		return getImage("logo_cnes_2010_h70.png");
+	}
+	
+	public static Image getLogoCNESNewImage(){
+		return getImage("logoCNES_h70.png");
+	}
+	
+	public static Image getLogoCNESNewImageH110(){
+		return getImage("logoCNES_h110.png");
 	}
 	
 	public static Image getLogIUFImage(){
 		return getImage("logo_iuf_h70.png");
 	}
 	
+	public static Image getLogIUF2015Image(){
+		return getImage("logo_iuf_2015_h70.png");
+	}
+	
 	public static Image getUPMImage(){
 		return getImage("UPMC_3_h70.png");
+	}
+	
+	public static Image getSorbonneImage(){
+		return getImage("LOGO_Sorbonne_h70.png");
 	}
 	
 	public static Image getFavIcoAsImage(){

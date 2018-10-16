@@ -1,4 +1,4 @@
-# Ocean Successive Orders with Atmosphere - Advanced (OSOAA V1.4)
+# Ocean Successive Orders with Atmosphere - Advanced (OSOAA V1.5)
 
 Accurate computation of the radiative tranfer into the Ocean-Atmosphere system including polarisation, coupling terms, and the agitated surface.  
       
@@ -27,5 +27,5 @@ OSOAA provides the radiance field for a given altitude in the atmosphere or dept
  
 **REFERENCE**:  
 This OSOAA code can be referenced as :  
-*Chami M, Lafrance B, Fougnie B, Chowdhary J, Harmel T, Waquet F (2015), "OSOAA: a vector radiative transfer model of coupled atmosphere-ocean system for a rough sea surface application to the estimates of the directional variations of the water leaving reflectance to better process multi-angular satellite sensors data over the ocean", Opt Express 23: 27829-27852 | doi: 10.1364/OE.23.027829*
+*Chami M, Lafrance B, Fougnie B, Chowdhary J, Harmel T, Waquet F (2015), "OSOAA: a vector radiative transfer model of coupled atmosphere-ocean system for a rough sea surface application to the estimates of the directional variations of the water leaving reflectance to better process multi-angular satellite sensors data over the ocean", Opt Express 23: 27829-27852, doi: 10.1364/OE.23.027829*
 

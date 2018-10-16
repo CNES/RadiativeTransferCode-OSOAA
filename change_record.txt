@@ -97,3 +97,64 @@ OSOAA V1.4 : 2016, November 3rd
 
 - The option -w is added in the makefile gen/Makefile_OSOAA.f77 
   to avoid warning messages 
+
+
+  
+OSOAA V1.5 : 2018, August 7th
+----------
+- Changes of the src/OSOAA_MAIN.F file : V1.3 --> V1.4
+    * Introduction of the calculation of the sea bottom reflectance in case of 
+      use of tabulated data (case SEA.BotType = 2 to 5 : Light sand, Green algae, 
+      Brown algae or Red algae).
+    * Change of the writing format for the SEA.BotAlb parameter in the file 
+      listing the process parameters.
+
+- Changes of the src/OSOAA_PARTICLES_RAD.F file : V1.1 --> V1.2
+    * In files of radiative properties of particles, the format to write the value 
+      of mean refractive index is changed
+      (to avoid non numerical values "***")
+
+- Changes of the src/OSOAA_PROFILE.F file : V1.2 --> V1.3
+    * Correction for the use of a profile of chlorophyll from the user.
+    * Correction to avoid an anomaly for the reading of chlorophyll 
+      absorption and scattering data in case of the use of a user's chlorophyll profile.
+
+- Changes of the src/OSOAA_SOS.F file : V1.3 --> V1.4
+    * Change of the global implementation for the polarization angle calculation.
+      The case Q = U = 0 leads to undefined value (-999.00).
+    * Unit for I, Q and U is added in result files.
+    * Change of the text to mention the depth for the output results.
+
+- Changes of the src/OSOAA_SOS_CORE.F file : V1.2 --> V1.3
+    * Correction of anomalies for the calculation of the upward direct flux
+      in the atmosphere provided in the Flux.txt file
+      Note: Anomaly only in the Flux.txt file NOT in the radiative transfer calculation
+            of I, Q and U Stokes parameters.
+    * The ratio upward flux / downward flux (Eu/Ed) is added in the Flux.txt file (column n°9)
+
+- Changes of the inc/OSOAA.h file : V1.0 --> V1.1
+    * New constants: CTE_FIC_BOT_SPECTRAL_DATA and CTE_NB_WA_FIC_BOT 
+
+- Changes of the GUI :
+
+   - Changes of the ihm/src/osoaa/usl/forms/AtmosphericAndSeaProfilesJPanel.java :
+     * Clarification of the parameter -SEA.SurfAlb in the "Atmospheric and sea profiles" window
+       (Foam lambertian reflectance for the  simulation wavelength).
+
+   - Changes of the ihm/conf/hydrogroundModel.properties :
+     * The GUI gives more consistent default values for the Slope of Junge's law 
+       for phytoplankton particles and for mineral-like particles.
+     * Set to 1 the ratio of the main mode in the global distribution 
+       for phytoplankton particles and for mineral-like particles.
+
+   - The OSOAAUI.jar is built and replaced in ihm/bin/. 
+
+- The demonstration scripts exe/run_OSOAA.ksh (and *.csh) are removed 
+  (because they included many unused input parameters).
+  The script exe/run_OSOAA_demo.ksh is improved to be more realistic. 
+  A note regarding the input parameters is provided in the demonstration script
+  and an example of water leaving radiance simulation which does not account for foam is given.
+  A csh version (run_OSOAA_demo.csh) is added.
+
+- Changes of the User Manual : V1.1 --> V1.2
+    * See the Change Record on page i.3

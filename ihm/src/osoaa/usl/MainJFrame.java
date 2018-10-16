@@ -588,7 +588,7 @@ public class MainJFrame extends JFrame {
 		lblNewLabel_2.setFont(new Font("Tahoma", Font.PLAIN, 18));
 		lblNewLabel_2.setForeground(Color.BLUE);
 
-		JLabel labelVersion = new JLabel("version " + "@@OSOAA.version@@" );
+		JLabel labelVersion = new JLabel("version " + "1.5.20180628102927" );
 		labelVersion.setBorder(new EmptyBorder(20, 0, 0, 0));
 		labelVersion.setAlignmentX(Component.CENTER_ALIGNMENT);
 		labelVersion.setForeground(Color.BLUE);
@@ -602,10 +602,10 @@ public class MainJFrame extends JFrame {
 		welcomimgPanels = new JPanel();
 		welcomimgPanels.setBackground(Color.WHITE);
 		welcomimgPanels.setBorder(new EmptyBorder(0, 0, 50, 0));
-		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getCNRSINSUImage() ) ) );
-		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getLogIUFImage() ) ) );
-		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getLogoCNESImage() ) ) );
-		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getUPMImage() ) ) );
+		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getCNRSImage() ) ) );
+		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getLogIUF2015Image() ) ) );
+		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getLogoCNESNewImageH110() ) ) );
+		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getSorbonneImage() ) ) );
 		
 		jpCenter.add(welcomimgPanels, BorderLayout.SOUTH);
 		
@@ -617,7 +617,8 @@ public class MainJFrame extends JFrame {
 		csPanels.setBackground(Color.WHITE);
 		welcomePanel.add(csPanels, BorderLayout.SOUTH);
 		csPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getCSLogoImage() ) ) );
-		csPanels.add( new JLabel( "<html><u>Scientific Manager :</u>&nbsp;&nbsp;&nbsp;Malik CHAMI (LOV)<BR/><u>Project Supervision :</u>&nbsp;&nbsp;&nbsp;Bertrand FOUGNIE (CNES)<BR/><u>Development Project Manager :</u>&nbsp;&nbsp;&nbsp;Bruno LAFRANCE (CSSI)</html>" ) );
+		//csPanels.add( new JLabel( "<html><u>Scientific Manager :</u>&nbsp;&nbsp;&nbsp;Malik CHAMI (LOV)<BR/><u>Project Supervision :</u>&nbsp;&nbsp;&nbsp;Bertrand FOUGNIE (CNES)<BR/><u>Development Project Manager :</u>&nbsp;&nbsp;&nbsp;Bruno LAFRANCE (CSSI)</html>" ) );
+		csPanels.add( new JLabel( "<html><u>Scientific Principal Investigator :</u>&nbsp;&nbsp;&nbsp;Malik CHAMI (Sorbonne Universit&eacute)<BR/><u>Technical Principal Investigator :</u>&nbsp;&nbsp;&nbsp;Bruno LAFRANCE (CSSI company)<BR/><u>Project Officer :</u>&nbsp;&nbsp;&nbsp;Bertrand FOUGNIE (CNES)<BR/><u>Chief Project Officer :</u>&nbsp;&nbsp;&nbsp;Aim&eacute MEYGRET (CNES)</html>" ) );
 		
 		initFields();
 		itemsList.setSelectedIndex(0);
