@@ -158,3 +158,20 @@ OSOAA V1.5 : 2018, August 7th
 
 - Changes of the User Manual : V1.1 --> V1.2
     * See the Change Record on page i.3
+
+  
+OSOAA V1.6 : 2019, January 11th
+----------
+- Changes of the gen/Makefile_OSOAA* files : 
+    * Creation of the directory "obj" while compiling.
+
+- Changes of the src/OSOAA_MAIN.F file : V1.4 --> V1.5
+    * Correction to avoid the request to define the parameter SEA.Dir when the surface wind is null.
+
+- Changes of the inc/OSOAA.h file :
+    * Minor change of the CTE_OS_NS_MAX and CTE_NBANGLES_MAX values.
+    * Update of recommendations to define the value of CTE_NBANGLES_MAX.
+
+- Changes of the User Manual : V1.2 --> V1.3
+    * See the Change Record on page i.3
+

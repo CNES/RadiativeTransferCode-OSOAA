@@ -10,6 +10,9 @@ C* MOD:VERSION:1.0
 C* MOD:VERSION:1.1: 30/05/2018:  
 C*     - New constants are introduced for tabulated data of sea bottom 
 C*       spectral reflectance : CTE_FIC_BOT_SPECTRAL_DATA and CTE_NB_WA_FIC_BOT 
+C* MOD:VERSION:1.2: 11/01/2019: 
+C*     - Change the CTE_OS_NS_MAX value
+C*     - Change the CTE_NBANGLES_MAX value and recommendation
 C******************************************************************************
 
 C#######################################################################
@@ -351,7 +354,7 @@ C    to define the size of tables used to compute the Fresnel matrix elements
 C    Advice : let's define CTE_OS_NS_MAX = 2*CTE_OS_NBMU_MAX
 C    --> Specific constant to the files OSOAA_ANGLES.F and OSOAA_SURF_MATRICES.F    
 C---------------------------------------------------------------------------
-#define CTE_OS_NS_MAX 1024
+#define CTE_OS_NS_MAX 1020
 
 C    Maximum order of Fourier series expansion to define the size of 
 C    tables used to compute the G function (statistic of wave slopes)
@@ -414,10 +417,10 @@ C    Maximum number of positive angles for the calculation of angles
 C    to be used by the routines (Gauss angles + user's angles 
 C    + 1 = solar zenith angle )
 C    Advice : it should be the max between CTE_MIE_NBMU_MAX 
-C             and CTE_OS_NBMU_MAX
+C             and (CTE_OS_NBMU_MAX+1)
 C    --> Specific constant to the file OSOAA_ANGLES.F
 C--------------------------------------------------------------
-#define CTE_NBANGLES_MAX 1000
+#define CTE_NBANGLES_MAX 511
 
 C    Minimum absolute difference between cos(X) and cos(TETA)  
 C    to assign TETA = X 

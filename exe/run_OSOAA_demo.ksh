@@ -1170,7 +1170,7 @@ ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
 #
 #    Keyword  : -SEA.Dir  
 #    -------------------  
-#       Status : Required      
+#       Status : Required if SEA.Wind > 0       
 #       Value :  Directory for SURFACE files storage (complete path). 
 #       Value format : Encoding as string (CTE_LENDIR characters max : see OSOAA.h).
 #

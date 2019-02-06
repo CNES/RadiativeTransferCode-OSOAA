@@ -89,6 +89,10 @@ C*       use of tabulated data in CTE_FIC_BOT_SPECTRAL_DATA.
 C*       --> Estimate the RHO_BOT reflectance for light sand (IBOT_TYPE=2), 
 C*           Green algae (IBOT_TYPE=3), Brown algae (IBOT_TYPE=3), Red algae (IBOT_TYPE=4)
 C*
+C* MOD:VERSION:1.5: 11/01/2019:
+C*     - In case of a null wind velocity, the directory to compute Glitter files is 
+C*       no more required in the list of parameters.
+C*
 C******************************************************************************
 
 C----------------------------------------------------------------------------
@@ -3522,18 +3526,20 @@ C     Indice de l'eau de mer : obligatoire
 C     Vitesse du vent : obligatoire  
       IF (DEF_WIND.EQ.0) GOTO 2310  
  
-C     Argument DIRSEA obligatoire (répertoire de stockage des fichiers SURFACE)       
-      IF (DEF_DIRSEA.EQ.0) GOTO 2320
+C     Argument DIRSEA obligatoire si vent > 0 
+C     (répertoire de stockage des fichiers SURFACE)       
+      IF ((DEF_DIRSEA.EQ.0).AND.(WIND.GT.0.)) GOTO 2320
 	  
 C     Création du répertoire de stockage des fichiers de Mie
-      LDIR = INDEX(DIRSEA,' ') - 1
-      IF((LDIR.LE.0).OR.(LDIR.GT.CTE_LENDIR)) GOTO 1999
+      IF (WIND.GT.0.) THEN
+         LDIR = INDEX(DIRSEA,' ') - 1
+         IF((LDIR.LE.0).OR.(LDIR.GT.CTE_LENDIR)) GOTO 1999
 
-      COMMAND='mkdir -p '//DIRSEA(1:LDIR)
-      LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') - 1
-      IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1995
-      CALL SYSTEM(COMMAND)
-      
+         COMMAND='mkdir -p '//DIRSEA(1:LDIR)
+         LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') - 1
+         IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1995
+         CALL SYSTEM(COMMAND)
+      ENDIF      
 
 C --------------------------------------------------------------  
 C --- Contrôle du passage des arguments de modèle d'aérosols
