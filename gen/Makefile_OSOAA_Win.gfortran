@@ -1,0 +1,137 @@
+################################################################################
+# TITLE: Makefile_OSOAA_Win.gfortran
+#
+# RULE: Makefile to compile OSOAA software (gnu compilation)
+#       Windows Makefile 
+#	
+# AUTHOR: F. Qiao
+# DATE: 15\04\2021
+#
+#
+# Compilation is performed by the cmd command : make -f Makefile_OSOAA_Win.gfortran
+#
+# To compile in debug mode, you have to use the DEBUG following option
+# and not use the CCOPTS optimisation option 
+#	DEBUG: -g -D_DEBUG
+#
+#
+# MOD:VERSION:1.0: 15\04\2011: Creation  
+#
+################################################################################
+
+
+################################
+# Initialisation of variables 
+################################
+mkdir		=	mkdir
+rm		=	rm
+FF		=	gfortran
+###DEBUG		=	-g 
+CCOPTS  =  -O
+
+########################################
+# Definition of includes and libraries
+########################################
+CFLAGS +=  -DSYSV
+LIBS	=  -lm
+
+
+###########################
+# User directories 
+###########################
+SRC	=	..\src
+BIB	=	..\obj
+EXE	=	..\exe
+NCL	=	..\inc
+
+
+#############################
+# List of object files 
+#############################
+OBJS_OSOAA     =     $(BIB)\OSOAA_MAIN.o\
+			$(BIB)\OSOAA_ANGLES.o\
+			$(BIB)\OSOAA_AEROSOLS.o\
+			$(BIB)\OSOAA_HYDROSOLS.o\
+			$(BIB)\OSOAA_MIE.o\
+			$(BIB)\OSOAA_PARTICLES_RAD.o\
+			$(BIB)\OSOAA_PROFILE.o\
+			$(BIB)\OSOAA_SURFACE.o\
+			$(BIB)\OSOAA_SURF_MATRICES.o\
+			$(BIB)\OSOAA_SOS.o\
+			$(BIB)\OSOAA_SOS_CORE.o\
+			$(BIB)\OSOAA_TRPHI.o
+
+
+
+
+###########################################
+# List of required include files 
+###########################################
+DEP	=	$(NCL)\OSOAA.h
+
+all::$(EXE)\OSOAA_MAIN.exe
+
+#####################
+# Links edition
+#####################
+$(EXE)\OSOAA_MAIN.exe : $(OBJS_OSOAA) 
+	@echo "------------> Link of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -o $@  $(OBJS_OSOAA) $(LIBS)
+	@echo "Copying constantes file used to the software compilation" > $(EXE)\config.txt
+	@echo "--> $(NCL)\OSOAA.h \n\n" >> $(EXE)\config.txt
+	@type  $(NCL)\OSOAA.h >> $(EXE)\config.txt
+	@echo "------------>ok\n"
+	
+	
+###################################
+# Compilation of object files 
+###################################
+
+$(BIB)\OSOAA_MAIN.o:$(SRC)\OSOAA_MAIN_Win.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(mkdir)  $(BIB)
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_MAIN_Win.F -o $@ $(CFLAGS) -I$(NCL)
+	
+$(BIB)\OSOAA_ANGLES.o:$(SRC)\OSOAA_ANGLES.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_ANGLES.F -o $@ $(CFLAGS) -I$(NCL)	
+
+$(BIB)\OSOAA_AEROSOLS.o:$(SRC)\OSOAA_AEROSOLS.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_AEROSOLS.F -o $@ $(CFLAGS) -I$(NCL)
+
+$(BIB)\OSOAA_HYDROSOLS.o:$(SRC)\OSOAA_HYDROSOLS.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_HYDROSOLS.F -o $@ $(CFLAGS) -I$(NCL)
+
+$(BIB)\OSOAA_MIE.o:$(SRC)\OSOAA_MIE.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_MIE.F -o $@ $(CFLAGS) -I$(NCL)
+	
+$(BIB)\OSOAA_PARTICLES_RAD.o:$(SRC)\OSOAA_PARTICLES_RAD.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_PARTICLES_RAD.F -o $@ $(CFLAGS) -I$(NCL)	
+		
+$(BIB)\OSOAA_PROFILE.o:$(SRC)\OSOAA_PROFILE.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_PROFILE.F -o $@ $(CFLAGS) -I$(NCL)	
+
+$(BIB)\OSOAA_SURFACE.o:$(SRC)\OSOAA_SURFACE.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_SURFACE.F -o $@ $(CFLAGS) -I$(NCL)	
+
+$(BIB)\OSOAA_SURF_MATRICES.o:$(SRC)\OSOAA_SURF_MATRICES.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_SURF_MATRICES.F -o $@ $(CFLAGS) -I$(NCL)
+	
+$(BIB)\OSOAA_SOS.o:$(SRC)\OSOAA_SOS.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_SOS.F -o $@ $(CFLAGS) -I$(NCL)	
+		
+$(BIB)\OSOAA_SOS_CORE.o:$(SRC)\OSOAA_SOS_CORE.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_SOS_CORE.F -o $@ $(CFLAGS) -I$(NCL)	
+	
+$(BIB)\OSOAA_TRPHI.o:$(SRC)\OSOAA_TRPHI.F $(DEP) 
+	@echo "------------> Compilation of $@"
+	@$(FF) $(CCOPTS) $(DEBUG) -c $(SRC)\OSOAA_TRPHI.F -o $@ $(CFLAGS) -I$(NCL)	
