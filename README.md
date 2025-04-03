@@ -1,5 +1,4 @@
-# Ocean Successive Orders with Atmosphere - Advanced  
-# OSOAA V2.0 - March 26th 2025
+# Ocean Successive Orders with Atmosphere - Advanced (OSOAA V2.0 - March 26th 2025)
 
 The OSOAA model enables accurate calculation of the radiative tranfer into the Ocean-Atmosphere system including polarization, coupling terms, and the rugged surface. 
       
