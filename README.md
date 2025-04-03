@@ -28,7 +28,7 @@ OSOAA provides the radiance field for a given altitude in the atmosphere or dept
 It is also possible to get the complete radiance field (upward and downward radiance in term of intensity and polarized radiance throughout the atmospheric and marine profiles).
  
 **REFERENCE**   
-This OSOAA code can be referenced as : 
+This OSOAA code can be referenced as :  
 *Chami M, Lafrance B, Fougnie B, Chowdhary J, Harmel T, Waquet F (2015), "OSOAA: a vector radiative transfer model of coupled atmosphere-ocean system for a rough sea surface application to the estimates of the directional variations of the water leaving reflectance to better process multi-angular satellite sensors data over the ocean", Opt Express 23: 27829-27852, doi: 10.1364/OE.23.027829*
 
 **Copyright**  
