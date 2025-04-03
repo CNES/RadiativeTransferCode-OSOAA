@@ -1,6 +1,6 @@
 # Ocean Successive Orders with Atmosphere - Advanced (OSOAA V2.0 - April 1st 2025)
 
-The OSOAA model enables accurate calculation of the radiative tranfer into the Ocean-Atmosphere system including polarization, coupling terms, and the rugged surface. 
+The OSOAA model enables accurate calculation of the radiative transfer into the Ocean-Atmosphere system including polarization, coupling terms, and the rugged surface. 
       
 Based on the successive orders of scattering method, the initial OSOA (Ocean Successive Orders with Atmosphere) code was the first version of a radiative transfer model for the computation of radiance and polarization in an ocean-atmosphere system, accounting for a flat surface.  
 The OSOA-Advanced code (so-called OSOAA) introduces the capability to simulate a more realistic air / sea interface by taking into account the roughness of the sea surface as modelled by Cox & Munk.  
