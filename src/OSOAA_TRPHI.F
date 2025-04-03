@@ -4,6 +4,7 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
@@ -58,6 +59,7 @@ C*
 C*
 C* MOD:VERSION:1.0: 02/04/2015: Initial version of the OSOAA code
 C* MOD:VERSION:1.1: 15/06/2015: All comments for log files are now in english
+C* MOD:VERSION:1.2: 27/02/2024: Adding the possibilty to switch off the polarisation effects
 C*                                   
 C*   
 C******************************************************************************
@@ -79,8 +81,10 @@ C                        du double des angles de rotation
 C    CTE_THRESHOLD_Q_U_NULL : Valeur seuil sous laquelle Q et U sont posés nuls.
 C
 C    CTE_SOLAR_DISC_SOLID_ANGLE : Valeur de l'angle solide du disque solaire
-C                                 apparent (pour la distance Terre-Soleil 
-C                                 moyenne).
+C                                 apparent (pour la distance Terre-Soleil moyenne).
+C
+C    CTE_POLAR_SWITCHED_OFF : Option to switch off the polarisation effects (1 : polarisation off)
+C
 C Constantes spécifiques :
 C    INCTE_IDLOG_SOS : ID du ficher Trace de la routine
 C    INCTE_PI : Valeur de PI (calcule par la machine)
@@ -238,13 +242,13 @@ C==============================================================================
 C Constantes SOS
 C -----------------
             
-      INTEGER*2 IDLOG			! Numéro identifiant du fichier Trace	    
+      INTEGER*2 IDLOG                   ! Numéro identifiant du fichier Trace	    
       PARAMETER(IDLOG=INCTE_IDLOG_SOS)
 
-      INTEGER*2 IDFICOS			! Numéro fichier résultat binaire OS    
+      INTEGER*2 IDFICOS                 ! Numéro fichier résultat binaire OS    
       PARAMETER(IDFICOS=10)
 
-      INTEGER*4 NT_TOT		! Nombre total de couches (atmosphère + mer)      
+      INTEGER*4 NT_TOT                  ! Nombre total de couches (atmosphère + mer)      
       PARAMETER(NT_TOT=CTE_NT_ATM+CTE_NT_SEA+1)
       
       
@@ -280,43 +284,42 @@ C*-----------------------------------------------------------------
 					!    mu < 0 : champ descendant.
 					!    mu > 0 : champ montant.
 					
-      DOUBLE PRECISION COSDIFF_ATM	! Cosinus de l'angle de diffusion dans l'atmosphère
-      					! (incidence = faisceau solaire direct)
+      DOUBLE PRECISION COSDIFF_ATM   ! Cosinus de l'angle de diffusion dans l'atmosphère
+      				     ! (incidence = faisceau solaire direct)
 					
-      DOUBLE PRECISION COSDIFF_SEA	! Cosinus de l'angle de diffusion dans la mer
-      					! (incidence = faisceau solaire direct transmis, 
-					!  pour mer plate)	
+      DOUBLE PRECISION COSDIFF_SEA   ! Cosinus de l'angle de diffusion dans la mer
+      				     ! (incidence = faisceau solaire direct transmis pour mer plate)	
 					
 									
 	!    Fonctions pour le développement en séries géométriques,
 	!    champ émergeant au TOA (mu > 0) et descendant au sol (mu < 0).
 	!    Les fonctions sont établies pour un ordre S du développement
 	!    en séries de Fourier, en fonction de l'angle mu et du niveau du profil.	
-      DOUBLE PRECISION I3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)		
+      DOUBLE PRECISION I3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
                                 ! Paramètre de Stokes I pour le cumul des
       				! ordres de diffusion precedent IG en cours.
-      DOUBLE PRECISION Q3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
+      DOUBLE PRECISION Q3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       				! Paramètre de Stokes Q.
-      DOUBLE PRECISION U3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
+      DOUBLE PRECISION U3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       				! Paramètre de Stokes U.
 
 
 
-      DOUBLE PRECISION PHI	! (E) Azimut relatif en radians.	       
-      DOUBLE PRECISION XPHI	! Produit de PHI par IS.
+      DOUBLE PRECISION PHI      ! (E) Azimut relatif en radians.	       
+      DOUBLE PRECISION XPHI     ! Produit de PHI par IS.
 	
-      DOUBLE PRECISION C0	!Cosinus de l'angle d'élévation solaire rmu(N0)
-      DOUBLE PRECISION S0	!Sinus de l'angle d'élévation solaire rmu(N0)
-      DOUBLE PRECISION C1	!Cosinus de l'angle de visée rmu(J) > 0.
-      DOUBLE PRECISION S1	!Sinus de l'angle de visée rmu(J) > 0.
+      DOUBLE PRECISION C0       !Cosinus de l'angle d'élévation solaire rmu(N0)
+      DOUBLE PRECISION S0       !Sinus de l'angle d'élévation solaire rmu(N0)
+      DOUBLE PRECISION C1       !Cosinus de l'angle de visée rmu(J) > 0.
+      DOUBLE PRECISION S1       !Sinus de l'angle de visée rmu(J) > 0.
 
       DOUBLE PRECISION COSDEV   !Cosinus de l'angle de déviation entre direction
                                 !d'incidence solaire dans l'air et direction de 
 				!propagation après réflexion montante dans l'air
 				!ou après transmission air/mer.
 
-      DOUBLE PRECISION COS2KI	! Cosinus de l'angle de rotation ki * 2
-      DOUBLE PRECISION SIN2KI	! Sinus de l'angle de rotation ki * 2
+      DOUBLE PRECISION COS2KI   ! Cosinus de l'angle de rotation ki * 2
+      DOUBLE PRECISION SIN2KI   ! Sinus de l'angle de rotation ki * 2
       				
       DOUBLE PRECISION TAU_ATM(0:CTE_NT_ATM) ! Profil d'épaisseur optique d'extinction 
       					     ! de l'atmosphère. 
@@ -324,49 +327,47 @@ C*-----------------------------------------------------------------
       DOUBLE PRECISION TAU_SEA(0:CTE_NT_SEA) ! Profil d'épaisseur optique d'extinction
       					     ! de la mer.     
 
-      DOUBLE PRECISION AT0	! Transmission du TOA au sol pour la direction 
-      				! d'incidence.
+      DOUBLE PRECISION AT0      ! Transmission du TOA au sol pour la direction d'incidence.
 
-      DOUBLE PRECISION ATJ	! Valeur de transmission pour la direction J et le niveau I:
+      DOUBLE PRECISION ATJ      ! Valeur de transmission pour la direction J et le niveau I:
       				! direction d'incidence (du TOA à la surface) +
       				! direction d'émergence (de la surface au niveau de
 				! sortie pour le champ montant ou descendant).  
       
-      DOUBLE PRECISION SIGMA2	! Carré du paramètre Sigma de la théorie de Cox
-      				! et Munck.
+      DOUBLE PRECISION SIGMA2   ! Carré du paramètre Sigma de la théorie de Cox et Munck.
       
       DOUBLE PRECISION P        ! Probabilite de réflexion vers la direction (mu, phi).        
 
-      DOUBLE PRECISION RF11	! Eléments de la matrice de réflexion de Fresnel
+      DOUBLE PRECISION RF11     ! Eléments de la matrice de réflexion de Fresnel
       DOUBLE PRECISION RF12     ! pour un repère lié au plan de réflexion.
       DOUBLE PRECISION RF33
 
-      DOUBLE PRECISION TF11	! Eléments de la matrice de transmission de Fresnel
+      DOUBLE PRECISION TF11     ! Eléments de la matrice de transmission de Fresnel
       DOUBLE PRECISION TF12     ! pour un repère lié au plan de réflexion.
       DOUBLE PRECISION TF33
             
               
-      DOUBLE PRECISION M11	! Elément de la matrice de réflexion dans le 
+      DOUBLE PRECISION M11      ! Elément de la matrice de réflexion dans le 
       DOUBLE PRECISION M21      ! repère lié au plan méridien.
       DOUBLE PRECISION M31
 
       DOUBLE PRECISION VAL      ! Valeur intermédiaire de calcul: racine(m2-sin2(thetas))
 		
-      DOUBLE PRECISION RL	! Coefficient de réflexion parallèle.
-      DOUBLE PRECISION RR	! Coefficient de réflexion perpendiculaire.
-      DOUBLE PRECISION TL	! Coefficient de transmission parallèle.
-      DOUBLE PRECISION TR	! Coefficient de transmission perpendiculaire.
+      DOUBLE PRECISION RL       ! Coefficient de réflexion parallèle.
+      DOUBLE PRECISION RR       ! Coefficient de réflexion perpendiculaire.
+      DOUBLE PRECISION TL       ! Coefficient de transmission parallèle.
+      DOUBLE PRECISION TR       ! Coefficient de transmission perpendiculaire.
 
-      DOUBLE PRECISION COEF_SUN	! Valeur du rapport de l'éclairement solaire au TOA 
+      DOUBLE PRECISION COEF_SUN ! Valeur du rapport de l'éclairement solaire au TOA 
       				! (PI pour OSOAA) sur l'angle solide du disque solaire.   
 				
 C---- Variables liées à la définition de l'interface air - mer  
 
       DOUBLE PRECISION SEA_IND    ! (E) Indice de réfraction de la mer 
       				  ! pour la longueur d'onde de simulation de la luminance.
-      DOUBLE PRECISION WIND	  ! (E) Vitesse du vent (m/s).
+      DOUBLE PRECISION WIND       ! (E) Vitesse du vent (m/s).
       
-      DOUBLE PRECISION IND2	  ! Carré de l'indice de réfraction de la mer
+      DOUBLE PRECISION IND2       ! Carré de l'indice de réfraction de la mer
  
               
 C---- Fichiers utilisés          
@@ -378,19 +379,19 @@ C---- Paramètres de type entier
       			  !   0 : mer plate.
 			  !   1 : mer agitée.
 
-      INTEGER*4 N0	  ! (E) Numéro de mu de Gauss pour l'angle
+      INTEGER*4 N0        ! (E) Numéro de mu de Gauss pour l'angle
       			  ! zénithal solaire dans l'air.
 			  ! (angle complémentaire : mus = -rmu(N0))
 
-      INTEGER*4 M0	  ! (E) Numéro de mu de Gauss pour l'angle
+      INTEGER*4 M0        ! (E) Numéro de mu de Gauss pour l'angle
       			  ! zénithal solaire dans l'eau (transmission mer plate).
 			  ! (angle complémentaire : musw = -rmu(M0))
 
-      INTEGER*4 J	! Indice du tableau des angles de Gauss.
-      INTEGER*4 I	! Indice de niveau du profil.
-      INTEGER*4 ISEA	! Indice de niveau du profil marin.
+      INTEGER*4 J       ! Indice du tableau des angles de Gauss.
+      INTEGER*4 I       ! Indice de niveau du profil.
+      INTEGER*4 ISEA    ! Indice de niveau du profil marin.
 
-      INTEGER*4 IS	! Ordre de la décomposition en séries de Fourier.  
+      INTEGER*4 IS      ! Ordre de la décomposition en séries de Fourier.  
       INTEGER*4 NBMU    ! (E) nombre d'angles utiles	
       
 C---- Code d'erreur
@@ -432,8 +433,8 @@ C*    Initialisation pour IS = 0
 C*    Lecture du fichier qui a été enregistré avec des 
 C*    bornes de tableaux limitées au dimensionnement utile -NBMU:NBMU
       READ(IDFICOS,ERR=1001) ((I3(I,J),I=0,NT_TOT),J=-NBMU,NBMU),
-     & 			     ((Q3(I,J),I=0,NT_TOT),J=-NBMU,NBMU),
-     &			     ((U3(I,J),I=0,NT_TOT),J=-NBMU,NBMU)
+     &                       ((Q3(I,J),I=0,NT_TOT),J=-NBMU,NBMU),
+     &                       ((U3(I,J),I=0,NT_TOT),J=-NBMU,NBMU)
       
       DO 2 J= -NBMU, NBMU
       
@@ -447,9 +448,9 @@ C*    bornes de tableaux limitées au dimensionnement utile -NBMU:NBMU
 	 
 	 !Calcul de l'angle de diffusion (indépendant des niveaux et ordres S)
 	 COSDIFF_ATM = -RMU(N0)*RMU(J)
-     &	               +SIN(ACOS(RMU(N0)))*SIN(ACOS(RMU(J)))*DCOS(PHI)
+     &                 +SIN(ACOS(RMU(N0)))*SIN(ACOS(RMU(J)))*DCOS(PHI)
      	 COSDIFF_SEA = -RMU(M0)*RMU(J)
-     &	               +SIN(ACOS(RMU(M0)))*SIN(ACOS(RMU(J)))*DCOS(PHI)
+     &                 +SIN(ACOS(RMU(M0)))*SIN(ACOS(RMU(J)))*DCOS(PHI)
 	  
 	 DO I = 0,CTE_NT_ATM
             ANGDIFF(I,J) = ACOS(COSDIFF_ATM)*180.D+00/INCTE_PI
@@ -457,7 +458,7 @@ C*    bornes de tableaux limitées au dimensionnement utile -NBMU:NBMU
 	 
          DO I = CTE_NT_ATM+1,NT_TOT
             ANGDIFF(I,J) = ACOS(COSDIFF_SEA)*180.D+00/INCTE_PI
-	 ENDDO	 
+	 ENDDO
 	 
     2 CONTINUE
     
@@ -468,14 +469,14 @@ C*   Boucle sur l'ordre IS.
 C*    Lecture du fichier qui a été enregistré avec des 
 C*    bornes de tableaux limitées au dimensionnement utile -NBMU:NBMU
    10 READ(IDFICOS,END=9,ERR=1001) ((I3(I,J),I=0,NT_TOT),J=-NBMU,NBMU),
-     & 			           ((Q3(I,J),I=0,NT_TOT),J=-NBMU,NBMU),
-     &			           ((U3(I,J),I=0,NT_TOT),J=-NBMU,NBMU)
+     &                             ((Q3(I,J),I=0,NT_TOT),J=-NBMU,NBMU),
+     &                             ((U3(I,J),I=0,NT_TOT),J=-NBMU,NBMU)
    
       XPHI= IS*PHI
       
       DO 4 J= -NBMU,NBMU
 
-         IF(J.EQ.0) GOTO 4			
+         IF(J.EQ.0) GOTO 4
 	 
 	 DO I = 0,NT_TOT
             XQT(I,J) = XQT(I,J) +2.*Q3(I,J)*DCOS(XPHI)
@@ -503,10 +504,10 @@ C******************************************************************
          COEF_SUN = INCTE_PI / CTE_SOLAR_DISC_SOLID_ANGLE
       
          DO I=0,CTE_NT_ATM    
-	    XIT(I,-N0) = XIT(I,-N0) + COEF_SUN*DEXP(-TAU_ATM(I)/RMU(N0))	      	       
-         ENDDO	
+	    XIT(I,-N0) = XIT(I,-N0) +COEF_SUN*DEXP(-TAU_ATM(I)/RMU(N0))
+         ENDDO
 	 	
-      ENDIF	
+      ENDIF
 	
 C******************************************************************
 C* Ajout du terme de réflexion sur la mer et de transmission 
@@ -515,7 +516,7 @@ C*
 C* Distinction du cas mer agitée et du cas mer plate
 C******************************************************************
 	
-      IF (IMAT_SURF.EQ.1) THEN	!CAS MER AGITEE
+      IF (IMAT_SURF.EQ.1) THEN  !CAS MER AGITEE
       				!--------------
 
 C        Cosinus (positif) et sinus de la direction d'incidence
@@ -534,7 +535,7 @@ C        ----------------------------------------------------
 
 C        GESTION DE LA REFLEXION DU FAISCEAU SOLAIRE DIRECT
 C        ----------------------------------------------------         
-         DO 101 J=1,NBMU			
+         DO 101 J=1,NBMU
             C1=RMU(J)
 	    S1 = DSQRT(1.D+00-C1*C1)
 
@@ -558,7 +559,7 @@ C           Calcul des éléments de matrice de la réflexion de Fresnel
 C           pour un repère lié au plan méridien (rotation). 
 C           -------------------------------------------------     
             CALL OSOAA_MATRICE_PLAN_MERIDIEN(COS2KI,SIN2KI,RF11,RF12,
-     &				    	     M11,M21,M31)
+     &                                       M11,M21,M31)
 
 C           Ajout de la réflexion directe pour un éclairement solaire 
 C           normalisé (PI) atténué (ATJ) avec la probabilite P liée 
@@ -575,9 +576,11 @@ C           -------------------------------------------------
 	       
 	       !Ajout du terme de réflexion directe au vecteur de Stokes	       
 	       XIT(I,J)= XIT(I,J) + M11*ATJ
-               XQT(I,J)= XQT(I,J) + M21*ATJ
-               XUT(I,J)= XUT(I,J) + M31*ATJ
-	       
+               IF (CTE_POLAR_SWITCHED_OFF.NE.1) THEN
+                   XQT(I,J)= XQT(I,J) + M21*ATJ
+                   XUT(I,J)= XUT(I,J) + M31*ATJ
+	       ENDIF
+
 	    ENDDO
 	
   101    CONTINUE !Fin boucle sur J
@@ -586,7 +589,7 @@ C           -------------------------------------------------
 
 C        GESTION DE LA TRANSMISSION DU FAISCEAU SOLAIRE DIRECT
 C        -----------------------------------------------------  
-         DO 111 J=1,NBMU	
+         DO 111 J=1,NBMU
             C1=RMU(J)
 	    S1 = DSQRT(1.D+00-C1*C1)
 	    
@@ -594,7 +597,7 @@ C           Calcul de la probabilite P de transmission dans la direction J
 C           pour la statistique de pentes de vague  
 C           -------------------------------------------------  
             CALL OSOAA_CALC_GT(C0,C1,S0,S1,SEA_IND,SIGMA2,PHI,
-     &		 	       GEO_OK,REFL_SURF,P)
+     &                         GEO_OK,REFL_SURF,P)
 	    
 	    
 C           Calcul des angles de déviation et de rotation. 
@@ -610,13 +613,13 @@ C           préalable au passage à l'expression dans un repère lié au plan
 C           méridien.
 C           -------------------------------------------------    
             CALL OSOAA_MAT_FRESNEL_TRANS(COSDEV,SEA_IND,
-     &	    				 TF11,TF12,TF33)
+     &                                   TF11,TF12,TF33)
       
 C           Calcul des éléments de matrice de la transmission de Fresnel 
 C           pour un repère lié au plan méridien (rotation). 
 C           -------------------------------------------------    
             CALL OSOAA_MATRICE_PLAN_MERIDIEN(COS2KI,SIN2KI,TF11,TF12,
-     &	    				     M11,M21,M31)
+     &                                       M11,M21,M31)
 
 
 C           Ajout de la transmission directe pour un éclairement solaire 
@@ -640,15 +643,17 @@ C           -------------------------------------------------
 	       
 	       !Ajout du terme de transmission directe au vecteur de Stokes	       	       
                XIT(I,-J)= XIT(I,-J)+ M11*ATJ
-               XQT(I,-J)= XQT(I,-J)+ M21*ATJ
-               XUT(I,-J)= XUT(I,-J)+ M31*ATJ
+               IF (CTE_POLAR_SWITCHED_OFF.NE.1) THEN
+                  XQT(I,-J)= XQT(I,-J)+ M21*ATJ
+                  XUT(I,-J)= XUT(I,-J)+ M31*ATJ
+               ENDIF
 
 	    ENDDO
 	
   111    CONTINUE !Fin boucle sur J  
   
      
-      ELSE	!CAS MER PLATE
+      ELSE      !CAS MER PLATE
       		!-------------
 
 C        Test si le plan d'incidence correspond au plan principal solaire
@@ -687,8 +692,9 @@ C*
 	       ATJ = AT0 * DEXP(-(TAU_ATM(CTE_NT_ATM)-TAU_ATM(I))/C0)
 	       
                XIT(I,N0) = XIT(I,N0) + RF11*COEF_SUN*ATJ 
-	       XQT(I,N0) = XQT(I,N0) + RF12*COEF_SUN*ATJ  
-
+	       IF (CTE_POLAR_SWITCHED_OFF.NE.1) THEN
+                   XQT(I,N0) = XQT(I,N0) + RF12*COEF_SUN*ATJ  
+	       ENDIF
 	    ENDDO
 
 		
@@ -709,13 +715,14 @@ C*
 	       
 	       !Ajout du terme de transmission directe au vecteur de Stokes	       	       
                XIT(I,-M0)= XIT(I,-M0)+ TF11*ATJ
-               XQT(I,-M0)= XQT(I,-M0)+ TF12*ATJ
-	       
+               IF (CTE_POLAR_SWITCHED_OFF.NE.1) THEN
+                   XQT(I,-M0)= XQT(I,-M0)+ TF12*ATJ
+	       ENDIF
 	    ENDDO
 	            
 	 ENDIF  !Test dans PPS
   
-      ENDIF	!Test mer agitée / mer plate
+      ENDIF     !Test mer agitée / mer plate
 
 
 
@@ -764,9 +771,6 @@ C----------------------------------------------
  1001 WRITE(6,*) 
      &  '  OSOAA_TRPHI ERROR_1001 on  binary SOS result file reading'
       GOTO 9998  
-      
- 1010 WRITE(6,*) '  OSOAA_TRPHI ERROR_1010 on logfile writing' 
-      GOTO 9998
                        
 9998  IER=-1             
 9999  RETURN   
@@ -825,17 +829,17 @@ C*----------------------------------------
       DOUBLE PRECISION XMUV     !Cosinus de l'angle zénithal de visée 
       				! (>0 si réflexion, <0 si transmission)
 
-      DOUBLE PRECISION PHI	!Azimut relatif entre la direction de visée
+      DOUBLE PRECISION PHI      !Azimut relatif entre la direction de visée
       				!et celle du Soleil (en radians).
       
-      DOUBLE PRECISION COS2KI	!(S) Cosinus du double de l'angle de rotation Ki.
-      DOUBLE PRECISION SIN2KI	!(S) Sinus du double de l'angle de rotation Ki.
-      DOUBLE PRECISION COSDEV	!(S) Cosinus de l'angle de déviation entre direction
+      DOUBLE PRECISION COS2KI   !(S) Cosinus du double de l'angle de rotation Ki.
+      DOUBLE PRECISION SIN2KI   !(S) Sinus du double de l'angle de rotation Ki.
+      DOUBLE PRECISION COSDEV   !(S) Cosinus de l'angle de déviation entre direction
       				!    d'incidence et direction de visée.
             				 
-      DOUBLE PRECISION S	! 1 ou -1.
-      DOUBLE PRECISION Z	! 
-      DOUBLE PRECISION COSKI	! Cosinus de l'angle de rotation Ki.
+      DOUBLE PRECISION S        ! 1 ou -1.
+      DOUBLE PRECISION Z 
+      DOUBLE PRECISION COSKI    ! Cosinus de l'angle de rotation Ki.
 
 C* Traitement                
 C--------------         
@@ -851,7 +855,7 @@ C--------------
       
          !Cas général Z non proche de zéro
 	 !-------------------------------- 
-         COSKI=(XMUV*COSDEV-XMUS)/Z	
+         COSKI=(XMUV*COSDEV-XMUS)/Z
 	  
 	 IF ((1.-DABS(COSKI)).GE.CTE_SEUIL_EPSILON) THEN
 
@@ -919,7 +923,7 @@ C--------------
       
       
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_ANGLE_ROTATION
+      END     !FIN DE LA PROCEDURE OSOAA_ANGLE_ROTATION
       
  
       
@@ -982,27 +986,26 @@ C==============================================================================
 
 C* Définition des variables                
 C*---------------------------    
-      DOUBLE PRECISION COSDIF	! Cosinus de l'angle de diffusion.
+      DOUBLE PRECISION COSDIF ! Cosinus de l'angle de diffusion.
       
-      DOUBLE PRECISION IND	! Indice de réfraction relatif 
-      				! (eau / air pour une réflexion sur mer).
+      DOUBLE PRECISION IND   ! Indice de réfraction relatif 
+      			     ! (eau / air pour une réflexion sur mer).
       
-      DOUBLE PRECISION R11	!Elément de la matrice de réflexion de Fresnel.
+      DOUBLE PRECISION R11   ! Elément de la matrice de réflexion de Fresnel.
       DOUBLE PRECISION R12
       DOUBLE PRECISION R33
       
       
-      DOUBLE PRECISION IND2	! Carré de l'indice de réfraction relatif.
+      DOUBLE PRECISION IND2  ! Carré de l'indice de réfraction relatif.
 				
-      DOUBLE PRECISION COSW	! Cosinus de l'angle de réflexion W
-      				! (angle d'incidence par rapport à la 
-				!  normale du dioptre)
+      DOUBLE PRECISION COSW  ! Cosinus de l'angle de réflexion W
+      			     ! (angle d'incidence par rapport à la normale du dioptre)
       
-      DOUBLE PRECISION V	! Sinus carré de W.
-      DOUBLE PRECISION X	! 
+      DOUBLE PRECISION V     ! Sinus carré de W.
+      DOUBLE PRECISION X
       
-      DOUBLE PRECISION RL	! Coefficient de réflexion parallèle.
-      DOUBLE PRECISION RR	! Coefficient de réflexion perpendiculaire.
+      DOUBLE PRECISION RL    ! Coefficient de réflexion parallèle.
+      DOUBLE PRECISION RR    ! Coefficient de réflexion perpendiculaire.
       
 
 C* Traitements                
@@ -1018,7 +1021,7 @@ C--------------
       R12=(RL**2-RR**2)/2.
       R33=RR*RL
       RETURN
-      END  	!FIN DE LA PROCEDURE SOS_REFLEX
+      END      !FIN DE LA PROCEDURE SOS_REFLEX
 
 
 
@@ -1108,7 +1111,7 @@ C==============================================================================
 
 C* Définition des variables                
 C*---------------------------    
-      DOUBLE PRECISION COSDEVTR	! Cosinus de l'angle de déviation entre direction
+      DOUBLE PRECISION COSDEVTR ! Cosinus de l'angle de déviation entre direction
                                 ! d'incidence solaire dans l'air et direction de 
 				! propagation dans la mer après transmission air/mer.
 
@@ -1117,19 +1120,19 @@ C*---------------------------
       DOUBLE PRECISION N1SN2    ! Rapport d'indice du milieu d'incidence 
       				! sur le milieu de réfraction: N1SN2 = 1 / IND
 				
-      DOUBLE PRECISION F11	! Elément de la matrice de transmission de Fresnel.
+      DOUBLE PRECISION F11      ! Elément de la matrice de transmission de Fresnel.
       DOUBLE PRECISION F12
       DOUBLE PRECISION F33
 
       DOUBLE PRECISION COS_I    ! Cosinus de l'angle d'incidence par rapport à la 
       				! normale de vague.
-      DOUBLE PRECISION SIN2_I	! Sinus carré de l'angle d'incidence.
-      DOUBLE PRECISION COS_T	! Cosinus de l'angle réfracté.
-      DOUBLE PRECISION COS2_T	! Cosinus carré de l'angle réfracté.
-      DOUBLE PRECISION SIN2_T	! Sinus carré de l'angle réfracté.
+      DOUBLE PRECISION SIN2_I   ! Sinus carré de l'angle d'incidence.
+      DOUBLE PRECISION COS_T    ! Cosinus de l'angle réfracté.
+      DOUBLE PRECISION COS2_T   ! Cosinus carré de l'angle réfracté.
+      DOUBLE PRECISION SIN2_T   ! Sinus carré de l'angle réfracté.
 
-      DOUBLE PRECISION CL	! Coefficient de réflexion ou transmission parallèle.
-      DOUBLE PRECISION CR	! Coefficient de réflexion ou transmission perpendiculaire.
+      DOUBLE PRECISION CL       ! Coefficient de réflexion ou transmission parallèle.
+      DOUBLE PRECISION CR       ! Coefficient de réflexion ou transmission perpendiculaire.
       
       DOUBLE PRECISION COEFT    ! Coefficient de pondération de la matrice de Fresnel
       				! en transmission.
@@ -1173,7 +1176,7 @@ C------------------------------------------------------------------------
 	    IF (COS_I.NE.0.) THEN
 		COEFT = COS2_T  * (IND*IND*IND)
 		COEFT = COEFT  / (IND*COS_T - COS_I)
-		COEFT = COEFT  / (IND*COS_T - COS_I)	
+		COEFT = COEFT  / (IND*COS_T - COS_I)
 	    ELSE
 		!Cas d'une incidence à 90 degrés ==> Pas de transmission
 		COEFT = 0.
@@ -1190,14 +1193,14 @@ C----------------------------------------------------------------
 	    
 	    F11=0.D+00
             F12=0.D+00
-            F33=0.D+00	 
+            F33=0.D+00
 	    
       ENDIF ! Fin test config_status
 
      
      
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_MAT_FRESNEL_TRANS
+      END    !FIN DE LA PROCEDURE OSOAA_MAT_FRESNEL_TRANS
 
 
 
@@ -1244,17 +1247,17 @@ C==============================================================================
 
 C* Définition des variables   
 C*------------------------------------------------        
-      DOUBLE PRECISION F11	!Elément de la matrice de réflexion
-      				!de Fresnel dans le repère lié au plan de déviation.
+      DOUBLE PRECISION F11  !Elément de la matrice de réflexion
+      			    !de Fresnel dans le repère lié au plan de déviation.
       DOUBLE PRECISION F12
       
-      DOUBLE PRECISION M11	!Elément de la matrice de réflexion/transmission dans le 
-      				!repère lié au plan méridien.
+      DOUBLE PRECISION M11  !Elément de la matrice de réflexion/transmission dans le 
+      			    !repère lié au plan méridien.
       DOUBLE PRECISION M21
       DOUBLE PRECISION M31
    
-      DOUBLE PRECISION C2	! Cosinus de 2*KI (KI: angle de rotation)
-      DOUBLE PRECISION S2	! Sinus de 2*KI.
+      DOUBLE PRECISION C2   ! Cosinus de 2*KI (KI: angle de rotation)
+      DOUBLE PRECISION S2   ! Sinus de 2*KI.
       
 
 C* Traitements                
@@ -1264,9 +1267,5 @@ C--------------
       M31=S2*F12
       
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_MATRICE_PLAN_MERIDIEN
+      END     !FIN DE LA PROCEDURE OSOAA_MATRICE_PLAN_MERIDIEN
 
-
-
-       
-       

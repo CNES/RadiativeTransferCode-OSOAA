@@ -8,11 +8,21 @@ C* DATE: 02/04/2015
 C*
 C* MOD:VERSION:1.0
 C* MOD:VERSION:1.1: 30/05/2018:  
-C*     - New constants are introduced for tabulated data of sea bottom 
+C*     - New constants are introduced for tabulated data of seabed 
 C*       spectral reflectance : CTE_FIC_BOT_SPECTRAL_DATA and CTE_NB_WA_FIC_BOT 
 C* MOD:VERSION:1.2: 11/01/2019: 
 C*     - Change the CTE_OS_NS_MAX value
 C*     - Change the CTE_NBANGLES_MAX value and recommendation
+C* MOD:VERSION:1.3: 02/08/2024: 
+C*     - Adding the new constant parameter CTE_POLAR_SWITCHED_OFF 
+C*       to switch off the polarisation effects.
+C*     - Adding the new constant parameter CTE_NZ_MAX_USER_PROFILE 
+C*       to define the maximum number of depth values in the user profile
+C*       of absorption and scattering coefficients.
+C*     - Adjust the value for CTE_MIE_NBMU_MAX, CTE_OS_NBMU_MAX, CTE_OS_NB_MAX,
+C*       CTE_OS_NS_MAX, CTE_OS_NM_MAX, CTE_NBANGLES_MAX
+C*     - CTE_STD_PRESSURE is renamed CTE_DEFAULT_PRESSURE to ensure consistency with the GUI code.
+
 C******************************************************************************
 
 C#######################################################################
@@ -77,7 +87,7 @@ C----------------------------------------------------------------
 #define CTE_MIE_DIM 10000
 
 
-C Maximal size of user phaze function arrays
+C Maximum size of user phaze function arrays
 C    --> Specific constant to the file OSOAA_AEROSOLS.F
 C----------------------------------------------------------------
 #define CTE_MAXNB_ANG_EXT 200
@@ -119,7 +129,7 @@ C----------------------------------------------------------------
 #define CTE_ALPHAMAX_SF_SR    70.
 #define CTE_ALPHAMAX_SF_SU    90.
 
-C Minimal value of the size distribution ratio n(r) / Nmax
+C Lowest value of the size distribution ratio n(r) / Nmax
 C used to estimate the limit value of the size parameter
 C required for Mie calculations.
 C    --> Specific constant to the files OSOAA_AEROSOLS.F
@@ -177,7 +187,7 @@ C    3. Specific constants related to the computation of surface
 C       interface matrixes
 C#######################################################################
  
-C Threshold on maximal value of wave probability GMAX
+C Threshold for the maximum value of the wave probability GMAX
 C    --> Specific constant to the file OSOAA_SURF_MATRICES.F
 C--------------------------------------------------------------
 #define CTE_THRESHOLD_GMAX 1.D-40
@@ -187,8 +197,7 @@ C    --> Specific constant to the file OSOAA_SURF_MATRICES.F
 C--------------------------------------------------------------
 #define CTE_THRESHOLD_DICHO 1.D-10
 
-C Threshold on minimal value for cosine of the zenith 
-C angle of the waves normal vector
+C Threshold for the minimum value of the cosine of the zenith angle of the waves normal vector
 C estimated to an air -> sea coupled directions (incidence, transmission)  
 C    --> Specific constant to the file OSOAA_SURF_MATRICES.F
 C--------------------------------------------------------------
@@ -216,7 +225,7 @@ C--------------------------------------------------------------
 #define CTE_PH_NQ 10
 
 
-C Value of the threshold for maximal order estimate of the 
+C Threshold value for estimating the maximum order of the 
 C Fourier expansion of the wave probability function
 C    --> Specific constant to the file OSOAA_SURF_MATRICES.F
 C--------------------------------------------------------------
@@ -241,12 +250,12 @@ C       --> Specific constant to the file OSOAA_MAIN.F
 C--------------------------------------------------------------
 #define CTE_DEFAULT_FICSOS_RES_VS_VZA "LUM_vsVZA.txt"
 
-C Default value of the maximal number of interaction (scattering, reflexion)
+C Default value for the maximum number of interaction (scattering, reflexion)
 C    --> Specific constant to the file OSOAA_MAIN.F
 C--------------------------------------------------------------
 #define CTE_DEFAULT_IGMAX 100
 
-C Minimal wavelength for radiance calculation
+C Minimum wavelength for radiance calculation
 C    --> Specific constant to the file OSOAA_MAIN.F
 C--------------------------------------------------------------
 #define CTE_WAMIN 0.299
@@ -294,13 +303,17 @@ C    --> Specific constant to the file OSOAA_TRPHI.F
 C--------------------------------------------------------------
 #define CTE_SOLAR_DISC_SOLID_ANGLE 6.8D-05
 
-C    Filename defining the sea bottom spectral reflectance
+C    Filename defining the seabed spectral reflectance
 C    for tabulated data and number of spectral data
 C    --> Specific constant to the file OSOAA_MAIN.F
 C--------------------------------------------------------------
-#define CTE_FIC_BOT_SPECTRAL_DATA "OSOAA_SEA_BOTTOM_REFLECTANCES.txt"
+#define CTE_FIC_BOT_SPECTRAL_DATA "OSOAA_SEABED_REFLECTANCES.txt"
 #define CTE_NB_WA_FIC_BOT 91
 
+C Option to switch off the polarisation effects (1 : polarisation off)
+C    --> Specific constant to the file OSOAA_SOS_CORE.F
+C--------------------------------------------------------------
+#define CTE_POLAR_SWITCHED_OFF 0
 
 C#######################################################################
 C    5. Specific constants related to the definition of angles and orders
@@ -416,8 +429,8 @@ C--------------------------------------------------------------
 C    Maximum number of positive angles for the calculation of angles 
 C    to be used by the routines (Gauss angles + user's angles 
 C    + 1 = solar zenith angle )
-C    Advice : it should be the max between CTE_MIE_NBMU_MAX 
-C             and (CTE_OS_NBMU_MAX+1)
+C    Advice : the maximum number of Gauss angles should be the max  
+C             between CTE_MIE_NBMU_MAX and CTE_OS_NBMU_MAX.
 C    --> Specific constant to the file OSOAA_ANGLES.F
 C--------------------------------------------------------------
 #define CTE_NBANGLES_MAX 511
@@ -467,7 +480,7 @@ C--------------------------------------------------------------
 C    Standard Pressure (mb) 
 C    --> Specific constant to the file OSOAA_PROFILE.F
 C--------------------------------------------------------------
-#define CTE_STD_PRESSURE 1013
+#define CTE_DEFAULT_PRESSURE 1013
 
 C    Altitude of the Top of Atmosphere (km) 
 C    --> Specific constant to the file OSOAA_PROFILE.F
@@ -536,7 +549,14 @@ C    --> Specific constant to the file OSOAA_PROFILE.F
 C--------------------------------------------------------------
 #define CTE_DEFAULT_SPECTRAL_DET 0.011
 
-C    Maximal value of the sea column optical thickness
+C    Maximum value of the sea column optical thickness
 C    --> Specific constant to the file OSOAA_PROFILE.F
 C--------------------------------------------------------------
 #define CTE_SEA_T_LIMIT 30.
+
+C    Maximum number of depths in the user profile of
+C    absorption and scaterring coefficients for constituents 
+C    other than pure water
+C    --> Specific constant to the file OSOAA_PROFILE.F
+C--------------------------------------------------------------
+#define CTE_NZ_MAX_USER_PROFILE 500

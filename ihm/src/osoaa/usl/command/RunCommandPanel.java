@@ -199,12 +199,13 @@ public class RunCommandPanel extends JPanel {
                     {
                         String[] fragments = aSrc.split(" ");
 
-                        String newLineSeparator = " \\\n-";
+                        String newLineSeparator = " \\\n";
                         StringBuffer sbu = new StringBuffer();
                         sbu.append(fragments[0]);
                         sbu.append(newLineSeparator);
                         for(int i=1; i<fragments.length; i=i+2)
                         {
+							System.out.println("i=" + i + " -> "+ fragments[i]);
                             sbu.append(fragments[i]);
                             sbu.append(" ");
                             sbu.append(fragments[i+1]);

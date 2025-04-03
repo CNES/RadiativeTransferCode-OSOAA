@@ -4,9 +4,8 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
-C*   Copyright (c) 2016, Université Pierre et Marie Curie - Paris 6
-C*                       and Communications & Systemes (CS SI)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
 C*   it under the terms of the GNU General Public License as published by
@@ -94,7 +93,20 @@ C*
 C*     - The ratio Eu/Ed is provided in the Flux.txt file (column n°9).
 C*   
 C*     - Flux given in the trace file are normalized by the solar irradiance (PI)
+C*                  
+C* MOD:VERSION:1.4: 13/08/2024: 
+C*     - Deleting of a few commas after the READ function to avoid warnings during compilation.
+C*     - Adding the possibility to switch off the polarisation
+C*     - Modification of information on fluxes : the normalization by PI is removed.
+C*       Fluxes are now provided in accordance with normalized radiance.
+C*       They correspond to a solar irradiance equals to PI.
 C*
+C* MOD:VERSION:1.5: 21/01/2025:
+C*     - Change obsolete end of loops in OSOAA_NOYAUX, OSOAA_FSOURCE_ATM_ORDREIG, OSOAA_FSOURCE_SEA_ORDRE1_MERPLATE,
+C*       OSOAA_INTEGR_EPOPT_ATM_UP, OSOAA_INTEGR_EPOPT_ATM_DOWN, OSOAA_INTEGR_EPOPT_SEA_UP, OSOAA_INTEGR_EPOPT_SEA_DOWN,
+C*       OSOAA_FSOURCE_DIFF_FRESNEL1
+C*     - Change of the format of flux data (600 FORMAT line)
+C*       
 C******************************************************************************
 
 C----------------------------------------------------------------------------
@@ -119,7 +131,8 @@ C                     polynômes de Legendre des fonctions de phase des particule
 C                     et pour le développement en séries de Fourier des matrices
 C                     d'interface et des champs de luminance.
 C
-C
+C    CTE_POLAR_SWITCHED_OFF : Option de coupure de la polarisation (1 si coupée)
+C 
 C Constantes spécifiques :
 C    INCTE_IDLOG_SOS : ID du ficher Trace de la routine
 C    INCTE_PI : Valeur de PI (calculé par la machine)
@@ -191,20 +204,21 @@ C      décomposition.
 C
 C      Le programme calcule des flux au TOA, au niveau de la surface 
 C      (juste au-dessus : niveau 0+ et juste en-dessous : niveau 0-)
+C      ainsiq qu'en tout niveau du profil atmosphérique et marin.
 C
 C      Les paramètres de Stokes I, Q et U sont simulées.
 C
 C
 C
-C Description des paramètres 			 
+C Description des paramètres 
 C ------------------------------
 C
 C     N0  (I4)        (E) : Numéro de mu de Gauss pour l'angle zénithal solaire dans l'air.
 C                          (angle complémentaire : mus = -rmu(N0)) 
 C
 C     M0  (I4)        (E) : Numéro de mu de Gauss pour l'angle zénithal solaire dans l'eau.
-C      			    (transmission mer plate).
-C			    (angle complémentaire : musw = -rmu(M0))
+C                           (transmission mer plate).
+C                           (angle complémentaire : musw = -rmu(M0))
 C
 C     NBMU (I4)       (E) : Nombre d'angles (positifs) effectivement utiles.
 C
@@ -215,53 +229,53 @@ C     GA(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)
 C                     (E) : Tableau des poids des angles utilisés.
 C
 C     OS_NB (I4)      (E) : Ordre max des développements des fonctions de phase 
-C		            en Polynômes de Legendre à utiliser.
+C                           en Polynômes de Legendre à utiliser.
 C
 C     IMAT_SURF  (I4) (E) : Indice précisant s'il y a usage des fichiers 
 C                           SURFACE  d'interface air / mer agitée 
-C			    (1 si c'est le cas, 0 sinon).
+C                           (1 si c'est le cas, 0 sinon).
 C
 C     FICRAA (CHAR*CTE_LENFIC2) (E) : Nom du fichier Matrice de réflexion air / air.
 C     FICTAW (CHAR*CTE_LENFIC2) (E) : Nom du fichier Matrice de transmission air / eau.
 C     FICRWW (CHAR*CTE_LENFIC2) (E) : Nom du fichier Matrice de réflexion eau / eau.
 C     FICTWA (CHAR*CTE_LENFIC2) (E) : Nom du fichier Matrice de transmission eau / air.
 C
-C     SEA_IND (double)    	(E) : Indice de réfraction eau / air à la longueur 
-C				      d'onde de simulation des luminances.
+C     SEA_IND (double)          (E) : Indice de réfraction eau / air à la longueur 
+C                                     d'onde de simulation des luminances.
 C
-C     RHO_SURF  (double)    	(E) : Albédo de surface à la longueur d'onde
-C				      de simulation des luminances.
+C     RHO_SURF  (double)        (E) : Albédo de surface à la longueur d'onde
+C                                     de simulation des luminances.
 C
-C     RHO_BOT  (double)    	(E) : Albédo de fond de mer à la longueur d'onde
-C				      de simulation des luminances.
+C     RHO_BOT  (double)         (E) : Albédo de fond de mer à la longueur d'onde
+C                                     de simulation des luminances.
 C
 C     ATM_TAUEXT_TR(0:CTE_NT_ATM)  (double)  
 C                     (E) : Profil d'épaisseur optique d'extinction 
-C			    de l'atmosphère ajusté à la troncature. 
+C                           de l'atmosphère ajusté à la troncature. 
 C
 C     ATM_PCAER_TR(0:CTE_NT_ATM)  (double)  
 C                     (E) : Proportion d'aérosols pour la diffusion dans chaque couche 
-C			    atmosphérique, ajustée à la troncature.
+C                           atmosphérique, ajustée à la troncature.
 C
 C     ATM_PCRAY_TR(0:CTE_NT_ATM)  (double)  
 C                     (E) : Proportion de molécules pour la diffusion dans chaque couche 
-C			    atmosphérique, ajustée à la troncature.
+C                           atmosphérique, ajustée à la troncature.
 C
 C     SEA_TAUEXT_TR(0:CTE_NT_SEA)  (double)  
 C                     (E) : Profil d'épaisseur optique d'extinction
-C			    de la mer, ajusté aux troncatures.
+C                           de la mer, ajusté aux troncatures.
 C
 C     SEA_PCRAY_TR(0:CTE_NT_SEA)  (double)  
 C                     (E) : Proportion de molécules pour la diffusion dans chaque couche
-C			    marine, ajustée aux troncatures.
+C                           marine, ajustée aux troncatures.
 C
 C     SEA_PC_CHL_TR(0:CTE_NT_SEA)  (double)  
 C                     (E) : Proportion de phytoplancton pour la diffusion dans chaque couche
-C			    marine, ajustée aux troncatures.
+C                           marine, ajustée aux troncatures.
 C
 C     SEA_PC_MLP_TR(0:CTE_NT_SEA)  (double)  
 C                     (E) : Proportion de sédiments pour la diffusion dans chaque couche
-C			    marine, ajustée aux troncatures.
+C                           marine, ajustée aux troncatures.
 C
 C     PROFIL_Z(0:NT_TOT)  (double)  
 C                     (E) : Profil global d'altitudes et de profondeurs (m).
@@ -319,20 +333,20 @@ C     IBORM  (I4)     (E) : Ordre maximal du développement en séries de Fourier
 C
 C     FIC_FLUX (CHAR*CTE_LENFIC2)    
 C                     (S) : Nom du fichier de profil du flux montant descendant,
-C			    normalisé par l'éclairement solaire au TOA (chemin complet).
+C                           pour un éclairement solaire au TOA valant PI (chemin complet).
 C
 C     FICSOS_LOG (CHAR*CTE_LENFIC2)    
 C                     (S) : Nom du fichier de log (chemin complet)
 C
 C     FICSOS_RES_BIN (CHAR*CTE_LENFIC2)
 C                     (S) : Nom du fichier résultat binaire des calculs SOS.
-C   		            (chemin complet)
+C                               (chemin complet)
 C
 C     IER (I4)        (S) : indice d'erreur : 0 si pas d'erreur, -1 sinon.
 C   
 C
 C
-C Résultats fournis par la procédure	 
+C Résultats fournis par la procédure         
 C ----------------------------------
 C 
 C  - FICSOS_RES_BIN : Sortie avancée dédié aux utilisateurs expert
@@ -342,7 +356,7 @@ C
 C  - Fichier Trace optionnel.
 C
 C
-C Description des fichiers utilisés	 
+C Description des fichiers utilisés         
 C ---------------------------------
 C
 C    Fichiers d'interface air / mer agitée:
@@ -370,27 +384,27 @@ C
 C    Fichier résultat FICSOS_RES_BIN
 C      ==> Fichier binaire non formaté du champ de luminance simulé (I,Q,U)
 C
-C		format : Pour chaque ordre IS de la décomposition en série de Fourier
+C                format : Pour chaque ordre IS de la décomposition en série de Fourier
 C                        (IS = 0 à IS_MAX variable selon la simulation),      
 C                        enregistrement d'un bloc pour les paramètres de Stokes I, Q et U,
 C                        sur tout le profil (du TOA au fond de mer : P=0,NT_TOT)
-C				((I3(I,K),P=0,NT_TOT),K=-NBMU,NBMU),
-C    		   	        ((Q3(I,K),P=0,NT_TOT),K=-NBMU,NBMU),
-C			        ((U3(I,K),P=0,NT_TOT),K=-NBMU,NBMU)
+C                               ((I3(I,K),P=0,NT_TOT),K=-NBMU,NBMU),
+C                               ((Q3(I,K),P=0,NT_TOT),K=-NBMU,NBMU),
+C                               ((U3(I,K),P=0,NT_TOT),K=-NBMU,NBMU)
 C
-C    		--> Les tableaux ont une taille limitée angles utiles : -NBMU:NBMU   
+C                --> Les tableaux ont une taille limitée angles utiles : -NBMU:NBMU   
 C
 C
 C    Fichier résultat FIC_FLUX
 C      ==> Fichier Ascii formaté du profil de flux montant descendant du TOA au fond marin
-C          normalisé par l'éclairement solaire au TOA
+C          pour un éclairement solaire au TOA valant PI
 C
-C		format : 5 lignes d'entete
+C                format : 5 lignes d'entete
 C                        9 colonnes pour chaque niveau du profil (0 à NT_TOT)
 C                           --> Level, Z in meters, Direct_Downward_Flux, Diffuse_Downward_Flux, 
 C                               Total_Downward_Flux, Direct_Upward_Flux, Diffuse_Upward_Flux, 
 C                               Total_Upward_Flux, (Total_Upward_Flux/Total_Downward_Flux)
-C				FORMAT(2X,I4,1X,F12.5,2X,7(2X,E12.6))
+C                               FORMAT(2X,I4,1X,F12.5,2X,7(2X,E12.6))
 C 
 C
 C Common utilisé:
@@ -431,18 +445,18 @@ C
 C==============================================================================
 
       SUBROUTINE OSOAA_SOS_CORE(N0,M0,NBMU,RMU,GA,OS_NB,
-     &			        IMAT_SURF,
+     &                          IMAT_SURF,
      &                          FICRAA,FICTAW,FICRWW,FICTWA,
-     &				SEA_IND,RHO_SURF,RHO_BOT,
-     &				ATM_TAUEXT_TR,ATM_PCAER_TR,ATM_PCRAY_TR,
-     &				SEA_TAUEXT_TR,SEA_PCRAY_TR,
-     &				SEA_PC_CHL_TR,SEA_PC_MLP_TR,
-     &   			ALPHA_AER,BETA_AER,GAMMA_AER,ZETA_AER, 
-     &	 		   	ALPHA_CHL,BETA_CHL,GAMMA_CHL,ZETA_CHL,
-     &	 		   	ALPHA_MLP,BETA_MLP,GAMMA_MLP,ZETA_MLP,
-     &				IGMAX,IBORM,
+     &                          SEA_IND,RHO_SURF,RHO_BOT,
+     &                          ATM_TAUEXT_TR,ATM_PCAER_TR,ATM_PCRAY_TR,
+     &                          SEA_TAUEXT_TR,SEA_PCRAY_TR,
+     &                          SEA_PC_CHL_TR,SEA_PC_MLP_TR,
+     &                          ALPHA_AER,BETA_AER,GAMMA_AER,ZETA_AER, 
+     &                          ALPHA_CHL,BETA_CHL,GAMMA_CHL,ZETA_CHL,
+     &                          ALPHA_MLP,BETA_MLP,GAMMA_MLP,ZETA_MLP,
+     &                          IGMAX,IBORM,
      &                          PROFIL_Z, FIC_FLUX,
-     &				FICSOS_LOG,FICSOS_RES_BIN,IER)
+     &                          FICSOS_LOG,FICSOS_RES_BIN,IER)
 
 
       IMPLICIT NONE
@@ -450,33 +464,33 @@ C==============================================================================
 
 C Constantes SOS
 C -----------------
-      INTEGER*2 IDLOG			! Numéro identifiant du fichier Trace	    
+      INTEGER*2 IDLOG     ! Numéro identifiant du fichier Trace   
       PARAMETER(IDLOG=INCTE_IDLOG_SOS)
 
-      INTEGER*2 IDFICOS			! Numéro fichier résultat binaire OS    
+      INTEGER*2 IDFICOS   ! Numéro fichier résultat binaire OS    
       PARAMETER(IDFICOS=10)
 
 
 
 
-      INTEGER*2 IDRAA		! Numéro identifiant du fichier SURFACE RAA
+      INTEGER*2 IDRAA           ! Numéro identifiant du fichier SURFACE RAA
       PARAMETER(IDRAA=21)
 
-      INTEGER*2 IDTAW		! Numéro identifiant du fichier SURFACE TAW
+      INTEGER*2 IDTAW           ! Numéro identifiant du fichier SURFACE TAW
       PARAMETER(IDTAW=22)
       
-      INTEGER*2 IDRWW		! Numéro identifiant du fichier SURFACE RWW
+      INTEGER*2 IDRWW           ! Numéro identifiant du fichier SURFACE RWW
       PARAMETER(IDRWW=23)
 
-      INTEGER*2 IDTWA		! Numéro identifiant du fichier SURFACE TWA
+      INTEGER*2 IDTWA           ! Numéro identifiant du fichier SURFACE TWA
       PARAMETER(IDTWA=24)
 
 
-      INTEGER*4 NT_TOT		! Nombre total de couches (atmosphère + mer)      
+      INTEGER*4 NT_TOT          ! Nombre total de couches (atmosphère + mer)      
       PARAMETER(NT_TOT=CTE_NT_ATM+CTE_NT_SEA+1)
       
 
-      LOGICAL TRACE_DEBUG	! Option pour des traces en mode d'expertise
+      LOGICAL TRACE_DEBUG       ! Option pour des traces en mode d'expertise
       PARAMETER(TRACE_DEBUG=.FALSE.)
       
 
@@ -487,7 +501,7 @@ C*------------------------------------------------------
       DOUBLE PRECISION GA(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
                                 ! (E) Poids des angles de Gauss (et utilisateur).
 
-      DOUBLE PRECISION Z	! Valeur ponctuelle du tableau des poids de Gauss.
+      DOUBLE PRECISION Z        ! Valeur ponctuelle du tableau des poids de Gauss.
 
       DOUBLE PRECISION TAB      ! Valeur du cosinus de l'angle zénithal 
                                 ! solaire (mus) dans l'atmosphère.
@@ -495,103 +509,97 @@ C*------------------------------------------------------
       DOUBLE PRECISION TABW     ! Valeur du cosinus de l'angle zénithal 
                                 ! solaire (mus) transmis dans la mer (plate).
 
-      DOUBLE PRECISION SIGN	! Valeur 1 ou -1.
-      DOUBLE PRECISION COEF	! Coefficient 1 ou 2.
+      DOUBLE PRECISION SIGN     ! Valeur 1 ou -1.
+      DOUBLE PRECISION COEF     ! Coefficient 1 ou 2.
 
 
       DOUBLE PRECISION SEA_IND  ! (E) Indice de réfraction de la mer 
-      				! pour la longueur d'onde de simulation de la luminance.
+                                ! pour la longueur d'onde de simulation de la luminance.
 
 
-	!Profils atmosphériques ajustés à la troncature aérosols
+      !Profils atmosphériques ajustés à la troncature aérosols
       DOUBLE PRECISION ATM_TAUEXT_TR(0:CTE_NT_ATM) 
-      				! (E) Profil d'épaisseur optique d'extinction 
-				! de l'atmosphère ajusté à la troncature. 
-
+                                ! (E) Profil d'épaisseur optique d'extinction 
+                                ! de l'atmosphère ajusté à la troncature. 
+                              
 
       DOUBLE PRECISION ATM_PCRAY_TR(0:CTE_NT_ATM)  
-      				! (E)  Proportion de molécules pour la diffusion 
-      				! dans chaque couche atmosphérique, ajustée à la troncature.
+                                ! (E)  Proportion de molécules pour la diffusion 
+                                ! dans chaque couche atmosphérique, ajustée à la troncature.
       DOUBLE PRECISION ATM_PCAER_TR(0:CTE_NT_ATM)  
-      				! (E)  Proportion d'aérosols pour la diffusion 
-				! dans chaque couche atmosphérique, ajustée à la troncature.
+                                ! (E)  Proportion d'aérosols pour la diffusion 
+                                ! dans chaque couche atmosphérique, ajustée à la troncature.
 
-						
-	!Profils marins ajustés à la troncature des fonctions de phase 
-	!des sédiments et du phytoplancton      
+
+      !Profils marins ajustés à la troncature des fonctions de phase 
+      !des sédiments et du phytoplancton      
       DOUBLE PRECISION SEA_TAUEXT_TR(0:CTE_NT_SEA) 
-      				! (E) Profil d'épaisseur optique d'extinction de la mer, 
-      				! ajusté aux troncatures.     
+                                ! (E) Profil d'épaisseur optique d'extinction de la mer, 
+                                ! ajusté aux troncatures.     
 
       DOUBLE PRECISION SEA_PCRAY_TR(0:CTE_NT_SEA)  
-      				! (E)  Proportion de molécules pour la diffusion 
-      				! dans chaque couche marine, ajustée aux troncatures.
+                                ! (E)  Proportion de molécules pour la diffusion 
+                                ! dans chaque couche marine, ajustée aux troncatures.
       DOUBLE PRECISION SEA_PC_CHL_TR(0:CTE_NT_SEA) 
-      				! (E)  Proportion de phytoplancton pour la diffusion 
-      				! dans chaque couche marine, ajustée aux troncatures.
+                                ! (E)  Proportion de phytoplancton pour la diffusion 
+                                ! dans chaque couche marine, ajustée aux troncatures.
       DOUBLE PRECISION SEA_PC_MLP_TR(0:CTE_NT_SEA)
-      				! (E)  Proportion de sédiments pour la diffusion 
-      				! dans chaque couche marine, ajustée aux troncatures.
+                                ! (E)  Proportion de sédiments pour la diffusion 
+                                ! dans chaque couche marine, ajustée aux troncatures.
 
 
-      DOUBLE PRECISION CH_ATM(0:CTE_NT_ATM)	
-      				! Atténuation du faisceau solaire direct / 4  
+      DOUBLE PRECISION CH_ATM(0:CTE_NT_ATM)
+                                ! Atténuation du faisceau solaire direct / 4  
                                 ! dans l'atmosphère pour la direction de propagation 
-				! du faisceau solaire. 
+                                ! du faisceau solaire. 
 
-      DOUBLE PRECISION ATM_TAUEXT_TR_TOT	! Epaisseur optique totale de l'atmosphère
-      						! ajustée à la troncature
+      DOUBLE PRECISION ATM_TAUEXT_TR_TOT      ! Epaisseur optique totale de l'atmosphère ajustée à la troncature
 
-      DOUBLE PRECISION TRANS_ATM_DIRECT_TR	! Transmission du faisceau solaire direct 
-      						! dans l'atmosphère, ajustée à la troncature
-      DOUBLE PRECISION TRANS     		! Transmission 
+      DOUBLE PRECISION TRANS_ATM_DIRECT_TR    ! Transmission du faisceau solaire direct dans l'atmosphère, ajustée à la troncature
+      DOUBLE PRECISION TRANS                  ! Transmission 
       
-      DOUBLE PRECISION CH_SEA(CTE_OS_NBMU_MAX,0:CTE_NT_SEA)	
-      				! Atténuation du faisceau solaire direct / 4 dans la mer
-				! en fonction de la profondeur et de la direction 
-				! de propagation  
-				! ==> transmission de la surface au niveau I dans la mer.
+      DOUBLE PRECISION CH_SEA(CTE_OS_NBMU_MAX,0:CTE_NT_SEA)
+                                ! Atténuation du faisceau solaire direct / 4 dans la mer
+                                ! en fonction de la profondeur et de la direction 
+                                ! de propagation  
+                                ! ==> transmission de la surface au niveau I dans la mer.
 
-      DOUBLE PRECISION CH_SEA_MUS(0:CTE_NT_SEA)	
-      				! Atténuation du faisceau solaire direct / 4 dans la mer 
+      DOUBLE PRECISION CH_SEA_MUS(0:CTE_NT_SEA)
+                                ! Atténuation du faisceau solaire direct / 4 dans la mer 
                                 ! en fonction de la profondeur pour la direction 
-				! de propagation du faisceau solaire transmis.
-				! ==> transmission de la surface au niveau I dans la mer.
+                                ! de propagation du faisceau solaire transmis.
+                                ! ==> transmission de la surface au niveau I dans la mer.
 
       DOUBLE PRECISION PROFIL_Z(0:NT_TOT) ! Profil global d'altitudes et de profondeurs (m).
-						
-      DOUBLE PRECISION TAUSEA		! Valeur d'épaisseur optique de la mer.
 
-      DOUBLE PRECISION CH_ATM_TOT	! Valeur d'atténuation totale de l'atmosphère 
-      					! pour la direction d'incidence solaire.
-      DOUBLE PRECISION CH_SEA_I		! Valeur ponctuelle d'atténuation dans la mer.
+      DOUBLE PRECISION TAUSEA      ! Valeur d'épaisseur optique de la mer.
 
-      DOUBLE PRECISION ATTDIR		! Atténuation dans l'atmosphère du TOA au sol 
-      					! pour la direction d'incidence solaire.
-						
-      DOUBLE PRECISION ATTVIS		! Atténuation dans l'atmosphère du sol à un niveau I
-      					! donné pour une direction de propagation donnée.
-      
-      DOUBLE PRECISION DTAU   		! Différence d'épaisseur optique entre niveaux.
-      
-	!Coefficients de la matrice de phase de la diffusion moléculaire :         	
-      DOUBLE PRECISION BETA0_MOL_AIR	! Coefficients du développement de la matrice 
-      DOUBLE PRECISION BETA2_MOL_AIR	! de phase moléculaire en fonctions de Legendre
-      DOUBLE PRECISION GAMMA2_MOL_AIR	! dans l'air
-      DOUBLE PRECISION ALPHA2_MOL_AIR	
+      DOUBLE PRECISION CH_ATM_TOT  ! Valeur d'atténuation totale de l'atmosphère 
+                                   ! pour la direction d'incidence solaire.
+      DOUBLE PRECISION CH_SEA_I    ! Valeur ponctuelle d'atténuation dans la mer.
 
-      DOUBLE PRECISION BETA0_MOL_SEA	! Coefficients du développement de la matrice 
-      DOUBLE PRECISION BETA2_MOL_SEA	! de phase moléculaire en fonctions de Legendre
-      DOUBLE PRECISION GAMMA2_MOL_SEA	! dans l'eau
-      DOUBLE PRECISION ALPHA2_MOL_SEA	
+      DOUBLE PRECISION ATTVIS   ! Atténuation dans l'atmosphère du sol à un niveau I
+                                ! donné pour une direction de propagation donnée.
       
-      DOUBLE PRECISION AAA	! Facteur correctif de la dépolarisation des molécules.  
+      DOUBLE PRECISION DTAU     ! Différence d'épaisseur optique entre niveaux.
+      
+      !Coefficients de la matrice de phase de la diffusion moléculaire :         
+      DOUBLE PRECISION BETA0_MOL_AIR      ! Coefficients du développement de la matrice 
+      DOUBLE PRECISION BETA2_MOL_AIR      ! de phase moléculaire en fonctions de Legendre
+      DOUBLE PRECISION GAMMA2_MOL_AIR     ! dans l'air
+      DOUBLE PRECISION ALPHA2_MOL_AIR
 
-      DOUBLE PRECISION VAL	! Valeur intermédiaire de calcul
+      DOUBLE PRECISION BETA0_MOL_SEA      ! Coefficients du développement de la matrice 
+      DOUBLE PRECISION BETA2_MOL_SEA      ! de phase moléculaire en fonctions de Legendre
+      DOUBLE PRECISION GAMMA2_MOL_SEA     ! dans l'eau
+      DOUBLE PRECISION ALPHA2_MOL_SEA
       
+      DOUBLE PRECISION AAA_AIR      ! Facteur correctif de la dépolarisation des molécules dans l'air       
+      DOUBLE PRECISION AAA_SEA      ! Facteur correctif de la dépolarisation des molécules dans l'eau
+     
       
 C---- Eléments Pij des matrices d'interface
-	!Matrice RAA
+       !Matrice RAA
       REAL*4 RAA11(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 RAA12(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 RAA13(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
@@ -602,7 +610,7 @@ C---- Eléments Pij des matrices d'interface
       REAL*4 RAA32(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 RAA33(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
 
-	!Matrice TAW
+       !Matrice TAW
       REAL*4 TAW11(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 TAW12(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 TAW13(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
@@ -613,7 +621,7 @@ C---- Eléments Pij des matrices d'interface
       REAL*4 TAW32(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 TAW33(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)     
       
-	!Matrice RWW
+       !Matrice RWW
       REAL*4 RWW11(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 RWW12(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 RWW13(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
@@ -624,7 +632,7 @@ C---- Eléments Pij des matrices d'interface
       REAL*4 RWW32(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 RWW33(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       
-	!Matrice TWA
+       !Matrice TWA
       REAL*4 TWA11(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 TWA12(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
       REAL*4 TWA13(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)
@@ -637,42 +645,40 @@ C---- Eléments Pij des matrices d'interface
       REAL*4 TWA33(CTE_OS_NBMU_MAX,CTE_OS_NBMU_MAX)             
 
 
-	!Paramètres des propriétés radiatives des aérosols
-      DOUBLE PRECISION ALPHA_AER(0:CTE_OS_NB_MAX)	!  (E) Paramètres alpha(k).
-      DOUBLE PRECISION BETA_AER(0:CTE_OS_NB_MAX)	!  (E) Paramètres beta11(k).
-      DOUBLE PRECISION GAMMA_AER(0:CTE_OS_NB_MAX)	!  (E) Paramètres gamma12(k).
-      DOUBLE PRECISION ZETA_AER(0:CTE_OS_NB_MAX)	!  (E) Paramètres zeta(k).
+       !Paramètres des propriétés radiatives des aérosols
+      DOUBLE PRECISION ALPHA_AER(0:CTE_OS_NB_MAX)      !  (E) Paramètres alpha(k).
+      DOUBLE PRECISION BETA_AER(0:CTE_OS_NB_MAX)       !  (E) Paramètres beta11(k).
+      DOUBLE PRECISION GAMMA_AER(0:CTE_OS_NB_MAX)      !  (E) Paramètres gamma12(k).
+      DOUBLE PRECISION ZETA_AER(0:CTE_OS_NB_MAX)       !  (E) Paramètres zeta(k).
 
-	!Paramètres des propriétés radiatives du phytoplancton
-      DOUBLE PRECISION ALPHA_CHL(0:CTE_OS_NB_MAX)	!  (E) Paramètres alpha(k).
-      DOUBLE PRECISION BETA_CHL(0:CTE_OS_NB_MAX)	!  (E) Paramètres beta11(k).
-      DOUBLE PRECISION GAMMA_CHL(0:CTE_OS_NB_MAX)	!  (E) Paramètres gamma12(k).
-      DOUBLE PRECISION ZETA_CHL(0:CTE_OS_NB_MAX)	!  (E) Paramètres zeta(k).
+       !Paramètres des propriétés radiatives du phytoplancton
+      DOUBLE PRECISION ALPHA_CHL(0:CTE_OS_NB_MAX)      !  (E) Paramètres alpha(k).
+      DOUBLE PRECISION BETA_CHL(0:CTE_OS_NB_MAX)       !  (E) Paramètres beta11(k).
+      DOUBLE PRECISION GAMMA_CHL(0:CTE_OS_NB_MAX)      !  (E) Paramètres gamma12(k).
+      DOUBLE PRECISION ZETA_CHL(0:CTE_OS_NB_MAX)       !  (E) Paramètres zeta(k).
 
-	!Paramètres des propriétés radiatives des sédiments
-      DOUBLE PRECISION ALPHA_MLP(0:CTE_OS_NB_MAX)	!  (E) Paramètres alpha(k).
-      DOUBLE PRECISION BETA_MLP(0:CTE_OS_NB_MAX)	!  (E) Paramètres beta11(k).
-      DOUBLE PRECISION GAMMA_MLP(0:CTE_OS_NB_MAX)	!  (E) Paramètres gamma12(k).
-      DOUBLE PRECISION ZETA_MLP(0:CTE_OS_NB_MAX)	!  (E) Paramètres zeta(k).
-
-
+       !Paramètres des propriétés radiatives des sédiments
+      DOUBLE PRECISION ALPHA_MLP(0:CTE_OS_NB_MAX)      !  (E) Paramètres alpha(k).
+      DOUBLE PRECISION BETA_MLP(0:CTE_OS_NB_MAX)       !  (E) Paramètres beta11(k).
+      DOUBLE PRECISION GAMMA_MLP(0:CTE_OS_NB_MAX)      !  (E) Paramètres gamma12(k).
+      DOUBLE PRECISION ZETA_MLP(0:CTE_OS_NB_MAX)       !  (E) Paramètres zeta(k).
 
 
-	!Fonctions de Legendre et fonctions dérivées pour le calcul
-	! de matrice de phase.    
-      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      		! Fonction de Legendre PSL à l'ordre L=2 et S=IS
-      		! en fonction de l'angle mu.     		
-      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      		! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
-      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      		! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
+
+
+       !Fonctions de Legendre et fonctions dérivées pour le calcul de matrice de phase.    
+      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+             ! Fonction de Legendre PSL à l'ordre L=2 et S=IS en fonction de l'angle mu.     		
+      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+             ! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
+      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+             ! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
  
-	! Eléments Pij de la matrice de phase des aérosols pour un ordre
-	! IS de la décomposition en séries de Fourier.
-	! Soit mup la direction d'incidence (-1 < mup < 1)
-	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+       ! Eléments Pij de la matrice de phase des aérosols pour un ordre
+       ! IS de la décomposition en séries de Fourier.
+       ! Soit mup la direction d'incidence (-1 < mup < 1)
+       ! et mu celle de diffusion (-1 < mu < 1),
+       ! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP_AER(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &           -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -693,11 +699,11 @@ C---- Eléments Pij des matrices d'interface
      &            -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! P33.
 
 
-	! Eléments Pij de la matrice de phase du phytoplancton pour un ordre
-	! IS de la décomposition en séries de Fourier.
-	! Soit mup la direction d'incidence (-1 < mup < 1)
-	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+       ! Eléments Pij de la matrice de phase du phytoplancton pour un ordre
+       ! IS de la décomposition en séries de Fourier.
+       ! Soit mup la direction d'incidence (-1 < mup < 1)
+       ! et mu celle de diffusion (-1 < mu < 1),
+       ! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP_CHL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &           -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -719,11 +725,11 @@ C---- Eléments Pij des matrices d'interface
 
 
 
-	! Eléments Pij de la matrice de phase des sédiments pour un ordre
-	! IS de la décomposition en séries de Fourier.
-	! Soit mup la direction d'incidence (-1 < mup < 1)
-	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+       ! Eléments Pij de la matrice de phase des sédiments pour un ordre
+       ! IS de la décomposition en séries de Fourier.
+       ! Soit mup la direction d'incidence (-1 < mup < 1)
+       ! et mu celle de diffusion (-1 < mu < 1),
+       ! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP_MLP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &           -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -748,437 +754,414 @@ C---- Eléments Pij des matrices d'interface
 
 
 C* Variables associées à l'intégration spatiale et verticale : 
-      	! Champ de luminance d'ordre IG-1 ou IG en fonction du niveau du profil
-	! et de la direction.       	
+        ! Champ de luminance d'ordre IG-1 ou IG en fonction du niveau du profil et de la direction.       
       DOUBLE PRECISION I1_ATM(0:CTE_NT_ATM,
-     &			      -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ I.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Champ I.
       DOUBLE PRECISION Q1_ATM(0:CTE_NT_ATM,
-     &			      -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ Q.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Champ Q.
       DOUBLE PRECISION U1_ATM(0:CTE_NT_ATM,
-     &			      -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ U.
-	  	
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Champ U.
+
       DOUBLE PRECISION I1_SEA(0:CTE_NT_SEA,
-     &			      -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ I.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Champ I.
       DOUBLE PRECISION Q1_SEA(0:CTE_NT_SEA,
-     &			      -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ Q.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Champ Q.
       DOUBLE PRECISION U1_SEA(0:CTE_NT_SEA,
-     &			      -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ U.
+     &                       -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Champ U.
 
 
-      DOUBLE PRECISION COEF_INTSPA  ! Coefficient de pondération des 
-      				    ! intégrations spatiales
+      DOUBLE PRECISION COEF_INTSPA  ! Coefficient de pondération des intégrations spatiales
  
  
-      	! Composante du champ (I, Q, U) diffus réfléchi sur mer plate      
+        ! Composante du champ (I, Q, U) diffus réfléchi sur mer plate      
       DOUBLE PRECISION I1_ATM_FRESNEL(0:CTE_NT_ATM,
-     &			      -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ I.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Champ I.
       DOUBLE PRECISION Q1_ATM_FRESNEL(0:CTE_NT_ATM,
-     &			      -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ Q.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Champ Q.
       DOUBLE PRECISION U1_ATM_FRESNEL(0:CTE_NT_ATM,
-     &			      -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ U.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Champ U.
      
 
-      	! Composante du champ (I, Q, U) atmosphérique d'ordre 1,
-	! due à la réflexion du faisceau solaire direct en surface.  
+      ! Composante du champ (I, Q, U) atmosphérique d'ordre 1,
+      ! due à la réflexion du faisceau solaire direct en surface.  
       DOUBLE PRECISION RII(0:CTE_NT_ATM,
-     &			   -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ I.
+     &                     -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Champ I.
       DOUBLE PRECISION RQQ(0:CTE_NT_ATM,
-     &			   -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ Q.
+     &                     -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Champ Q.
       DOUBLE PRECISION RUU(0:CTE_NT_ATM,
-     &			   -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ U.
+     &                     -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Champ U.
      
                 
-	! Vecteur fonction source en fonction du niveau du profil
-	! et de la direction.
+      ! Vecteur fonction source en fonction du niveau du profil et de la direction.
       DOUBLE PRECISION I2_ATM(0:CTE_NT_ATM,
-     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour I.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour I.
       DOUBLE PRECISION Q2_ATM(0:CTE_NT_ATM,
-     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour Q.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour Q.
       DOUBLE PRECISION U2_ATM(0:CTE_NT_ATM,
-     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour U.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour U.
 
       DOUBLE PRECISION I2_SEA(0:CTE_NT_SEA,
-     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour I.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour I.
       DOUBLE PRECISION Q2_SEA(0:CTE_NT_SEA,
-     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour Q.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour Q.
       DOUBLE PRECISION U2_SEA(0:CTE_NT_SEA,
-     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour U.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour U.
 
-	! Vecteur fonction source pour diffusion du champ réfléchi sur mer plate
+      ! Vecteur fonction source pour diffusion du champ réfléchi sur mer plate
       DOUBLE PRECISION I2_ATM_FRESNEL(0:CTE_NT_ATM,
-     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour I.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour I.
       DOUBLE PRECISION Q2_ATM_FRESNEL(0:CTE_NT_ATM,
-     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour Q.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour Q.
       DOUBLE PRECISION U2_ATM_FRESNEL(0:CTE_NT_ATM,
-     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour U.
+     &                        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour U.
 
 
-      DOUBLE PRECISION II2 	! Valeur intermédiaire pour le calcul de I2
-      DOUBLE PRECISION QQ2 	! Valeur intermédiaire pour le calcul de Q2 
-      DOUBLE PRECISION UU2 	! Valeur intermédiaire pour le calcul de U2 
+      DOUBLE PRECISION II2     ! Valeur intermédiaire pour le calcul de I2
+      DOUBLE PRECISION QQ2     ! Valeur intermédiaire pour le calcul de Q2 
+      DOUBLE PRECISION UU2     ! Valeur intermédiaire pour le calcul de U2 
 
-      DOUBLE PRECISION XI1	! Valeur de I du champ montant d'ordre IG-1.
-      DOUBLE PRECISION XQ1	! Valeur de Q du champ montant d'ordre IG-1.
-      DOUBLE PRECISION XU1	! Valeur de U du champ montant d'ordre IG-1.
+      DOUBLE PRECISION XI1     ! Valeur de I du champ montant d'ordre IG-1.
+      DOUBLE PRECISION XQ1     ! Valeur de Q du champ montant d'ordre IG-1.
+      DOUBLE PRECISION XU1     ! Valeur de U du champ montant d'ordre IG-1.
 
-      DOUBLE PRECISION I1_REFL_L1ATM_SURF	! Valeur de I,Q et U du champ montant 
-      DOUBLE PRECISION Q1_REFL_L1ATM_SURF	! à la surface de la réflexion
-      DOUBLE PRECISION U1_REFL_L1ATM_SURF	! de la lumière atmosphérique 
-					
-						
+      DOUBLE PRECISION I1_REFL_L1ATM_SURF     ! Valeur de I,Q et U du champ montant 
+      DOUBLE PRECISION Q1_REFL_L1ATM_SURF     ! à la surface de la réflexion
+      DOUBLE PRECISION U1_REFL_L1ATM_SURF     ! de la lumière atmosphérique 
+
+
 C* Variables associées aux tests de sorties de boucles :
 
-      DOUBLE PRECISION Z1      		! Variable seuil pour les tests d'arrêt.
+      DOUBLE PRECISION Z1             ! Variable seuil pour les tests d'arrêt.
       
-      DOUBLE PRECISION Z1_TOA_FOND	! Variable seuil pour les tests d'arrêt.
-      					! Test sur luminance émergeant au TOA
-					! et descendante au fond de mer
+      DOUBLE PRECISION Z1_TOA_FOND    ! Variable seuil pour les tests d'arrêt.
+                                      ! Test sur luminance émergeant au TOA
+                                      ! et descendante au fond de mer
 
-      DOUBLE PRECISION Z1_SURF		! Variable seuil pour les tests d'arrêt.
-      					! Test sur luminance en surface
-					! montante et descendante 
-					
-      DOUBLE PRECISION Z1_SSURF		! Variable seuil pour les tests d'arrêt.
-      					! Test sur luminance sous la surface
-					! montante et descendante 
+      DOUBLE PRECISION Z1_SURF        ! Variable seuil pour les tests d'arrêt.
+                                      ! Test sur luminance en surface
+                                      ! montante et descendante 
+ 
+      DOUBLE PRECISION Z1_SSURF       ! Variable seuil pour les tests d'arrêt.
+                                      ! Test sur luminance sous la surface
+                                     ! montante et descendante 
 
 C*  - Boucle sur l'ordre de la décomposition en séries de Fourier :
-	! Tableaux de sommation des ordres S de la décomposition
+        ! Tableaux de sommation des ordres S de la décomposition
         ! en séries de Fourier, en fonction de l'angle mu.
-      DOUBLE PRECISION I4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
+      DOUBLE PRECISION I4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION Q4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION U4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
 
         ! Tableaux de sommation des ordres S de la décomposition
         ! en séries de Fourier, avec permutation du signe des ordres S,
-	! en fonction de l'angle mu.
-      DOUBLE PRECISION I5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
+        ! en fonction de l'angle mu.
+      DOUBLE PRECISION I5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION Q5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      DOUBLE PRECISION U5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
+      DOUBLE PRECISION U5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       
-      										
+      
 C*  - Boucle sur les diffusions :
-	!    Fonctions pour le développement en séries géométriques,
-	!    champ émergeant au TOA (mu > 0) et descendant au sol (mu < 0).
-	!    Les fonctions sont établies pour un ordre S du développement
-	!    en séries de Fourier, en fonction de l'angle mu et du niveau du profil.	
-      DOUBLE PRECISION I3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)		
+        !    Fonctions pour le développement en séries géométriques,
+        !    champ émergeant au TOA (mu > 0) et descendant au sol (mu < 0).
+        !    Les fonctions sont établies pour un ordre S du développement
+        !    en séries de Fourier, en fonction de l'angle mu et du niveau du profil.
+      DOUBLE PRECISION I3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
                                 ! Paramètre de Stokes I pour le cumul des
-      				! ordres de diffusion précédant IG en cours.
+                                ! ordres de diffusion précédant IG en cours.
       DOUBLE PRECISION Q3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes Q.
+                                ! Paramètre de Stokes Q.
       DOUBLE PRECISION U3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes U.
+                                ! Paramètre de Stokes U.
       
 
-	! Fonctions pour le test de convergence en séries géométrique.
-	! Les fonctions sont établies pour un ordre S du développement
-	! en séries de Fourier, en fonction de l'angle mu.	
-	
-	   ! --> champ émergeant au TOA (mu > 0) 
-	   !     et descendant au fond de mer (mu < 0)
-	   ! --> Cumul des ordres de diffusion
+        ! Fonctions pour le test de convergence en séries géométrique.
+        ! Les fonctions sont établies pour un ordre S du développement
+        ! en séries de Fourier, en fonction de l'angle mu.
+
+           ! --> champ émergeant au TOA (mu > 0) 
+           !     et descendant au fond de mer (mu < 0)
+           ! --> Cumul des ordres de diffusion
       DOUBLE PRECISION I3_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION Q3_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION U3_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
 
-	   ! --> champ au niveau de la surface : 
-	   !     montant (mu > 0) et descendant (mu < 0)
-	   ! --> Cumul des ordres de diffusion	
+           ! --> champ au niveau de la surface : 
+           !     montant (mu > 0) et descendant (mu < 0)
+           ! --> Cumul des ordres de diffusion
       DOUBLE PRECISION I3_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION Q3_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION U3_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
 
-	   ! --> champ sous la surface
-	   !     montant (mu > 0) et descendant (mu < 0)
-	   ! --> Cumul des ordres de diffusion	
+           ! --> champ sous la surface
+           !     montant (mu > 0) et descendant (mu < 0)
+           ! --> Cumul des ordres de diffusion
       DOUBLE PRECISION I3_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION Q3_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION U3_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
     
 
       DOUBLE PRECISION A1_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-       				! Paramètre de Stokes I pour l'ordre IG-2 
-				! du champ émergeant au TOA (mu>0),
-				! ou descendant au niveau du fond (mu<0). 
+                                ! Paramètre de Stokes I pour l'ordre IG-2 
+                                ! du champ émergeant au TOA (mu>0),
+                                ! ou descendant au niveau du fond (mu<0). 
       DOUBLE PRECISION B1_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-2.
+                                ! Paramètre de Stokes Q pour l'ordre IG-2.
       DOUBLE PRECISION C1_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes U pour l'ordre IG-2.
+                                ! Paramètre de Stokes U pour l'ordre IG-2.
 
       DOUBLE PRECISION D1_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG-1.	
+                                ! Paramètre de Stokes I pour l'ordre IG-1.
       DOUBLE PRECISION E1_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-1.
+                                ! Paramètre de Stokes Q pour l'ordre IG-1.
       DOUBLE PRECISION F1_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG-1.
+                                ! Paramètre de Stokes U pour l'ordre IG-1.
 
       DOUBLE PRECISION G1_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG.	
+                                ! Paramètre de Stokes I pour l'ordre IG.
       DOUBLE PRECISION H1_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG.
+                                ! Paramètre de Stokes Q pour l'ordre IG.
       DOUBLE PRECISION P1_TOA_FOND(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG.
+                                ! Paramètre de Stokes U pour l'ordre IG.
       
 
 
       DOUBLE PRECISION A1_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-       				! Paramètre de Stokes I pour l'ordre IG-2 
-				! du champ en surface,
-				! montant (mu>0) ou descendant (mu<0). 
+                                ! Paramètre de Stokes I pour l'ordre IG-2 
+                                ! du champ en surface,
+                                ! montant (mu>0) ou descendant (mu<0). 
       DOUBLE PRECISION B1_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-2.
+                                ! Paramètre de Stokes Q pour l'ordre IG-2.
       DOUBLE PRECISION C1_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes U pour l'ordre IG-2.
+                                ! Paramètre de Stokes U pour l'ordre IG-2.
 
       DOUBLE PRECISION D1_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG-1.	
+                                ! Paramètre de Stokes I pour l'ordre IG-1.
       DOUBLE PRECISION E1_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-1.
+                                ! Paramètre de Stokes Q pour l'ordre IG-1.
       DOUBLE PRECISION F1_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG-1.
+                                ! Paramètre de Stokes U pour l'ordre IG-1.
 
       DOUBLE PRECISION G1_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG.	
+                                ! Paramètre de Stokes I pour l'ordre IG.
       DOUBLE PRECISION H1_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG.
+                                ! Paramètre de Stokes Q pour l'ordre IG.
       DOUBLE PRECISION P1_SURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG.
+                                ! Paramètre de Stokes U pour l'ordre IG.
 
 
 
       DOUBLE PRECISION A1_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-       				! Paramètre de Stokes I pour l'ordre IG-2 
-				! du champ sous la surface,
-				! montant (mu>0) ou descendant (mu<0). 
+                                ! Paramètre de Stokes I pour l'ordre IG-2 
+                                ! du champ sous la surface,
+                                ! montant (mu>0) ou descendant (mu<0). 
       DOUBLE PRECISION B1_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-2.
+                                ! Paramètre de Stokes Q pour l'ordre IG-2.
       DOUBLE PRECISION C1_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes U pour l'ordre IG-2.
+                                ! Paramètre de Stokes U pour l'ordre IG-2.
 
       DOUBLE PRECISION D1_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG-1.	
+                                ! Paramètre de Stokes I pour l'ordre IG-1.
       DOUBLE PRECISION E1_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-1.
+                                ! Paramètre de Stokes Q pour l'ordre IG-1.
       DOUBLE PRECISION F1_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG-1.
+                                ! Paramètre de Stokes U pour l'ordre IG-1.
 
       DOUBLE PRECISION G1_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG.	
+                                ! Paramètre de Stokes I pour l'ordre IG.
       DOUBLE PRECISION H1_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG.
+                                ! Paramètre de Stokes Q pour l'ordre IG.
       DOUBLE PRECISION P1_SSURF(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG.
-					     
+                                ! Paramètre de Stokes U pour l'ordre IG.
+     
       DOUBLE PRECISION ISUNDIR_DOWN_SSURF_MP !Valeur de EI ECLAIREMENT solaire 
-      					     !direct (divisé par PI) transmis
-      					     !sous la surface pour mer plate
+                                             !direct (divisé par PI) transmis
+                                             !sous la surface pour mer plate
       DOUBLE PRECISION QSUNDIR_DOWN_SSURF_MP !Valeur de EQ éclairement solaire 
-      					     !direct (divisé par PI) transmis
-      					     !sous la surface pour mer plate
+                                             !direct (divisé par PI) transmis
+                                             !sous la surface pour mer plate
       
 
       DOUBLE PRECISION ISUNDIR_DOWN_SSURF_VAG_K !Variable intermédiaire de calcul de
-      					        !EI éclairement solaire direct transmis
-      					        !sous la surface vers une direction 
-					        !donnée K pour une mer agitée.
+                                                !EI éclairement solaire direct transmis
+                                                !sous la surface vers une direction 
+                                                !donnée K pour une mer agitée.
       DOUBLE PRECISION QSUNDIR_DOWN_SSURF_VAG_K !Variable intermédiaire de calcul de
-      					        !EQ éclairement solaire direct transmis 
-      					        !sous la surface vers une direction 
-					        !donnée K pour une mer agitée.
+                                                !EQ éclairement solaire direct transmis 
+                                                !sous la surface vers une direction 
+                                                !donnée K pour une mer agitée.
       DOUBLE PRECISION USUNDIR_DOWN_SSURF_VAG_K !Variable intermédiaire de calcul de
-      					        !EU éclairement solaire direct transmis 
-      					        !sous la surface vers une direction 
-					        !donnée K pour une mer agitée.
-					      
+                                                !EU éclairement solaire direct transmis 
+                                                !sous la surface vers une direction 
+                                                !donnée K pour une mer agitée.
+      
       DOUBLE PRECISION D1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG-1,
-				! sur tout le profil.	
+                                ! Paramètre de Stokes I pour l'ordre IG-1,
+                                ! sur tout le profil.
       DOUBLE PRECISION E1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-1.
+                                ! Paramètre de Stokes Q pour l'ordre IG-1.
       DOUBLE PRECISION F1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG-1.
+                                ! Paramètre de Stokes U pour l'ordre IG-1.
 
       DOUBLE PRECISION G1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG.	
+                                ! Paramètre de Stokes I pour l'ordre IG.
       DOUBLE PRECISION H1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG.
+                                ! Paramètre de Stokes Q pour l'ordre IG.
       DOUBLE PRECISION P1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG.  
-	
+                                ! Paramètre de Stokes U pour l'ordre IG.  
+
 
 C----
 
-      DOUBLE PRECISION RHO_SURF	! (E)  Albédo de la surface (composante lambertienne)
-      DOUBLE PRECISION RHO_BOT	! (E)  Albédo du fond marin (composante lambertienne)     
+      DOUBLE PRECISION RHO_SURF       ! (E)  Albédo de la surface (composante lambertienne)
+      DOUBLE PRECISION RHO_BOT        ! (E)  Albédo du fond marin (composante lambertienne)     
          
 
-      DOUBLE PRECISION IINC(1:CTE_OS_NBMU_MAX)	! Valeur du champ I incident à la surface 
-      						! au niveau 0- ou 0+ (pour ordres IG et IS).
-						! Champ montant ou descendant selon le cas.
-      DOUBLE PRECISION QINC(1:CTE_OS_NBMU_MAX)	! Idem pour le champ Q.
-      DOUBLE PRECISION UINC(1:CTE_OS_NBMU_MAX)	! Idem pour le champ U.
+      DOUBLE PRECISION IINC(1:CTE_OS_NBMU_MAX)  ! Valeur du champ I incident à la surface 
+                                                ! au niveau 0- ou 0+ (pour ordres IG et IS).
+                                                ! Champ montant ou descendant selon le cas.
+      DOUBLE PRECISION QINC(1:CTE_OS_NBMU_MAX)  ! Idem pour le champ Q.
+      DOUBLE PRECISION UINC(1:CTE_OS_NBMU_MAX)  ! Idem pour le champ U.
 
-      DOUBLE PRECISION IDEV(1:CTE_OS_NBMU_MAX)	! Valeur du champ I dévié à la surface
-      						! au niveau 0- ou 0+ (pour ordres IG et IS).
-						! Champ montant ou descendant selon le cas.
-      DOUBLE PRECISION QDEV(1:CTE_OS_NBMU_MAX)	! Idem pour le champ Q.
-      DOUBLE PRECISION UDEV(1:CTE_OS_NBMU_MAX)	! Idem pour le champ U.
+      DOUBLE PRECISION IDEV(1:CTE_OS_NBMU_MAX)  ! Valeur du champ I dévié à la surface
+                                                ! au niveau 0- ou 0+ (pour ordres IG et IS).
+                                                ! Champ montant ou descendant selon le cas.
+      DOUBLE PRECISION QDEV(1:CTE_OS_NBMU_MAX)  ! Idem pour le champ Q.
+      DOUBLE PRECISION UDEV(1:CTE_OS_NBMU_MAX)  ! Idem pour le champ U.
       
-C----
-      DOUBLE PRECISION FLUX_UP_SURF_DIFF	! Flux montant diffus en surface (niveau 0+)
-      DOUBLE PRECISION FLUX_UP_SURF_DIR		! Flux montant direct au niveau 0+
-      DOUBLE PRECISION FLUX_UP_SURF_TOT		! Flux montant total (diffus + direct)
-      DOUBLE PRECISION FLUX_DOWN_SURF_DIFF	! Flux descendant diffus 
-      						! au niveau de la surface (0+)
-      DOUBLE PRECISION FLUX_DOWN_SURF_DIR	! Flux descendant direct au niveau 0+
-      DOUBLE PRECISION FLUX_DOWN_SURF_TOT	! Flux descendant total (diffus + direct)
-      						! au niveau de la surface (0+) 
-      DOUBLE PRECISION FLUX_TOT_SURF_DIFF	! Flux diffus total (up+down) au niveau 0+
+C---- Flux pour un éclairement solaire au TOA valant PI
+      DOUBLE PRECISION FLUX_UP_SURF_DIFF        ! Flux montant diffus en surface (niveau 0+)
+      DOUBLE PRECISION FLUX_UP_SURF_DIR         ! Flux montant direct au niveau 0+
+      DOUBLE PRECISION FLUX_UP_SURF_TOT         ! Flux montant total (diffus + direct)
+      DOUBLE PRECISION FLUX_DOWN_SURF_DIFF      ! Flux descendant diffus au niveau de la surface (0+)
+      DOUBLE PRECISION FLUX_DOWN_SURF_DIR       ! Flux descendant direct au niveau 0+
+      DOUBLE PRECISION FLUX_DOWN_SURF_TOT       ! Flux descendant total (diffus + direct) au niveau de la surface (0+) 
+      DOUBLE PRECISION FLUX_TOT_SURF_DIFF       ! Flux diffus total (up+down) au niveau 0+
 
-      DOUBLE PRECISION FLUX_UP_TOA_DIFF		! Flux montant diffus au niveau TOA
-      DOUBLE PRECISION FLUX_UP_TOA_DIR		! Flux montant direct au niveau TOA
-      DOUBLE PRECISION FLUX_UP_TOA_TOT		! Flux montant total (diffus + direct)
-      DOUBLE PRECISION FLUX_DOWN_TOA_DIR	! Flux descendant direct au niveau TOA
+      DOUBLE PRECISION FLUX_UP_TOA_DIFF        ! Flux montant diffus au niveau TOA
+      DOUBLE PRECISION FLUX_UP_TOA_DIR         ! Flux montant direct au niveau TOA
+      DOUBLE PRECISION FLUX_UP_TOA_TOT         ! Flux montant total (diffus + direct)
+      DOUBLE PRECISION FLUX_DOWN_TOA_DIR       ! Flux descendant direct au niveau TOA
 
-	   
-      DOUBLE PRECISION FLUX_UP_SSURF		! Flux montant sous la surface (0-).
-      DOUBLE PRECISION FLUX_DOWN_SSURF_DIFF	! Flux descendant diffus sous la surface
-      						! (niveau 0-).	    
-      DOUBLE PRECISION FLUX_DOWN_SSURF_DIR	! Flux descendant direct au niveau 0-
-      DOUBLE PRECISION FLUX_DOWN_SSURF_DIR_MP	! Flux descendant direct au niveau 0- 
-      						! pour mer plate.
-      DOUBLE PRECISION FLUX_DOWN_SSURF_TOT	! Flux descendant total (diffus + direct)
-      						! au niveau de la surface (0-). 
-      DOUBLE PRECISION FLUX_TOT_SSURF_DIFF	! Flux diffus total (up+down) au niveau 0-
-	    
-      DOUBLE PRECISION FLUX_DOWN_FOND_DIR       ! Flux descendant direct transmis 
-      						! au fond de mer.
-    
-      DOUBLE PRECISION FLUX_SPHE_UP_SSURF		! Flux sphérique montant
-      							! sous la surface (niveau 0-)
-      DOUBLE PRECISION FLUX_SPHE_DOWN_SSURF_DIFF	! Flux sphérique descendant diffus
-      							! sous la surface (niveau 0-)
-      DOUBLE PRECISION FLUX_SPHE_DOWN_SSURF_DIR		! Flux sphérique descendant diret
-      							! sous la surface (niveau 0-)
-  
-      DOUBLE PRECISION FLUX_SPHE_TOT_SSURF_DIFF		! Flux sphérique diffus total 
-      							! (up+down) au niveau 0-
 
-	! Paramètres pour le calcul de la réflexion du flux solaire direct en surface
-      DOUBLE PRECISION IND2			! Carré de l'indice de réfraction air/mer
-      DOUBLE PRECISION Xsun				
-      DOUBLE PRECISION RLsun   			! Coefficient de réflexion parallèle.
-      DOUBLE PRECISION RRsun   			! Coefficient de réflexion perpendiculaire.
-      DOUBLE PRECISION F11sun  			! Elément de la matrice de Fresnel en 
-      			        		! réflexion avec pour incidence la direction
-			       			! d'éclairement solaire.
-		
-	! Flux descendant, normalisé par rapport à l'éclairement incident au TOA Es 
-	! (avec Es = PI).
-      DOUBLE PRECISION PROFIL_FLUX_DOWN_DIFF(0:NT_TOT)  ! Profil du flux descendant diffus, 
-      							! normalisé par Es
-      DOUBLE PRECISION PROFIL_FLUX_DOWN_DIR(0:NT_TOT)   ! Profil du flux descendant direct,  
-      							! normalisé par Es
-      DOUBLE PRECISION PROFIL_FLUX_DOWN_TOT(0:NT_TOT)   ! Profil du flux descendant total 
-      							! (direct+diffus), normalisé par Es
-      DOUBLE PRECISION PROFIL_FLUX_UP_DIFF(0:NT_TOT)    ! Profil du flux montant diffus, 
-      							! normalisé par Es
-      DOUBLE PRECISION PROFIL_FLUX_UP_DIR(0:NT_TOT)     ! Profil du flux montant direct,  
-      							! normalisé par Es
-      DOUBLE PRECISION PROFIL_FLUX_UP_TOT(0:NT_TOT)     ! Profil du flux montant total 
-      							! (direct+diffus), normalisé par Es
+      DOUBLE PRECISION FLUX_UP_SSURF            ! Flux montant sous la surface (0-).
+      DOUBLE PRECISION FLUX_DOWN_SSURF_DIFF     ! Flux descendant diffus sous la surface (niveau 0-).    
+      DOUBLE PRECISION FLUX_DOWN_SSURF_DIR      ! Flux descendant direct au niveau 0-
+      DOUBLE PRECISION FLUX_DOWN_SSURF_DIR_MP   ! Flux descendant direct au niveau 0- pour mer plate.
+      DOUBLE PRECISION FLUX_DOWN_SSURF_TOT      ! Flux descendant total (diffus + direct) au niveau de la surface (0-). 
+      DOUBLE PRECISION FLUX_TOT_SSURF_DIFF      ! Flux diffus total (up+down) au niveau 0-
+            
+      DOUBLE PRECISION FLUX_DOWN_FOND_DIR       ! Flux descendant direct transmis au fond de mer.
+
+        !Flux sphérique    
+      DOUBLE PRECISION FLUX_SPHE_UP_SSURF         ! Montant sous la surface (niveau 0-)
+      DOUBLE PRECISION FLUX_SPHE_DOWN_SSURF_DIFF  ! Descendant diffus sous la surface (niveau 0-)
+      DOUBLE PRECISION FLUX_SPHE_DOWN_SSURF_DIR   ! Descendant direct sous la surface (niveau 0-)
+      DOUBLE PRECISION FLUX_SPHE_TOT_SSURF_DIFF   ! Diffus total (up+down) au niveau 0-
+
+        ! Paramètres pour le calcul de la réflexion du flux solaire direct en surface
+      DOUBLE PRECISION IND2                    ! Carré de l'indice de réfraction air/mer
+      DOUBLE PRECISION Xsun
+      DOUBLE PRECISION RLsun                   ! Coefficient de réflexion parallèle.
+      DOUBLE PRECISION RRsun                   ! Coefficient de réflexion perpendiculaire.
+      DOUBLE PRECISION F11sun                  ! Elément de la matrice de Fresnel en réflexion 
+                                               ! avec pour incidence la direction d'éclairement solaire.
+
+        ! Profil de flux descendant ou montant, pour un éclairement solaire au TOA valant PI
+      DOUBLE PRECISION PROFIL_FLUX_DOWN_DIFF(0:NT_TOT)  ! Profil du flux descendant diffus
+      DOUBLE PRECISION PROFIL_FLUX_DOWN_DIR(0:NT_TOT)   ! Profil du flux descendant direct
+      DOUBLE PRECISION PROFIL_FLUX_DOWN_TOT(0:NT_TOT)   ! Profil du flux descendant total (direct+diffus),
+      DOUBLE PRECISION PROFIL_FLUX_UP_DIFF(0:NT_TOT)    ! Profil du flux montant diffus
+      DOUBLE PRECISION PROFIL_FLUX_UP_DIR(0:NT_TOT)     ! Profil du flux montant direct
+      DOUBLE PRECISION PROFIL_FLUX_UP_TOT(0:NT_TOT)     ! Profil du flux montant total (direct+diffus)
       
 
-	    
-      DOUBLE PRECISION FLUX_DOWN_SURF_IGM1	! Flux d'ordre IG-1 descendant diffus 
-      						! au niveau de la surface (0+)  
-						! (Flux / PI précisément)	
+            
+      DOUBLE PRECISION FLUX_DOWN_SURF_IGM1     ! Flux d'ordre IG-1 descendant diffus au niveau de la surface (0+)  
+      DOUBLE PRECISION FLUX_DOWN_FOND_IGM1     ! Flux d'ordre IG-1 descendant diffus au fond de mer
 
-      DOUBLE PRECISION FLUX_DOWN_FOND_IGM1	! Flux d'ordre IG-1 descendant diffus 
-      						! au fond de mer (Flux / PI précisément)
-
-      DOUBLE PRECISION I_REFL_BOT 		!Valeur de l'intensité de l'éclairement 
-      						!solaire réfléchi au fond de mer
-      DOUBLE PRECISION I_REFL_SURF 		!Valeur de l'intensité de l'éclairement 
-      						!solaire réfléchi en surface
+      DOUBLE PRECISION I_REFL_BOT              !Valeur de l'intensité de l'éclairement solaire réfléchi au fond de mer
+      DOUBLE PRECISION I_REFL_SURF             !Valeur de l'intensité de l'éclairement solaire réfléchi en surface
 
 
-      INTEGER*4 J       ! Indice des tableaux d'angles 
-      INTEGER*4 K	! Indice des tableaux de matrice de phase  
-      INTEGER*4 I	! Niveau des profils
-      INTEGER*4 ISEA    ! Indice du profil marin
+C* Variables générales :
+      DOUBLE PRECISION VAL      ! Valeur intermédiaire de calcul
+      DOUBLE PRECISION RAD2DEG  ! 180./PI
+      DOUBLE PRECISION X2PI     ! 2*PI
+ 
+
+      INTEGER*4 J     ! Indice des tableaux d'angles 
+      INTEGER*4 K     ! Indice des tableaux de matrice de phase  
+      INTEGER*4 I     ! Niveau des profils
+      INTEGER*4 ISEA  ! Indice du profil marin
       
-      INTEGER*4 IBORM	! Ordre maximal du développement en séries de Fourier
-      			! en cours de traitement :
-			!   _ 2 pour une atmosphère & mer purement moléculaire,
-			!   _ OS_NB en présence d'aérosols ou d'hydrosols.
- 				
+      INTEGER*4 IBORM    ! Ordre maximal du développement en séries de Fourier en cours de traitement :
+                         !   _ 2 pour une atmosphère & mer purement moléculaire,
+                         !   _ OS_NB en présence d'aérosols ou d'hydrosols.
+
   
       INTEGER*4 IMAT_SURF !  (E) Option de BRDF / BPDF de surface :
-      			  !   0 : mer plate.
-			  !   1 : mer agitée.
-			  
+                          !   0 : mer plate.
+                          !   1 : mer agitée.
+ 
       INTEGER*4 IER       ! (S) code d'erreur =0 si pas d'erreur, =-1 sinon
 
      
       INTEGER*4 NBMU      !  (E) Nombre d'angles effectifs des simulations      
 
 
-      INTEGER*4 OS_NB 	  ! (E) Ordre des développements des fonctions de phase 
-			  ! en Polynômes de Legendre.      
-				
-      INTEGER*4 N0	  ! (E) Numéro de mu de Gauss pour l'angle
-      			  ! zénithal solaire dans l'air.
-			  ! (angle complémentaire : mus = -rmu(N0))
+      INTEGER*4 OS_NB     ! (E) Ordre des développements des fonctions de phase 
+                          ! en Polynômes de Legendre.      
 
-      INTEGER*4 M0	  ! (E) Numéro de mu de Gauss pour l'angle
-      			  ! zénithal solaire dans l'eau (transmission mer plate).
-			  ! (angle complémentaire : musw = -rmu(M0))
-			  
-      INTEGER*4 JK	  ! Numéro de stockage de mus dans l'air dans le tableau RMU
-      			  ! (JK=-N0 ==> Correspond au mus vrai < 0).
+      INTEGER*4 N0        ! (E) Numéro de mu de Gauss pour l'angle zénithal solaire dans l'air.
+                          ! (angle complémentaire : mus = -rmu(N0))
 
-      INTEGER*4 JKW	  ! Numéro de stockage de mus dans l'eau dans le tableau RMU
-      			  ! (JKW=-M0 ==> Correspond au musw vrai < 0).
-			
+      INTEGER*4 M0        ! (E) Numéro de mu de Gauss pour l'angle
+                          ! zénithal solaire dans l'eau (transmission mer plate).
+                          ! (angle complémentaire : musw = -rmu(M0))
 
-      INTEGER*4 IS	! Ordre en cours du développement en séries 
-                        ! de Fourier associé à la matrice de phase
-			   
-      INTEGER*4 IG	! Ordre d'interaction en cours (diffusion + réflexion).
+      INTEGER*4 JK        ! Numéro de stockage de mus dans l'air dans le tableau RMU
+                          ! (JK=-N0 ==> Correspond au mus vrai < 0).
+
+      INTEGER*4 JKW       ! Numéro de stockage de mus dans l'eau dans le tableau RMU
+                          ! (JKW=-M0 ==> Correspond au musw vrai < 0).
+
+
+      INTEGER*4 IS     ! Ordre en cours du développement en séries de Fourier associé à la matrice de phase
+   
+      INTEGER*4 IG     ! Ordre d'interaction en cours (diffusion + réflexion).
      
-      INTEGER*4 IGMAX	! (E)  Ordre maximal de diffusion.
+      INTEGER*4 IGMAX  ! (E)  Ordre maximal de diffusion.
       
-  							      
+     
 C---- Nom des fichiers utilisés (chemin complet)
-      CHARACTER*CTE_LENFIC2 FICRAA 	! (E)  Fichier Matrice de réflexion air / air.
-      CHARACTER*CTE_LENFIC2 FICTAW 	! (E)  Fichier Matrice de transmission air / eau.
-      CHARACTER*CTE_LENFIC2 FICRWW 	! (E)  Fichier Matrice de réflexion eau / eau.
-      CHARACTER*CTE_LENFIC2 FICTWA 	! (E)  Fichier Matrice de transmission eau / air.  
+      CHARACTER*CTE_LENFIC2 FICRAA  ! (E)  Fichier Matrice de réflexion air / air.
+      CHARACTER*CTE_LENFIC2 FICTAW  ! (E)  Fichier Matrice de transmission air / eau.
+      CHARACTER*CTE_LENFIC2 FICRWW  ! (E)  Fichier Matrice de réflexion eau / eau.
+      CHARACTER*CTE_LENFIC2 FICTWA  ! (E)  Fichier Matrice de transmission eau / air.  
 
-      CHARACTER*CTE_LENFIC2 FIC_FLUX  	! (S) Fichier des profils de flux
+      CHARACTER*CTE_LENFIC2 FIC_FLUX    ! (S) Fichier des profils de flux
       
       CHARACTER*CTE_LENFIC2 FICSOS_LOG  ! (S) Fichier trace 
-						
-      CHARACTER*CTE_LENFIC2 FICSOS_RES_BIN  	! (S) Fichier résultat binaire
-      						!     en sortie des calculs SOS	
+ 
+      CHARACTER*CTE_LENFIC2 FICSOS_RES_BIN  ! (S) Fichier résultat binaire en sortie des calculs SOS
 
 
 C---- Variables logiques
       LOGICAL TRACE     ! = vrai si écriture dans le fichier trace    
       
 
-
+C* Conversion radians en degrés et variable pour 2PI
+      RAD2DEG = 180.D+00/INCTE_PI
+      X2PI = 2.D+00*INCTE_PI
       
 C* Initialisation du code d'erreur
 C------------------------------------------------------
@@ -1187,7 +1170,7 @@ C------------------------------------------------------
 C* Positionnement du boolean TRACE du fichier Trace 
 C------------------------------------------------------
       IF (FICSOS_LOG.EQ.'NO_LOG_FILE') THEN
-	 TRACE=.FALSE.
+         TRACE=.FALSE.
       ELSE
          TRACE=.TRUE.
       ENDIF
@@ -1197,75 +1180,146 @@ C* Information dans le fichier Trace d'un éventuel usage
 C* du code en Mode expert spécifique
 C------------------------------------------------------
       IF (EXPERT_MODE_FORCED_FATM_NULL.AND.TRACE) THEN 
-      	 !annulation de la diffusion atmosphérique
+         !annulation de la diffusion atmosphérique
          WRITE (IDLOG,*,ERR=1010) " "
          WRITE (IDLOG,*,ERR=1010) 
-     &	 "  ********************************************** ",
-     &	 "  WARNING : ATMOS SOURCE FUNCTION FORCED TO NULL ",
-     &	 "  ********************************************** "
+     &   "  ********************************************** ",
+     &   "  WARNING : ATMOS SOURCE FUNCTION FORCED TO NULL ",
+     &   "  ********************************************** "
          WRITE (IDLOG,*,ERR=1010) " "
       ENDIF
      
       IF (EXPERT_MODE_FORCED_FSEA_NULL.AND.TRACE) THEN 
-      	!annulation de la diffusion marine
+        !annulation de la diffusion marine
          WRITE (IDLOG,*,ERR=1010) " "
          WRITE (IDLOG,*,ERR=1010) 
-     &	 "  ******************************************** ",
-     &	 "  WARNING : SEA SOURCE FUNCTION FORCED TO NULL ",
-     &	 "  ******************************************** "
+     &   "  ******************************************** ",
+     &   "  WARNING : SEA SOURCE FUNCTION FORCED TO NULL ",
+     &   "  ******************************************** "
          WRITE (IDLOG,*,ERR=1010) " "
       ENDIF
       
-      
+
+C* Information dans le fichier Trace d'une éventuelle coupure 
+C* de la polarisation
+C------------------------------------------------------
+      IF ((CTE_POLAR_SWITCHED_OFF.EQ.1).AND.TRACE) THEN 
+         !coupure de la polarisation
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) 
+     &   "  ********************************************** ",
+     &   "  WARNING : POLARISATION EFFECTS SWITCHED OFF    ",
+     &   "  ********************************************** "
+         WRITE (IDLOG,*,ERR=1010) " "
+      ENDIF
+     
+
 C* Prise en compte du facteur de dépolarisation pour les paramètres
 C* de la fonction de phase moléculaire atmosphérique et maritime.
 C---------------------------------------------------------------------
 
       !Molécules atmosphériques
-      AAA=2.*(1-CTE_MDF_AIR)/(2+CTE_MDF_AIR)
+      AAA_AIR=2.*(1-CTE_MDF_AIR)/(2+CTE_MDF_AIR)
 
       BETA0_MOL_AIR=1.
-      BETA2_MOL_AIR=0.5*AAA
-      GAMMA2_MOL_AIR=-AAA*DSQRT(1.5D+00)
-      ALPHA2_MOL_AIR=3.*AAA
+      BETA2_MOL_AIR=0.5*AAA_AIR
+      GAMMA2_MOL_AIR=-AAA_AIR*DSQRT(1.5D+00)
+      ALPHA2_MOL_AIR=3.*AAA_AIR
 
-      IF (TRACE) THEN
-        WRITE (IDLOG,*,ERR=1010) "MOLECULAR PHASE MATRIX "
-	 WRITE (IDLOG,*,ERR=1010) "**********************"
-	 WRITE (IDLOG,*,ERR=1010) " "
-	 WRITE (IDLOG,*,ERR=1010) " In the air : "
-	 WRITE (IDLOG,*,ERR=1010) 
-     &	 "   - Depolarization factor: ", CTE_MDF_AIR 
-	 WRITE (IDLOG,*,ERR=1010)  
-     &	 "   - Coef F for the depolarization correction : ", AAA   
-        WRITE (IDLOG,*,ERR=1010)"   - BETA0 : ", BETA0_MOL_AIR
-	 WRITE (IDLOG,*,ERR=1010)"   - BETA2 : ", BETA2_MOL_AIR
-	 WRITE (IDLOG,*,ERR=1010)"   - GAMMA2 : ", GAMMA2_MOL_AIR
-	 WRITE (IDLOG,*,ERR=1010)"   - ALPHA2 : ", ALPHA2_MOL_AIR 
-	 WRITE (IDLOG,*,ERR=1010) " "	
-      ENDIF !Fichier Trace
- 
-      
+     
       !Molécules océaniques
-      AAA=2.*(1-CTE_MDF_SEA)/(2+CTE_MDF_SEA)
+      AAA_SEA=2.*(1-CTE_MDF_SEA)/(2+CTE_MDF_SEA)
       
       BETA0_MOL_SEA=1.
-      BETA2_MOL_SEA=0.5*AAA
-      GAMMA2_MOL_SEA=-AAA*DSQRT(1.5D+00)
-      ALPHA2_MOL_SEA=3.*AAA
+      BETA2_MOL_SEA=0.5*AAA_SEA
+      GAMMA2_MOL_SEA=-AAA_SEA*DSQRT(1.5D+00)
+      ALPHA2_MOL_SEA=3.*AAA_SEA
 
-      IF (TRACE) THEN  
-	 WRITE (IDLOG,*,ERR=1010) " In the sea : "
-	 WRITE (IDLOG,*,ERR=1010) 
-     &	 "   - Depolarization factor : ", CTE_MDF_SEA 
-	 WRITE (IDLOG,*,ERR=1010)  
-     &	 "   - Coef F for the depolarization correction : ", AAA   
-        WRITE (IDLOG,*,ERR=1010)"   - BETA0 : ", BETA0_MOL_SEA
-	 WRITE (IDLOG,*,ERR=1010)"   - BETA2 : ", BETA2_MOL_SEA
-	 WRITE (IDLOG,*,ERR=1010)"   - GAMMA2 : ", GAMMA2_MOL_SEA
-	 WRITE (IDLOG,*,ERR=1010)"   - ALPHA2 : ", ALPHA2_MOL_SEA 
-	 WRITE (IDLOG,*,ERR=1010) " "
-	 WRITE (IDLOG,*,ERR=1010) " "	
+      IF (CTE_POLAR_SWITCHED_OFF.EQ.1) THEN 
+         !coupure de la polarisation        
+          GAMMA2_MOL_AIR = 0.D+00
+          ALPHA2_MOL_AIR = 0.D+00    
+          GAMMA2_MOL_SEA = 0.D+00
+          ALPHA2_MOL_SEA = 0.D+00
+
+          DO K=0,OS_NB
+             ALPHA_AER(K) = 0.D+00
+             ALPHA_CHL(K) = 0.D+00
+             ALPHA_MLP(K) = 0.D+00
+             GAMMA_AER(K) = 0.D+00
+             GAMMA_CHL(K) = 0.D+00
+             GAMMA_MLP(K) = 0.D+00
+             ZETA_AER(K)  = 0.D+00
+             ZETA_CHL(K)  = 0.D+00
+             ZETA_MLP(K)  = 0.D+00
+          ENDDO
+      ENDIF
+
+
+      IF (TRACE) THEN   
+         WRITE (IDLOG,*,ERR=1010) "================================"
+         WRITE (IDLOG,*,ERR=1010) "SCATTERING PROPERTIES IN THE AIR"
+         WRITE (IDLOG,*,ERR=1010) "================================"
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) "MOLECULAR PHASE MATRIX "
+         WRITE (IDLOG,*,ERR=1010) "**********************"
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) 
+     &   "   - Depolarization factor: ", CTE_MDF_AIR 
+         WRITE (IDLOG,*,ERR=1010)  
+     &   "   - Coef F for the depolarization correction : ", AAA_AIR   
+         WRITE (IDLOG,*,ERR=1010)"   - BETA0 : ", BETA0_MOL_AIR
+         WRITE (IDLOG,*,ERR=1010)"   - BETA2 : ", BETA2_MOL_AIR
+         WRITE (IDLOG,*,ERR=1010)"   - GAMMA2 : ", GAMMA2_MOL_AIR
+         WRITE (IDLOG,*,ERR=1010)"   - ALPHA2 : ", ALPHA2_MOL_AIR 
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) "AEROSOL PHASE MATRIX "
+         WRITE (IDLOG,*,ERR=1010) "**********************"
+         WRITE (IDLOG,*,ERR=1010) "Greek coefficients of phase matrix:"
+         WRITE (IDLOG,*,ERR=1010) 'I','ALPHA(I)','BETA(I)','GAMMA(I)',
+     &                            'ZETA(I)'
+         DO K=0,OS_NB
+            WRITE (IDLOG,15,ERR=1010) K,ALPHA_AER(K),BETA_AER(K),
+     &                                GAMMA_AER(K),ZETA_AER(K)
+         ENDDO
+
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) "================================"
+         WRITE (IDLOG,*,ERR=1010) "SCATTERING PROPERTIES IN THE SEA"
+         WRITE (IDLOG,*,ERR=1010) "================================"
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) "MOLECULAR PHASE MATRIX "
+         WRITE (IDLOG,*,ERR=1010) "**********************"
+         WRITE (IDLOG,*,ERR=1010) 
+     &   "   - Depolarization factor : ", CTE_MDF_SEA 
+         WRITE (IDLOG,*,ERR=1010)  
+     &   "   - Coef F for the depolarization correction : ", AAA_SEA 
+         WRITE (IDLOG,*,ERR=1010)"   - BETA0 : ", BETA0_MOL_SEA
+         WRITE (IDLOG,*,ERR=1010)"   - BETA2 : ", BETA2_MOL_SEA
+         WRITE (IDLOG,*,ERR=1010)"   - GAMMA2 : ", GAMMA2_MOL_SEA
+         WRITE (IDLOG,*,ERR=1010)"   - ALPHA2 : ", ALPHA2_MOL_SEA 
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) "CHLOROPHYLL PHASE MATRIX "
+         WRITE (IDLOG,*,ERR=1010) "************************"
+         WRITE (IDLOG,*,ERR=1010) "Greek coefficients of phase matrix:"
+         WRITE (IDLOG,*,ERR=1010) 'I','ALPHA(I)','BETA(I)','GAMMA(I)',
+     &                                  'ZETA(I)'
+         DO K=0,OS_NB
+            WRITE (IDLOG,15,ERR=1010) K,ALPHA_CHL(K),BETA_CHL(K),
+     &                                  GAMMA_CHL(K),ZETA_CHL(K)
+         ENDDO
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) "MINERAL-LIKE PARTICLE PHASE MATRIX "
+         WRITE (IDLOG,*,ERR=1010) "**********************************"
+         WRITE (IDLOG,*,ERR=1010) "Greek coefficients of phase matrix:"
+         WRITE (IDLOG,*,ERR=1010) 'I','ALPHA(I)','BETA(I)','GAMMA(I)',
+     &                                  'ZETA(I)'
+         DO K=0,OS_NB
+            WRITE (IDLOG,15,ERR=1010) K,ALPHA_MLP(K),BETA_MLP(K),
+     &                                  GAMMA_MLP(K),ZETA_MLP(K)
+         ENDDO
+         WRITE (IDLOG,*,ERR=1010) " "
       ENDIF !Fichier Trace
       
             
@@ -1305,10 +1359,10 @@ C---------------------------------------------------------------------
      &     ERR=1060)
       
       IF (TRACE) THEN  
-	 WRITE (IDLOG,*,ERR=1010) " "
-	 WRITE (IDLOG,*,ERR=1010) " Result binary file SOS : ",
-     &	  			  FICSOS_RES_BIN
-	 WRITE (IDLOG,*,ERR=1010) " "	
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) " Result binary file SOS : ",
+     &                             FICSOS_RES_BIN
+         WRITE (IDLOG,*,ERR=1010) " "
       ENDIF !Fichier Trace      
 
 C* Définition de mus (cosinus de l'angle zénithal solaire)
@@ -1321,23 +1375,20 @@ C----------------------------------------------------------
       !mus dans l'eau
       TABW = -DSQRT(1.- (1.-TAB*TAB)/(SEA_IND*SEA_IND))     
       JKW=-M0
-	
-      	
+
       IF (TRACE) THEN  
-	 WRITE (IDLOG,*,ERR=1010) " "
-	 WRITE (IDLOG,*,ERR=1010) 
-     &	    " Solar incidence angle in the air :",
-     &      DACOS(TAB)*180.D+00/INCTE_PI,
-     &      DACOS(-TAB)*180.D+00/INCTE_PI
-	 WRITE (IDLOG,*,ERR=1010) 
-     &	    " Cosine of the solar incidence angle in the air :",TAB
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) 
+     &      " Solar incidence angle in the air :",
+     &      DACOS(TAB)*RAD2DEG, DACOS(-TAB)*RAD2DEG
+         WRITE (IDLOG,*,ERR=1010) 
+     &      " Cosine of the solar incidence angle in the air :",TAB
         WRITE (IDLOG,*,ERR=1010) 
-     &	    " Cosine of the solar incidence angle in the sea :",TABW
+     &      " Cosine of the solar incidence angle in the sea :",TABW
         WRITE (IDLOG,*,ERR=1010) 
-     &	    " Solar incidence angle in the sea water :",
-     &      DACOS(TABW)*180.D+00/INCTE_PI,
-     &      DACOS(-TABW)*180.D+00/INCTE_PI
-	 WRITE (IDLOG,*,ERR=1010) " "	
+     &      " Solar incidence angle in the sea water :",
+     &      DACOS(TABW)*RAD2DEG, DACOS(-TABW)*RAD2DEG
+         WRITE (IDLOG,*,ERR=1010) " "
       ENDIF !Fichier Trace      
 
 
@@ -1357,41 +1408,41 @@ C----------------------------------------------------
       DO I=0,CTE_NT_SEA
       
          TAUSEA=SEA_TAUEXT_TR(I)
-	 
-	 !Direction transmission pour mer plate : 
-	 !==> transmission surface -> niveau I dans la mer
-	 CH_SEA_MUS(I) = DEXP(-TAUSEA/(-TABW))/4.
-	 
-	 !Transmission pour toutes les directions :
-	 !==> transmission surface -> niveau I dans la mer
+         
+         !Direction transmission pour mer plate : 
+         !==> transmission surface -> niveau I dans la mer
+         CH_SEA_MUS(I) = DEXP(-TAUSEA/(-TABW))/4.
+         
+         !Transmission pour toutes les directions :
+         !==> transmission surface -> niveau I dans la mer
          DO J=1,NBMU
             CH_SEA(J,I) = DEXP(-TAUSEA/RMU(J))/4.
-	 ENDDO
-	 
+         ENDDO
+ 
       ENDDO
       
       IF (TRACE) THEN  
-	 WRITE (IDLOG,*,ERR=1010) " "
-	 WRITE (IDLOG,*,ERR=1010) 
-     &	    " Attenuation /4 toward the solar incidence direction :"
+         WRITE (IDLOG,*,ERR=1010) " "
+         WRITE (IDLOG,*,ERR=1010) 
+     &     " Attenuation /4 toward the solar incidence direction :"
         WRITE (IDLOG,*,ERR=1010) 
-     &	    "           level      Opt_thick    Attenuation"
-	 DO I=0,CTE_NT_ATM
-	    WRITE (IDLOG,30,ERR=1010) '    Atm : ', 
-     &	                             I, ATM_TAUEXT_TR(I), 4*CH_ATM(I)
-	 ENDDO
-	 CH_ATM_TOT=CH_ATM(CTE_NT_ATM)
+     &     "           level      Opt_thick    Attenuation"
+         DO I=0,CTE_NT_ATM
+            WRITE (IDLOG,30,ERR=1010) '    Atm : ', 
+     &                             I, ATM_TAUEXT_TR(I), 4*CH_ATM(I)
+         ENDDO
+         CH_ATM_TOT=CH_ATM(CTE_NT_ATM)
         WRITE (IDLOG,*,ERR=1010) "           level     Opt_thick"//
      &   "     Attenuation   Tot_attenuation"
-	 DO I=0,CTE_NT_SEA
-	    WRITE (IDLOG,31,ERR=1010) '    Sea : ', 
-     &	                  	  I, SEA_TAUEXT_TR(I), 4*CH_SEA_MUS(I),
-     &				  CH_SEA_MUS(I)*CH_ATM_TOT*16
-	 ENDDO	 
-	 WRITE (IDLOG,*,ERR=1010) " "	
+         DO I=0,CTE_NT_SEA
+            WRITE (IDLOG,31,ERR=1010) '    Sea : ', 
+     &                          I, SEA_TAUEXT_TR(I), 4*CH_SEA_MUS(I),
+     &                          CH_SEA_MUS(I)*CH_ATM_TOT*16
+         ENDDO
+         WRITE (IDLOG,*,ERR=1010) " "
       ENDIF !Fichier Trace  
       
-       	
+       
 C* Initialisation des tableaux pour le test d'arrêt de la décomposition
 C* en séries de Fourier.
 C-----------------------------------------------------------------------
@@ -1414,19 +1465,19 @@ C--------------------------------------------------------------
 
       IF (TRACE) THEN
          WRITE (IDLOG,*,ERR=1010) " " 
-	  WRITE (IDLOG,*,ERR=1010) "FOURIER SERIES EXPANSION"
-	  WRITE (IDLOG,*,ERR=1010) "************************"
-	  WRITE (IDLOG,*,ERR=1010) " " 
+         WRITE (IDLOG,*,ERR=1010) "FOURIER SERIES EXPANSION"
+         WRITE (IDLOG,*,ERR=1010) "************************"
+         WRITE (IDLOG,*,ERR=1010) " " 
       ENDIF !Fichier Trace  
 
       SIGN=-1.
-	
+
 C* Boucle sur les ordres de la décomposition en séries de Fourier
 C------------------------------------------------------
       DO 24 IS=0,IBORM
-      		
+   
          IG=1
-	  	 
+
          SIGN=-SIGN
  
 C* Fichier trace 
@@ -1436,7 +1487,7 @@ C------------------------------------------------------
      &       ' Fourier series expansion order: IS = ', IS
             WRITE(IDLOG,*,ERR=1010) 
      &       ' -----------------------------------------------'
-            WRITE(IDLOG,*,ERR=1010) ' '	   
+            WRITE(IDLOG,*,ERR=1010) ' '
          ENDIF
 
 C* Suppression du coefficient moléculaire BETA0 pour le calcul
@@ -1444,20 +1495,20 @@ C* de la matrice de phase de diffusion moléculaire pour les
 C* ordres IS > 0.
 C--------------------------------------------------------------
          IF(IS.GT.0) THEN
-	    BETA0_MOL_AIR=0.
-	    BETA0_MOL_SEA=0.
-         ENDIF		
+            BETA0_MOL_AIR=0.
+            BETA0_MOL_SEA=0.
+         ENDIF
 
 C* Initialisation des tableaux donnant les paramètres I, Q, U 
 C* pour l'ordre IS de la décomposition en séries de Fourier.
 C* (sommation du cumul des diffusions)
 C-------------------------------------------------------------
          DO J=-NBMU,NBMU
-	    DO I=0,NT_TOT
+            DO I=0,NT_TOT
                I3(I,J)=0.
                Q3(I,J)=0.
                U3(I,J)=0.
-	    ENDDO  ! Fin boucle sur niveau I
+            ENDDO  ! Fin boucle sur niveau I
          ENDDO ! Fin boucle sur angle J
    
 
@@ -1467,52 +1518,95 @@ C------------------------------------------------------------------------
          IF (IMAT_SURF.EQ.1) THEN
 C*      Lecture des fichiers qui ont été enregistrés avec des 
 C*      bornes de tableaux limitées au dimensionnement utile -NBMU:NBMU         
-	     READ(IDRAA,ERR=1051),
-     &	       ((RAA11(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RAA12(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RAA13(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RAA21(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RAA22(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RAA23(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RAA31(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RAA32(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RAA33(I,J),I=1,NBMU),J=1,NBMU)  
+             READ(IDRAA,ERR=1051)
+     &         ((RAA11(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RAA12(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RAA13(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RAA21(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RAA22(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RAA23(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RAA31(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RAA32(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RAA33(I,J),I=1,NBMU),J=1,NBMU)  
 
-	     READ(IDTAW,ERR=1053),
-     &	       ((TAW11(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TAW12(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TAW13(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TAW21(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TAW22(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TAW23(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TAW31(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TAW32(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TAW33(I,J),I=1,NBMU),J=1,NBMU)  
+             READ(IDTAW,ERR=1053)
+     &         ((TAW11(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TAW12(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TAW13(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TAW21(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TAW22(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TAW23(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TAW31(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TAW32(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TAW33(I,J),I=1,NBMU),J=1,NBMU)  
      
-	     READ(IDRWW,ERR=1055),
-     &	       ((RWW11(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RWW12(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RWW13(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RWW21(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RWW22(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RWW23(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RWW31(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RWW32(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((RWW33(I,J),I=1,NBMU),J=1,NBMU)  
+             READ(IDRWW,ERR=1055)
+     &         ((RWW11(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RWW12(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RWW13(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RWW21(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RWW22(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RWW23(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RWW31(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RWW32(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((RWW33(I,J),I=1,NBMU),J=1,NBMU)  
      
-	     READ(IDTWA,ERR=1057),
-     &	       ((TWA11(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TWA12(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TWA13(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TWA21(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TWA22(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TWA23(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TWA31(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TWA32(I,J),I=1,NBMU),J=1,NBMU),
-     &	       ((TWA33(I,J),I=1,NBMU),J=1,NBMU)                  
-	 ENDIF  !IMAT_SURF=1
-	   
-   
+             READ(IDTWA,ERR=1057)
+     &         ((TWA11(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TWA12(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TWA13(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TWA21(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TWA22(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TWA23(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TWA31(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TWA32(I,J),I=1,NBMU),J=1,NBMU),
+     &         ((TWA33(I,J),I=1,NBMU),J=1,NBMU)                  
+         ENDIF  !IMAT_SURF=1
+           
+
+C*    Coupure de la polarisation de surface.
+         IF (CTE_POLAR_SWITCHED_OFF.EQ.1) THEN 
+             DO K=1,NBMU
+                DO J=1,NBMU
+                   RAA12(J,K) = 0.
+                   RAA13(J,K) = 0.
+                   RAA21(J,K) = 0.
+                   RAA22(J,K) = 0.
+                   RAA23(J,K) = 0.
+                   RAA31(J,K) = 0.
+                   RAA32(J,K) = 0.
+                   RAA33(J,K) = 0.  
+
+                   TAW12(J,K) = 0.
+                   TAW13(J,K) = 0.
+                   TAW21(J,K) = 0.
+                   TAW22(J,K) = 0.
+                   TAW23(J,K) = 0.
+                   TAW31(J,K) = 0.
+                   TAW32(J,K) = 0.
+                   TAW33(J,K) = 0.  
+
+                   RWW12(J,K) = 0.
+                   RWW13(J,K) = 0.
+                   RWW21(J,K) = 0.
+                   RWW22(J,K) = 0.
+                   RWW23(J,K) = 0.
+                   RWW31(J,K) = 0.
+                   RWW32(J,K) = 0.
+                   RWW33(J,K) = 0.  
+
+                   TWA12(J,K) = 0.
+                   TWA13(J,K) = 0.
+                   TWA21(J,K) = 0.
+                   TWA22(J,K) = 0.
+                   TWA23(J,K) = 0.
+                   TWA31(J,K) = 0.
+                   TWA32(J,K) = 0.
+                   TWA33(J,K) = 0.    
+                ENDDO
+             ENDDO        
+         ENDIF !Fin coupure de la polarisation de surface
+      
    
    
 C* Appel de la routine de calcul des noyaux de diffusion pour 
@@ -1522,27 +1616,27 @@ C--------------------------------------------------------------
 
 C* ----> Noyaux de diffusion des aérosols à l'ordre IS
          CALL OSOAA_NOYAUX(IS,NBMU,RMU,OS_NB,
-     &	 		   ALPHA_AER,BETA_AER,GAMMA_AER,ZETA_AER,
+     &                     ALPHA_AER,BETA_AER,GAMMA_AER,ZETA_AER,
      &                     XPL,XRL,XTL,
      &                     BP_AER,GR_AER,GT_AER,
-     & 			   ARR_AER,ART_AER,ATT_AER)
+     &                     ARR_AER,ART_AER,ATT_AER)
 
 C* ----> Noyaux de diffusion du phytoplancton à l'ordre IS
          CALL OSOAA_NOYAUX(IS,NBMU,RMU,OS_NB,
-     &	 		   ALPHA_CHL,BETA_CHL,GAMMA_CHL,ZETA_CHL,
+     &                     ALPHA_CHL,BETA_CHL,GAMMA_CHL,ZETA_CHL,
      &                     XPL,XRL,XTL,
      &                     BP_CHL,GR_CHL,GT_CHL,
-     & 			   ARR_CHL,ART_CHL,ATT_CHL)
+     &                     ARR_CHL,ART_CHL,ATT_CHL)
      
 C* ----> Noyaux de diffusion des sédiments à l'ordre IS
          CALL OSOAA_NOYAUX(IS,NBMU,RMU,OS_NB,
-     &	 		   ALPHA_MLP,BETA_MLP,GAMMA_MLP,ZETA_MLP,
+     &                     ALPHA_MLP,BETA_MLP,GAMMA_MLP,ZETA_MLP,
      &                     XPL,XRL,XTL,
      &                     BP_MLP,GR_MLP,GT_MLP,
-     & 			   ARR_MLP,ART_MLP,ATT_MLP)
+     &                     ARR_MLP,ART_MLP,ATT_MLP)
      
         
-  	
+  
 
 C--------------------------------------------------------------
 C
@@ -1555,248 +1649,244 @@ C--------------------------------------------------------------
      &       '     Scattering order : IG = ',IG
             WRITE(IDLOG,*,ERR=1010) 
      &       '     ------------------------------'
-            WRITE(IDLOG,*,ERR=1010) ' '	   
+            WRITE(IDLOG,*,ERR=1010) ' '   
          ENDIF
-	
-	 
-	 
+
+
 C* Calcul de la fonction source de diffusion primaire pour l'atmosphère : 
 C* ====> I2_ATM, Q2_ATM, U2_ATM
 C-----------------------------------------------------------------------
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) 
-     &	       " Calculation of the atmospheric source function "
-	 ENDIF
-	 
+            WRITE(IDLOG,*,ERR=1010) 
+     &         " Calculation of the atmospheric source function "
+         ENDIF
+         
          CALL OSOAA_FSOURCE_ATM_ORDRE1(IS,NBMU,JK,
-     &	 			           ATM_PCAER_TR,ATM_PCRAY_TR,
+     &                                 ATM_PCAER_TR,ATM_PCRAY_TR,
      &                                 BETA0_MOL_AIR,BETA2_MOL_AIR,
-     &				           GAMMA2_MOL_AIR,
+     &                                 GAMMA2_MOL_AIR,
      &                                 XPL,XRL,XTL,
      &                                 BP_AER,GR_AER,GT_AER,CH_ATM,
      &                                 I2_ATM,Q2_ATM,U2_ATM)       
 
-	 !******* Traces d'expertise ***********************************
+         !******* Traces d'expertise ***********************************
          IF (TRACE_DEBUG) THEN
-	    WRITE(IDLOG,*,ERR=1010) " "
-	    WRITE(IDLOG,*,ERR=1010) 
-     &	       "Atmos. source function order 1 : IS = ",IS
-	    WRITE(IDLOG,*,ERR=1010) " "
-	    DO I=0,CTE_NT_ATM
-	       IF ((I.EQ.0).OR.(I.EQ.2).OR.(I.EQ.13).OR.(I.EQ.24)
-     &	            .OR.(I.EQ.26)) THEN
-	          WRITE(IDLOG,*,ERR=1010) "Atmos levl I : ",I
-	          WRITE(IDLOG,*,ERR=1010) 
-     &	       "  I     K      RMU          I2          Q2          U2"
-	          DO K=-NBMU,NBMU,4
-	             WRITE(IDLOG,402,ERR=1010) 
-     &			I,K,RMU(K),I2_ATM(I,K),Q2_ATM(I,K),U2_ATM(I,K)
-	          ENDDO
-	       ENDIF  
-	    ENDDO  
-	    WRITE(IDLOG,*,ERR=1010) " "
-	 ENDIF
-	 !**************************************************************
+            WRITE(IDLOG,*,ERR=1010) " "
+            WRITE(IDLOG,*,ERR=1010) 
+     &         "Atmos. source function order 1 : IS = ",IS
+            WRITE(IDLOG,*,ERR=1010) " "
+            DO I=0,CTE_NT_ATM
+               IF ((I.EQ.0).OR.(I.EQ.2).OR.(I.EQ.13).OR.(I.EQ.24)
+     &              .OR.(I.EQ.26)) THEN
+                  WRITE(IDLOG,*,ERR=1010) "Atmos levl I : ",I
+                  WRITE(IDLOG,*,ERR=1010) 
+     &         "  I     K      RMU          I2          Q2          U2"
+                  DO K=-NBMU,NBMU,4
+                     WRITE(IDLOG,402,ERR=1010) 
+     &                  I,K,RMU(K),I2_ATM(I,K),Q2_ATM(I,K),U2_ATM(I,K)
+                  ENDDO
+               ENDIF  
+            ENDDO  
+            WRITE(IDLOG,*,ERR=1010) " "
+         ENDIF
+         !**************************************************************
 
 
-	 		
+
 C* Calcul de la fonction source de diffusion primaire pour l'océan : 
 C* ====> I2_SEA, Q2_SEA, U2_SEA
 C-------------------------------------------------------------------    
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=1010) 
-     &	    " Calculation ot the air / sea transmitted direct"//
-     &     " solar radiance"
-     	    WRITE(IDLOG,*,ERR=1010) 
-     &	    " Calculation of the marine source function of order 1"
+            WRITE(IDLOG,*,ERR=1010) 
+     &      " Calculation ot the air / sea transmitted direct"//
+     &      " solar radiance"
+            WRITE(IDLOG,*,ERR=1010) 
+     &      " Calculation of the marine source function of order 1"
            WRITE (IDLOG,*,ERR=1010) " "
-	 ENDIF
+         ENDIF
 
          !Initialisation à zéro du champ marin d'ordre 0 (toutes directions confondues)
-	  DO I=0,CTE_NT_SEA
-	    DO K=-NBMU,NBMU
-	       I1_SEA(I,K)=0.	
-	       Q1_SEA(I,K)=0.	
-	       U1_SEA(I,K)=0.	
-	    ENDDO
-	 ENDDO
+          DO I=0,CTE_NT_SEA
+            DO K=-NBMU,NBMU
+               I1_SEA(I,K)=0.
+               Q1_SEA(I,K)=0.
+               U1_SEA(I,K)=0.
+            ENDDO
+         ENDDO
 
-	  
+  
          IF (IMAT_SURF.EQ.1) THEN
-	 
-	    !Cas mer agitée	 
-	 
-	    !On a un champs solaire primaire transmis sur une gamme de directions
-	    !==> on peut utiliser la fonction OSOAA_FSOURCE_SEA_ORDREIG en 
-	    !    renseignant comme champ d'ordre 0 le champ solaire direct transmis
-	    !    et atténué pour chaque niveau du profil marin.
-	    !==> Numériquement cela suppose avoir une description assez fine 
-	    !    du découpage en angles pour le cas pic très pointus (faible vent).
-	    
-	    
-	    
-	    !Calcul du champ marin d'ordre 0 descendant au niveau de la surface (niveau 0-)
-	    CH_ATM_TOT=4.*CH_ATM(CTE_NT_ATM)   !Atténuation TOA -> surface 
-	    				       !pour la direction d'incidence solaire
-	    
-	    
-            DO K=1,NBMU	   !K direction de transmission
-
-	       		   !Direction d'incidence = solaire direct dans atmosphère = N0
-				
-	       		   !CH_ATM_TOT => Eclairement solaire incident en surface 
-			   !(non polarisé, Es=PI, facteur multiplicatif inclus dans 
-		  	   !l'expression de TAW)	
-			   
-			   !On applique la matrice de transmission à l'éclairement direct 
-			   !incident pour avoir l'éclairement direct transmis
-			   !On n'oublie pas de diviser par MU (voir spécifications)
-			   !et de prendre en compte la transmission dans la mer
-				
-	       ISUNDIR_DOWN_SSURF_VAG_K = TAW11(N0,K) * CH_ATM_TOT 		
-	       QSUNDIR_DOWN_SSURF_VAG_K = TAW21(N0,K) * CH_ATM_TOT 		
-	       USUNDIR_DOWN_SSURF_VAG_K = TAW31(N0,K) * CH_ATM_TOT 		
-	       		
-      
-	       DO I=0,CTE_NT_SEA
-	          CH_SEA_I = 4.*CH_SEA(K,I)		!Atténuation au niveau I marin	    
-	          I1_SEA(I,-K)=ISUNDIR_DOWN_SSURF_VAG_K*CH_SEA_I/RMU(K)
-	          Q1_SEA(I,-K)=QSUNDIR_DOWN_SSURF_VAG_K*CH_SEA_I/RMU(K)
-	          U1_SEA(I,-K)=USUNDIR_DOWN_SSURF_VAG_K*CH_SEA_I/RMU(K)
-	       ENDDO	
-    		    
-	    ENDDO !Fin boucle sur K
-	  
-	  
-	    !Calcul du flux direct transmis au niveau 0-
-	    
  
-	    IF (IS.EQ.0) THEN
-	 
-	       FLUX_DOWN_SSURF_DIR=0. 
-	       FLUX_DOWN_FOND_DIR=0.
-	       
-	       DO J=1,NBMU
-	       
-	          VAL = GA(J)*I1_SEA(0,-J)*RMU(J)
-	          FLUX_DOWN_SSURF_DIR = FLUX_DOWN_SSURF_DIR + VAL
-	          FLUX_DOWN_FOND_DIR = FLUX_DOWN_FOND_DIR 
-     &	   	    + VAL*4.*CH_SEA(J,CTE_NT_SEA)     
-	       ENDDO
+            !Cas mer agitée 
+
+            !On a un champs solaire primaire transmis sur une gamme de directions
+            !==> on peut utiliser la fonction OSOAA_FSOURCE_SEA_ORDREIG en 
+            !    renseignant comme champ d'ordre 0 le champ solaire direct transmis
+            !    et atténué pour chaque niveau du profil marin.
+            !==> Numériquement cela suppose avoir une description assez fine 
+            !    du découpage en angles pour le cas pic très pointus (faible vent).
+  
+            !Calcul du champ marin d'ordre 0 descendant au niveau de la surface (niveau 0-)
+            CH_ATM_TOT=4.*CH_ATM(CTE_NT_ATM)   !Atténuation TOA -> surface 
+                                               !pour la direction d'incidence solaire
+    
+   
+            DO K=1,NBMU    !K direction de transmission
+
+                           !Direction d'incidence = solaire direct dans atmosphère = N0
+
+                           !CH_ATM_TOT => Eclairement solaire incident en surface 
+                           !(non polarisé, Es=PI, facteur multiplicatif inclus dans 
+                           !l'expression de TAW)
+  
+                           !On applique la matrice de transmission à l'éclairement direct 
+                           !incident pour avoir l'éclairement direct transmis
+                           !On n'oublie pas de diviser par MU (voir spécifications)
+                           !et de prendre en compte la transmission dans la mer
+
+               ISUNDIR_DOWN_SSURF_VAG_K = TAW11(N0,K) * CH_ATM_TOT 
+               QSUNDIR_DOWN_SSURF_VAG_K = TAW21(N0,K) * CH_ATM_TOT 
+               USUNDIR_DOWN_SSURF_VAG_K = TAW31(N0,K) * CH_ATM_TOT 
+
+      
+               DO I=0,CTE_NT_SEA
+                  CH_SEA_I = 4.*CH_SEA(K,I)                !Atténuation au niveau I marin    
+                  I1_SEA(I,-K)=ISUNDIR_DOWN_SSURF_VAG_K*CH_SEA_I/RMU(K)
+                  Q1_SEA(I,-K)=QSUNDIR_DOWN_SSURF_VAG_K*CH_SEA_I/RMU(K)
+                  U1_SEA(I,-K)=USUNDIR_DOWN_SSURF_VAG_K*CH_SEA_I/RMU(K)
+               ENDDO
+        
+            ENDDO !Fin boucle sur K
+
+ 
+            !Calcul du flux direct transmis au niveau 0- 
+            IF (IS.EQ.0) THEN
+ 
+               FLUX_DOWN_SSURF_DIR=0. 
+               FLUX_DOWN_FOND_DIR=0.
+      
+               DO J=1,NBMU
+      
+                  VAL = GA(J)*I1_SEA(0,-J)*RMU(J)
+                  FLUX_DOWN_SSURF_DIR = FLUX_DOWN_SSURF_DIR + VAL
+                  FLUX_DOWN_FOND_DIR = FLUX_DOWN_FOND_DIR 
+     &                 + VAL*4.*CH_SEA(J,CTE_NT_SEA)     
+               ENDDO
 
                FLUX_DOWN_SSURF_DIR = 
-     &	   	       FLUX_DOWN_SSURF_DIR * 2.*INCTE_PI
+     &                    FLUX_DOWN_SSURF_DIR * X2PI
 
                FLUX_DOWN_FOND_DIR = 
-     &	   	        FLUX_DOWN_FOND_DIR * 2.*INCTE_PI
-      	    
-	    ENDIF ! Si IS=0
-	    
-	    
-	    
-	    
-	    !******* Traces d'expertise ********************************
+     &                     FLUX_DOWN_FOND_DIR * X2PI
+                  
+            ENDIF ! Si IS=0
+
+
+  
+            !******* Traces d'expertise ********************************
             IF (TRACE_DEBUG) THEN
-	       WRITE(IDLOG,*,ERR=1010) " "
-	       WRITE(IDLOG,*,ERR=1010) 
-     &	       " Transm. solar radiance just below the surface: IS=",
+               WRITE(IDLOG,*,ERR=1010) " "
+               WRITE(IDLOG,*,ERR=1010) 
+     &         " Transm. solar radiance just below the surface: IS=",
      &         IS
               WRITE(IDLOG,*,ERR=1010) 
-     &	       "   K    MU       ANGLE     I           Q           U"
+     &         "   K    MU       ANGLE     I           Q           U"
               II2=0.
-	       QQ2=0.			
-	       DO K=-NBMU,-1
-	          WRITE(IDLOG,401,ERR=1010) K,RMU(K),
-     &		          -DACOS(RMU(-K))*180.D+00/INCTE_PI,
-     &			   I1_SEA(0,K),Q1_SEA(0,K),U1_SEA(0,K)
-	          II2 = II2 +GA(K)*I1_SEA(0,K)
-		   QQ2 = QQ2 +GA(K)*Q1_SEA(0,K)
-	       ENDDO
-	       WRITE(IDLOG,*,ERR=1010) " "
-	       WRITE(IDLOG,*,ERR=1010) "Integrated values : ",II2,QQ2
-	    ENDIF
-	    !***********************************************************
-	 	    
-	    !Application du champ marin d'ordre 0 pour le calcul de la fonction 
-	    !source marine d'ordre 1	    
-	    CALL OSOAA_FSOURCE_SEA_ORDREIG(IS,NBMU,
-     &	 		   SEA_PCRAY_TR,SEA_PC_CHL_TR,SEA_PC_MLP_TR,
+               QQ2=0.
+               DO K=-NBMU,-1
+                  WRITE(IDLOG,401,ERR=1010) K,RMU(K),
+     &                    -DACOS(RMU(-K))*RAD2DEG,
+     &                     I1_SEA(0,K),Q1_SEA(0,K),U1_SEA(0,K)
+                  II2 = II2 +GA(K)*I1_SEA(0,K)
+                  QQ2 = QQ2 +GA(K)*Q1_SEA(0,K)
+               ENDDO
+               WRITE(IDLOG,*,ERR=1010) " "
+               WRITE(IDLOG,*,ERR=1010) "Integrated values : ",II2,QQ2
+            ENDIF
+            !***********************************************************
+    
+            !Application du champ marin d'ordre 0 pour le calcul de la fonction 
+            !source marine d'ordre 1   
+            CALL OSOAA_FSOURCE_SEA_ORDREIG(IS,NBMU,
+     &                     SEA_PCRAY_TR,SEA_PC_CHL_TR,SEA_PC_MLP_TR,
      &                     BETA0_MOL_SEA,BETA2_MOL_SEA,
-     &			   GAMMA2_MOL_SEA,ALPHA2_MOL_SEA,
+     &                     GAMMA2_MOL_SEA,ALPHA2_MOL_SEA,
      &                     XPL,XRL,XTL,
-     &			   I1_SEA,Q1_SEA,U1_SEA,
+     &                     I1_SEA,Q1_SEA,U1_SEA,
      &                     BP_CHL,GR_CHL,GT_CHL,
-     & 			   ARR_CHL,ART_CHL,ATT_CHL,
+     &                     ARR_CHL,ART_CHL,ATT_CHL,
      &                     BP_MLP,GR_MLP,GT_MLP,
-     & 			   ARR_MLP,ART_MLP,ATT_MLP,
+     &                     ARR_MLP,ART_MLP,ATT_MLP,
      &                     GA,I2_SEA,Q2_SEA,U2_SEA)
 
-         	   
+           
          ELSE 
-	    !Cas mer plate   
+            !Cas mer plate   
 
-	    !Calcul de l'éclairement solaire direct transmis au passage air / mer : 
-	    !====> composantes I = ISUNDIR_DOWN_SSURF_MP et Q = QSUNDIR_DOWN_SSURF_MP
-	    !sous la surface (niveau 0-) pour une mer plate
+            !Calcul de l'éclairement solaire direct transmis au passage air / mer : 
+            !====> composantes I = ISUNDIR_DOWN_SSURF_MP et Q = QSUNDIR_DOWN_SSURF_MP
+            !sous la surface (niveau 0-) pour une mer plate
 
 
-	    !Affectation des valeurs incidentes du champ descendant en surface
+            !Affectation des valeurs incidentes du champ descendant en surface
             DO K=1,NBMU
- 	       IINC(K) = 0.
- 	       QINC(K) = 0.
- 	       UINC(K) = 0.
- 	    ENDDO
- 	    IINC(N0) = 4.*CH_ATM(CTE_NT_ATM) !Eclairement solaire incident en surface 
-	 				     !divisé par PI
-	    				     !(non polarisé, Es=PI : non apparent car 
-					     !on simplifie directement l'expression 
-					     !de la fonction source avec ES/PI=1)
-					     !Mono-directionnel : indice N0 (mu0 > 0)
-							
- 	    CALL  OSOAA_INTERF_MERPLATE("TAW",SEA_IND,RMU,NBMU,
-     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
+                IINC(K) = 0.
+                QINC(K) = 0.
+                UINC(K) = 0.
+            ENDDO
+            IINC(N0) = 4.*CH_ATM(CTE_NT_ATM) !Eclairement solaire incident en surface 
+                                             !divisé par PI
+                                             !(non polarisé, Es=PI : non apparent car 
+                                             !on simplifie directement l'expression 
+                                             !de la fonction source avec ES/PI=1)
+                                             !Mono-directionnel : indice N0 (mu0 > 0)
+                                        
+            CALL  OSOAA_INTERF_MERPLATE("TAW",SEA_IND,RMU,NBMU,
+     &                                  IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  .FALSE.,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
  
-	    
+   
             !Récupération du champ descendant transmis à partir du tableau du champ dans 
-	    !l'eau au niveau de la surface 
-	    !(pour direction transmise : indice M0 (muw0 > 0) ).
-	    ! --> La routine OSOAA_INTERF_MERPLATE applique un calcul pour luminance.
-	    !     Pour retrouver l'analogie en éclairement, il faut :
-	    !       - supprimer l'application du facteur indice^2 (propre au calcul 
-	    !         en luminance) pour revenir à la matrice Tflux.
-	    !       - selon l'expression d'un Flux = Eclairement * cos(angle incident)
-	    !         on passe à l'expression d'une matrice de transmission de 
-	    !         l'éclairement en la multipliant par le rapport des cosinus
-	    !         des angles solaires incident et transmis. 
-	    !     NB: On ne multiplie pas l'expression par Es (Es=PI)
-	    !         car Es=PI est pris en compte dans les routines de calcul des
-	    !         fonctions sources qui utilisent les grandeurs 
-	    !         ISUNDIR_DOWN_SSURF_MP et QSUNDIR_DOWN_SSURF_MP
-	    !
-	    !  ==> On obtient ISUNDIR_DOWN_SSURF_MP = R * exp(-Tau/cosThetas)
-	    !      avec R = ECL_DIR_0- / ECL_DIR_0+ le rapport des éclairements
-	    !      solaire direct transmis sous l'eau et incident en surface.
-	    !
-	    !      Comme ECL_DIR_0+ = PI * exp(-Tau/cosThetas) à la surface
-	    !      On a donc aussi : ISUNDIR_DOWN_SSURF_MP = ECL_DIR_0- / PI 
-	    ISUNDIR_DOWN_SSURF_MP= IDEV(M0)*(TAB/TABW)/(SEA_IND*SEA_IND)
-	    QSUNDIR_DOWN_SSURF_MP= QDEV(M0)*(TAB/TABW)/(SEA_IND*SEA_IND)
-	   
+            !l'eau au niveau de la surface 
+            !(pour direction transmise : indice M0 (muw0 > 0) ).
+            ! --> La routine OSOAA_INTERF_MERPLATE applique un calcul pour luminance.
+            !     Pour retrouver l'analogie en éclairement, il faut :
+            !       - supprimer l'application du facteur indice^2 (propre au calcul 
+            !         en luminance) pour revenir à la matrice Tflux.
+            !       - selon l'expression d'un Flux = Eclairement * cos(angle incident)
+            !         on passe à l'expression d'une matrice de transmission de 
+            !         l'éclairement en la multipliant par le rapport des cosinus
+            !         des angles solaires incident et transmis. 
+            !     NB: On ne multiplie pas l'expression par Es (Es=PI)
+            !         car Es=PI est pris en compte dans les routines de calcul des
+            !         fonctions sources qui utilisent les grandeurs 
+            !         ISUNDIR_DOWN_SSURF_MP et QSUNDIR_DOWN_SSURF_MP
+            !
+            !  ==> On obtient ISUNDIR_DOWN_SSURF_MP = R * exp(-Tau/cosThetas)
+            !      avec R = ECL_DIR_0- / ECL_DIR_0+ le rapport des éclairements
+            !      solaire direct transmis sous l'eau et incident en surface.
+            !
+            !      Comme ECL_DIR_0+ = PI * exp(-Tau/cosThetas) à la surface
+            !      On a donc aussi : ISUNDIR_DOWN_SSURF_MP = ECL_DIR_0- / PI 
+            ISUNDIR_DOWN_SSURF_MP=IDEV(M0)*(TAB/TABW)/(SEA_IND*SEA_IND)
+            QSUNDIR_DOWN_SSURF_MP=QDEV(M0)*(TAB/TABW)/(SEA_IND*SEA_IND)
+           
             IF (TRACE) THEN
-	        WRITE(IDLOG,*,ERR=1010) 
+                WRITE(IDLOG,*,ERR=1010) 
      &          '        Att. of direct solar flux: TOA to surface'//
      &          ' (level 0+) :', 4*CH_ATM(CTE_NT_ATM)
-	        WRITE(IDLOG,*,ERR=1010)
-     &          '        Solar irradiance on surface (0+) / PI :',
-     &                   IINC(N0)
+                WRITE(IDLOG,*,ERR=1010)
+     &          '        Solar irradiance on surface (0+) '//
+     &          ' for a solar irradiance = PI at TOA: ', 
+     &          IINC(N0)*INCTE_PI
                WRITE(IDLOG,*,ERR=1010) 
-     &          '        Solar irradiance just below surface (0-) :'
+     &          '        Solar irradiance just below surface (0-)'//
+     &          ' for a solar irradiance = PI at TOA:'
                WRITE(IDLOG,*,ERR=1010) 
      &          '           Direction : ', 
-     &                      DACOS(-TABW)*180.D+00/INCTE_PI
+     &                      DACOS(-TABW)*RAD2DEG
                WRITE(IDLOG,*,ERR=1010) 
      &          '           Parameter I / PI: ', ISUNDIR_DOWN_SSURF_MP   
                WRITE(IDLOG,*,ERR=1010) 
@@ -1811,47 +1901,47 @@ C-------------------------------------------------------------------
      &          '           Parameter Q : ',
      &          QSUNDIR_DOWN_SSURF_MP/IINC(N0)
                WRITE(IDLOG,*,ERR=1010) ' '
-	    ENDIF
-     	    	
+            ENDIF
+     
 
             IF(IS.EQ.0) THEN
-    	        !  ==> On a ISUNDIR_DOWN_SSURF_MP = R * exp(-Tau/cosThetas)
-	    	!      avec R = ECL_DIR_0- / ECL_DIR_0+ le rapport des éclairements
-	    	!      solaire direct transmis sous l'eau et incident en surface.
-	   	!
-	   	!      Comme ECL_DIR_0+ = PI * exp(-Tau/cosThetas) à la surface
-	   	!      On a donc aussi : ISUNDIR_DOWN_SSURF_MP = ECL_DIR_0- / PI 
-	    	!
-	    	!      Le flux sous la surface est donc :
-	    	!      Flux = ECL_DIR_0- * cos(ThetasWater)
-	    	!           = ISUNDIR_DOWN_SSURF_MP * PI * cos(ThetasWater) 	    
-	       FLUX_DOWN_SSURF_DIR_MP = 
-     &	           ISUNDIR_DOWN_SSURF_MP*INCTE_PI*(-TABW)     
+                !  ==> On a ISUNDIR_DOWN_SSURF_MP = R * exp(-Tau/cosThetas)
+                !      avec R = ECL_DIR_0- / ECL_DIR_0+ le rapport des éclairements
+                !      solaire direct transmis sous l'eau et incident en surface.
+                !
+                !      Comme ECL_DIR_0+ = PI * exp(-Tau/cosThetas) à la surface
+                !      On a donc aussi : ISUNDIR_DOWN_SSURF_MP = ECL_DIR_0- / PI 
+                !
+                !      Le flux sous la surface est donc :
+                !      Flux = ECL_DIR_0- * cos(ThetasWater)
+                !           = ISUNDIR_DOWN_SSURF_MP * PI * cos(ThetasWater)     
+               FLUX_DOWN_SSURF_DIR_MP = 
+     &             ISUNDIR_DOWN_SSURF_MP*INCTE_PI*(-TABW)     
      
      
-                ! ==> Flux au fond par simple atténuation directe du flus sous la surface
-		!     selon la direction d'incidence solaire dans l'eau
+                ! ==> Flux au fond par simple atténuation directe du flux sous la surface
+                !     selon la direction d'incidence solaire dans l'eau
                FLUX_DOWN_FOND_DIR = 
-     &	           FLUX_DOWN_SSURF_DIR_MP *4.*CH_SEA_MUS(CTE_NT_SEA) 	     
-	        
-	        ! Affection à la variable commune mer plate / mer agitée
-		FLUX_DOWN_SSURF_DIR = FLUX_DOWN_SSURF_DIR_MP	  
-	    ENDIF
+     &             FLUX_DOWN_SSURF_DIR_MP *4.*CH_SEA_MUS(CTE_NT_SEA)      
+       
+                ! Affection à la variable commune mer plate / mer agitée
+                FLUX_DOWN_SSURF_DIR = FLUX_DOWN_SSURF_DIR_MP         
+            ENDIF
      
      
-	    !-- Calcul de la fonction source d'ordre 1 : 
-	    !          - source directe = éclairement solaire transmis en composante I et Q
-	    !			(ISUNDIR_DOWN_SSURF_MP,QSUNDIR_DOWN_SSURF_MP)
-	    !          - atténuation dans la mer pour la direction transmise (CH_SEA_MUS)
+            !-- Calcul de la fonction source d'ordre 1 : 
+            !          - source directe = éclairement solaire transmis en composante I et Q
+            !                        (ISUNDIR_DOWN_SSURF_MP,QSUNDIR_DOWN_SSURF_MP)
+            !          - atténuation dans la mer pour la direction transmise (CH_SEA_MUS)
             CALL OSOAA_FSOURCE_SEA_ORDRE1_MERPLATE(
-     &	                   IS,JKW,NBMU,CH_SEA_MUS,
-     &	 		   SEA_PCRAY_TR,SEA_PC_CHL_TR,SEA_PC_MLP_TR,
+     &                     IS,JKW,NBMU,CH_SEA_MUS,
+     &                     SEA_PCRAY_TR,SEA_PC_CHL_TR,SEA_PC_MLP_TR,
      &                     BETA0_MOL_SEA,BETA2_MOL_SEA,
-     &			   GAMMA2_MOL_SEA,ALPHA2_MOL_SEA,
+     &                     GAMMA2_MOL_SEA,ALPHA2_MOL_SEA,
      &                     XPL,XRL,XTL,
-     &		           ISUNDIR_DOWN_SSURF_MP,QSUNDIR_DOWN_SSURF_MP,
+     &                     ISUNDIR_DOWN_SSURF_MP,QSUNDIR_DOWN_SSURF_MP,
      &                     BP_CHL,GR_CHL,GT_CHL,ARR_CHL,ART_CHL,
-     &			   BP_MLP,GR_MLP,GT_MLP,ARR_MLP,ART_MLP,
+     &                     BP_MLP,GR_MLP,GT_MLP,ARR_MLP,ART_MLP,
      &                     I2_SEA,Q2_SEA,U2_SEA)             
      
          ENDIF  !Fin test mer plate ou agitée       
@@ -1859,47 +1949,47 @@ C-------------------------------------------------------------------
     
          !******* Traces d'expertise ***********************************
          IF (TRACE_DEBUG) THEN
-	    WRITE(IDLOG,*,ERR=1010) " "
-	    WRITE(IDLOG,*,ERR=1010) 
-     &	       "Marine source function of order 1 : IS = ",IS
-	    WRITE(IDLOG,*,ERR=1010) " "
-	    DO I=0,CTE_NT_SEA,20
-	       WRITE(IDLOG,*,ERR=1010) "Level sea I : ",I
-	       WRITE(IDLOG,*,ERR=1010) 
-     &	       "  I     K      RMU          I2          Q2          U2"
-	       DO K=-NBMU,NBMU,4
-	          WRITE(IDLOG,402,ERR=1010) 
-     &			I,K,RMU(K),I2_SEA(I,K),Q2_SEA(I,K),U2_SEA(I,K)
-	       ENDDO
-	    ENDDO  
-	  ENDIF
-	 !**************************************************************
-	 
+            WRITE(IDLOG,*,ERR=1010) " "
+            WRITE(IDLOG,*,ERR=1010) 
+     &         "Marine source function of order 1 : IS = ",IS
+            WRITE(IDLOG,*,ERR=1010) " "
+            DO I=0,CTE_NT_SEA,20
+               WRITE(IDLOG,*,ERR=1010) "Level sea I : ",I
+               WRITE(IDLOG,*,ERR=1010) 
+     &         "  I     K      RMU          I2          Q2          U2"
+               DO K=-NBMU,NBMU,4
+                  WRITE(IDLOG,402,ERR=1010) 
+     &                  I,K,RMU(K),I2_SEA(I,K),Q2_SEA(I,K),U2_SEA(I,K)
+               ENDDO
+            ENDDO  
+          ENDIF
+         !**************************************************************
 
 
-C*******************************************************************		
+
+C*******************************************************************
 C******** Initialisation à zéro des champs marin et atmosphérique 
 C         d'ordre IG =1 pour ordre S = IS en cours 
 C        (toutes directions confondues)
-C*******************************************************************	
+C*******************************************************************
          !
 	  DO I=0,CTE_NT_SEA
 	    DO K=-NBMU,NBMU
-	       I1_SEA(I,K)=0.	
-	       Q1_SEA(I,K)=0.	
+	       I1_SEA(I,K)=0.
+	       Q1_SEA(I,K)=0.
 	       U1_SEA(I,K)=0.
 	    ENDDO
 	 ENDDO
 	 
         DO I=0,CTE_NT_ATM
 	    DO K=-NBMU,NBMU
-	       I1_ATM(I,K)=0.	
-	       Q1_ATM(I,K)=0.	
-	       U1_ATM(I,K)=0.	
+	       I1_ATM(I,K)=0.
+	       Q1_ATM(I,K)=0.
+	       U1_ATM(I,K)=0.
 	    ENDDO
-	 ENDDO	 	 
-	 	
-C*******************************************************************		
+	 ENDDO
+
+C*******************************************************************
 C******** Etape 1 : Signal montant 
 C                   Calcul de la luminance réfléchie au fond de mer
 C		    ==> Réflexion lambertienne
@@ -1908,7 +1998,7 @@ C                       ou agitée en faisant l'hypothèse que le flux
 C                       incident au fond de mer est le même dans les 2 cas.
 C                       (possible car seul IS=0 compte 
 C                        et car la surface est lambertienne)
-C*******************************************************************	
+C*******************************************************************
          IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
@@ -1925,70 +2015,70 @@ C*******************************************************************
 	 DO K=1,NBMU
 	    I1_SEA(CTE_NT_SEA,K)=I_REFL_BOT
 	 ENDDO  
-	 					
+	                                         
 	 IF (TRACE) THEN
 	     WRITE(IDLOG,*,ERR=1010) 
-     &	     'I reflected on bottom :',I_REFL_BOT
+     &       'I reflected on bottom :',I_REFL_BOT
 	     
 	     IF (IS.EQ.0) THEN
 	       WRITE(IDLOG,*,ERR=1010) '  - Bottom albedo :',RHO_BOT
 	       WRITE(IDLOG,*,ERR=1010) '  - CosThetas_water :',TABW
 	       
-	       IF(IMAT_SURF.EQ.0) THEN !Cas mer plate	       
+	       IF(IMAT_SURF.EQ.0) THEN !Cas mer plate       
 	          WRITE(IDLOG,*,ERR=1010) '  - Trans. irrad 0- / PI:',
      &            ISUNDIR_DOWN_SSURF_MP
 	          WRITE(IDLOG,*,ERR=1010) '  - Attenuation into sea :',
-     &		    	             4.*CH_SEA_MUS(CTE_NT_SEA)
+     &  	    	             4.*CH_SEA_MUS(CTE_NT_SEA)
 	          WRITE(IDLOG,*,ERR=1010) 
-     &	             '  - Solar direct irradiance / PI,'//
-     &	             ' at sea bottom   - Flat sea :',  
-     &	             ISUNDIR_DOWN_SSURF_MP*4.*CH_SEA_MUS(CTE_NT_SEA)
+     &               '  - Solar direct irradiance / PI,'//
+     &               ' at sea bottom   - Flat sea :',  
+     &               ISUNDIR_DOWN_SSURF_MP*4.*CH_SEA_MUS(CTE_NT_SEA)
               ENDIF
-	       
+     
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	          '  - Direct solar flux, transm. and att.'//
-     &	          ' at sea bottom : ', FLUX_DOWN_FOND_DIR
-               
+     &            '  - Direct solar flux, transm. and att.'//
+     &            ' at sea bottom (solar irradiance = PI at TOA): ', 
+     &            FLUX_DOWN_FOND_DIR
 	     ELSE
 	       WRITE(IDLOG,*,ERR=1010)
-     &	       'The incidente flux on bottom is null'
-	     ENDIF	 
-	 
+     &         'The incidente flux on bottom is null'
+	     ENDIF 
+
 	 ENDIF  
          
-C*************************************************************************			
+C*************************************************************************
 C******** Etape 2 : Signal montant 
 C                   Calcul de la luminance remontante 
 C                   du fond de mer à la surface
 C		    --> Intégration du champ de luminance montant (mu > 0) 
-C			du fond de mer à la surface
-C*************************************************************************	
+C                       du fond de mer à la surface
+C*************************************************************************
          IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010) 
-     &	    " Order S =",IS," / Order IG = 1 - Step 2"
+     &      " Order S =",IS," / Order IG = 1 - Step 2"
 	    WRITE(IDLOG,*,ERR=1010) "          Integr bottom -> surf"
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 	 
 	 CALL OSOAA_INTEGR_EPOPT_SEA_UP(NBMU,RMU,SEA_TAUEXT_TR,
-     &				        I2_SEA,Q2_SEA,U2_SEA,
+     &  			        I2_SEA,Q2_SEA,U2_SEA,
      &  	                        I1_SEA,Q1_SEA,U1_SEA)
      
          !******* Traces d'expertise ***********************************
          IF (TRACE_DEBUG) THEN
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    WRITE(IDLOG,*,ERR=1010) 
-     &	       "Luminance marine up ordre 1 - étape 2 : IS = ",IS
+     &         "Luminance marine up ordre 1 - étape 2 : IS = ",IS
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    DO I=0,CTE_NT_SEA,20
 	       WRITE(IDLOG,*,ERR=1010) "Niveau sea I : ",I
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	       "  I     K      RMU          I1          Q1          U1"
+     &         "  I     K      RMU          I1          Q1          U1"
 	       DO K=-NBMU,NBMU,4
 	          WRITE(IDLOG,402,ERR=1010) 
-     &			I,K,RMU(K),I1_SEA(I,K),Q1_SEA(I,K),U1_SEA(I,K)
+     &  		I,K,RMU(K),I1_SEA(I,K),Q1_SEA(I,K),U1_SEA(I,K)
 	       ENDDO
 	    ENDDO  
 	 ENDIF
@@ -2005,98 +2095,98 @@ C*******************************************************************
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010) 
-     &	    " Order S =",IS," / Order IG = 1 - Step 3"
+     &      " Order S =",IS," / Order IG = 1 - Step 3"
 	    WRITE(IDLOG,*,ERR=1010) "             Transm. Sea -> air"
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 
 	 
-	 IF (IMAT_SURF.EQ.1) THEN	!************************
-	    				!Etape 3 : Cas mer agitée
-					!************************
+	 IF (IMAT_SURF.EQ.1) THEN       !************************
+                                        !Etape 3 : Cas mer agitée
+                                        !************************
 
             IF (TRACE) WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 
 
-            DO K=1,NBMU		!K direction de transmission
-	    
+            DO K=1,NBMU      !K direction de transmission
+            
                II2=0.
                QQ2=0.
-               UU2=0.			       
-	       DO J=1,NBMU	!J direction d'incidence montante
+               UU2=0.       
+               DO J=1,NBMU   !J direction d'incidence montante
                   Z= GA(J)
                   XI1 = I1_SEA(0,J)
                   XQ1 = Q1_SEA(0,J)
                   XU1 = U1_SEA(0,J)
-	  
+          
                   II2 = II2 
-     &	              +Z*(XI1*TWA11(J,K)+XQ1*TWA12(J,K)+XU1*TWA13(J,K))
+     &                +Z*(XI1*TWA11(J,K)+XQ1*TWA12(J,K)+XU1*TWA13(J,K))
                   QQ2 = QQ2 
-     &	              +Z*(XI1*TWA21(J,K)+XQ1*TWA22(J,K)+XU1*TWA23(J,K))
+     &                +Z*(XI1*TWA21(J,K)+XQ1*TWA22(J,K)+XU1*TWA23(J,K))
                   UU2 = UU2 
-     &	              +Z*(XI1*TWA31(J,K)+XQ1*TWA32(J,K)+XU1*TWA33(J,K))
-	       ENDDO
-	       
-	       COEF_INTSPA = 2./RMU(K)
-	       I1_ATM(CTE_NT_ATM,K) = II2*COEF_INTSPA
-	       Q1_ATM(CTE_NT_ATM,K) = QQ2*COEF_INTSPA
-	       U1_ATM(CTE_NT_ATM,K) = UU2*COEF_INTSPA
-	    ENDDO
+     &                +Z*(XI1*TWA31(J,K)+XQ1*TWA32(J,K)+XU1*TWA33(J,K))
+               ENDDO
+               
+               COEF_INTSPA = 2./RMU(K)
+               I1_ATM(CTE_NT_ATM,K) = II2*COEF_INTSPA
+               Q1_ATM(CTE_NT_ATM,K) = QQ2*COEF_INTSPA
+               U1_ATM(CTE_NT_ATM,K) = UU2*COEF_INTSPA
+            ENDDO
 
             IF (TRACE) THEN
-	       WRITE(IDLOG,*,ERR=1010) " "
-	       WRITE(IDLOG,*,ERR=1010) 
-     &	     " Upward field 0- / Upward field transmitted 0+ :"
-	       WRITE(IDLOG,*,ERR=1010)"  - Incident field by direction"
-	       WRITE(IDLOG,*,ERR=1010) 
-     &	       "  - Transmitted field = spatially integrated"
-	       WRITE(IDLOG,*,ERR=1010) 
-     &	       "     ==> Warning : a transmitted direction includes"//
-     &	       " contributions from all the incidente directions "
+               WRITE(IDLOG,*,ERR=1010) " "
                WRITE(IDLOG,*,ERR=1010) 
-     &	       "         (spatial integration)"
+     &       " Upward field 0- / Upward field transmitted 0+ :"
+               WRITE(IDLOG,*,ERR=1010)"  - Incident field by direction"
+               WRITE(IDLOG,*,ERR=1010) 
+     &         "  - Transmitted field = spatially integrated"
+               WRITE(IDLOG,*,ERR=1010) 
+     &         "     ==> Warning : a transmitted direction includes"//
+     &         " contributions from all the incidente directions "
+               WRITE(IDLOG,*,ERR=1010) 
+     &         "         (spatial integration)"
       
-	       DO K=1,NBMU
+               DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
-     &             ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
+     &             ' Ang inc :',DACOS(RMU(K))*RAD2DEG,
      &             ' I_INC ',I1_SEA(0,K),
-     &		     ' Q_INC ',Q1_SEA(0,K),
-     &		     ' U_INC ',U1_SEA(0,K),
-     &             ' Ang trans :',DACOS(RMU(K))*180./INCTE_PI,
+     &             ' Q_INC ',Q1_SEA(0,K),
+     &             ' U_INC ',U1_SEA(0,K),
+     &             ' Ang trans :',DACOS(RMU(K))*RAD2DEG,
      &             ' I_TR ',I1_ATM(CTE_NT_ATM,K),
-     &		     ' Q_TR ',Q1_ATM(CTE_NT_ATM,K),
-     &		     ' U_TR ',U1_ATM(CTE_NT_ATM,K),
+     &             ' Q_TR ',Q1_ATM(CTE_NT_ATM,K),
+     &             ' U_TR ',U1_ATM(CTE_NT_ATM,K),
      &             ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		     ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		     ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &             ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &             ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
                ENDDO
-	    ENDIF
-	     	 	    	   
-	   
+            ENDIF
+   
+           
          ELSE  !************************
-	       !Etape 3 :  Cas mer plate 
-	       !************************
-	    
-	    !Affectation des valeurs incidentes du champ montant sous la surface
+               !Etape 3 :  Cas mer plate 
+               !************************
+            
+            !Affectation des valeurs incidentes du champ montant sous la surface
             DO K=1,NBMU
-	       IINC(K) = I1_SEA(0,K)
-	       QINC(K) = Q1_SEA(0,K)
-	       UINC(K) = U1_SEA(0,K)
-	     ENDDO
-	    
-	     CALL  OSOAA_INTERF_MERPLATE("TWA",SEA_IND,RMU,NBMU,
-     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
+               IINC(K) = I1_SEA(0,K)
+               QINC(K) = Q1_SEA(0,K)
+               UINC(K) = U1_SEA(0,K)
+             ENDDO
+            
+             CALL  OSOAA_INTERF_MERPLATE("TWA",SEA_IND,RMU,NBMU,
+     &                                  IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
-	    
+    
             !Affectation du champ montant transmis au tableau du champ 
 	    !dans l'atmosphère au niveau de la surface
             DO K=1,NBMU
 	       I1_ATM(CTE_NT_ATM,-K) = 0.
 	       Q1_ATM(CTE_NT_ATM,-K) = 0.
 	       U1_ATM(CTE_NT_ATM,-K) = 0.
-	       
+      
 	       I1_ATM(CTE_NT_ATM,K) = IDEV(K)
 	       Q1_ATM(CTE_NT_ATM,K) = QDEV(K)
 	       U1_ATM(CTE_NT_ATM,K) = UDEV(K)
@@ -2105,20 +2195,20 @@ C*******************************************************************
 
             IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	     " Upward field 0- / Upward field transmitted 0+ :"
+     &       " Upward field 0- / Upward field transmitted 0+ :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
-     &             ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
+     &             ' Ang inc :',DACOS(RMU(K))*RAD2DEG,
      &             ' I_INC ',IINC(K),
-     &		     ' Q_INC ',QINC(K),
-     &		     ' U_INC ',UINC(K),
-     &             ' Ang trans :',DACOS(RMU(K))*180./INCTE_PI,
+     &  	   ' Q_INC ',QINC(K),
+     &  	   ' U_INC ',UINC(K),
+     &             ' Ang trans :',DACOS(RMU(K))*RAD2DEG,
      &             ' I_TR ',IDEV(K),
-     &		     ' Q_TR ',QDEV(K),
-     &		     ' U_TR ',UDEV(K),
+     &  	   ' Q_TR ',QDEV(K),
+     &  	   ' U_TR ',UDEV(K),
      &             ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		     ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		     ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &  	   ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &  	   ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
                ENDDO
 	     ENDIF
 	    	    	    
@@ -2126,24 +2216,23 @@ C*******************************************************************
 
 
         
-	 
-	 
 
-C*******************************************************************	
+
+C*******************************************************************
 C******** Etape 4 : Signal montant 
 C                   Réflexion lambertienne de l'écume
 C*******************************************************************
          IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
-     &	    " Order S =",IS," / Order IG = 1 - Step 4"
+     &      " Order S =",IS," / Order IG = 1 - Step 4"
 	    WRITE(IDLOG,*,ERR=1010) "             Foam reflection     "
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 	 
          IF ((RHO_SURF.NE.0.).AND.(IS.EQ.0)) THEN
 	    I_REFL_SURF = 
-     &	       - RHO_SURF*TAB*DEXP(ATM_TAUEXT_TR_TOT/TAB)
+     &         - RHO_SURF*TAB*DEXP(ATM_TAUEXT_TR_TOT/TAB)
 	    DO K=1,NBMU
 	       I1_ATM(CTE_NT_ATM,K) =
      &             I1_ATM(CTE_NT_ATM,K) + I_REFL_SURF
@@ -2154,21 +2243,21 @@ C*******************************************************************
 	 
 	     IF (IS.EQ.0) THEN
 	       WRITE(IDLOG,*,ERR=1010)
-     &	       'I reflected on surface :',I_REFL_SURF
+     &         'I reflected on surface :',I_REFL_SURF
 	       WRITE(IDLOG,*,ERR=1010)'  - Surface albedo:',RHO_SURF
 	       WRITE(IDLOG,*,ERR=1010)'  - CosThetas_air :',TAB
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	       '  - Solar direct irradiance att. at the sea surface :',
-     &			DEXP(ATM_TAUEXT_TR_TOT/TAB)
+     &         '  - Solar direct irradiance att. at the sea surface :',
+     &  		DEXP(ATM_TAUEXT_TR_TOT/TAB)
 	       WRITE(IDLOG,*,ERR=1010) " "
 	     ELSE
 	       WRITE(IDLOG,*,ERR=1010)
-     &	          'The incidente flux on surface is null'
+     &            'The incidente flux on surface is null'
 	     ENDIF
 	 ENDIF    
 	 
 	 
-C*************************************************************************		    
+C*************************************************************************   
 C******** Etape 5 : Signal montant 
 C                   Calcul de la luminance remontante de la surface au TOA
 C
@@ -2183,12 +2272,12 @@ C
 C                   - Ajout de la composante de diffusion du rayonnement
 C                     solaire direct réfléchi en surface selon la loi 
 C                     de Fresnel (cas mer plate)
-C*************************************************************************	
+C*************************************************************************
          IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
-     &	    " Order S =",IS," / Order IG = 1 - Step 5"
+     &      " Order S =",IS," / Order IG = 1 - Step 5"
 	    WRITE(IDLOG,*,ERR=1010) "             Integr surf -> TOA"
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010) " "
@@ -2199,22 +2288,22 @@ C*************************************************************************
 	 !Mer plate  : sans diffusion de la réflexion
 	 !             de Fresnel du faisceau solaire direct.
 	 CALL OSOAA_INTEGR_EPOPT_ATM_UP(NBMU,RMU,ATM_TAUEXT_TR,
-     &				        I2_ATM,Q2_ATM,U2_ATM,
+     &  			        I2_ATM,Q2_ATM,U2_ATM,
      &  	                        I1_ATM,Q1_ATM,U1_ATM)
 
 
 	 !Initialisation des termes de stockage de la composante de 
 	 !réflexion du faisceau solaire direct
          DO K=1,NBMU       
-	     RII(I,K) = 0.		
-	     RQQ(I,K) = 0.		
-	     RUU(I,K) = 0.		  
+	     RII(I,K) = 0.
+	     RQQ(I,K) = 0.
+	     RUU(I,K) = 0.  
 	 ENDDO
 
 	 
 	 IF (IMAT_SURF.EQ.1) THEN	!************************
-	    				!Etape 5 : Cas mer agitée
-					!************************
+	                                !Etape 5 : Cas mer agitée
+	                                !************************
 
             ! Ajout de la réflexion du faisceau solaire direct
 	    ! réfléchi sur les vagues, sur le profil atmosphérique.
@@ -2256,12 +2345,12 @@ C*************************************************************************
 		
 	    ! Calcul de la fonction source pour la diffusion de L1fresnel 	 
 	    CALL OSOAA_FSOURCE_DIFF_FRESNEL1(
-     &	   	          -TAB,JK,SEA_IND,ATM_PCAER_TR,ATM_PCRAY_TR,
+     &     	          -TAB,JK,SEA_IND,ATM_PCAER_TR,ATM_PCRAY_TR,
      &                    BETA0_MOL_AIR,BETA2_MOL_AIR,
      &                    GAMMA2_MOL_AIR,ALPHA2_MOL_AIR,
      &                    BP_AER,GR_AER,GT_AER,ARR_AER,ART_AER,
      &                    XPL,XRL,XTL,IS,NBMU,ATM_TAUEXT_TR,
-     &		          I2_ATM_FRESNEL,Q2_ATM_FRESNEL,U2_ATM_FRESNEL)
+     &  	          I2_ATM_FRESNEL,Q2_ATM_FRESNEL,U2_ATM_FRESNEL)
 
 
             ! Intégration sur le profil atmosphérique. 
@@ -2273,11 +2362,11 @@ C*************************************************************************
    	    ENDDO
 
 	    CALL OSOAA_INTEGR_EPOPT_ATM_UP(NBMU,RMU,ATM_TAUEXT_TR,
-     &				           I2_ATM_FRESNEL,
-     &				           Q2_ATM_FRESNEL,
-     &				   	   U2_ATM_FRESNEL,
+     &  			           I2_ATM_FRESNEL,
+     &  			           Q2_ATM_FRESNEL,
+     &  			   	   U2_ATM_FRESNEL,
      &  	                           I1_ATM_FRESNEL,
-     &				           Q1_ATM_FRESNEL,
+     &  			           Q1_ATM_FRESNEL,
      &                                     U1_ATM_FRESNEL)
 
             ! Ajout au champ de luminance atmosphérique
@@ -2299,17 +2388,17 @@ C*************************************************************************
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    WRITE(IDLOG,*,ERR=1010) 
-     &	       "Luminance atmos up ordre 1 - étape 5 : IS = ",IS
+     &         "Luminance atmos up ordre 1 - étape 5 : IS = ",IS
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    DO I=0,CTE_NT_ATM
 	       IF ((I.EQ.0).OR.(I.EQ.2).OR.(I.EQ.13).OR.(I.EQ.24)
-     &	            .OR.(I.EQ.26)) THEN
+     &              .OR.(I.EQ.26)) THEN
 	          WRITE(IDLOG,*,ERR=1010) "Niveau atmos I : ",I
 	          WRITE(IDLOG,*,ERR=1010) 
-     &	       "  I     K      RMU          I1          Q1          U1"
+     &         "  I     K      RMU          I1          Q1          U1"
 	          DO K=-NBMU,NBMU,4
 	             WRITE(IDLOG,402,ERR=1010) 
-     &			I,K,RMU(K),I1_ATM(I,K),Q1_ATM(I,K),U1_ATM(I,K)
+     &  		I,K,RMU(K),I1_ATM(I,K),Q1_ATM(I,K),U1_ATM(I,K)
 	          ENDDO
 	       ENDIF
 	    ENDDO  
@@ -2325,30 +2414,30 @@ C*************************************************************************
 	 IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
-     &	    " Order S =",IS," / Order IG = 1 - Step 6"
+     &      " Order S =",IS," / Order IG = 1 - Step 6"
 	    WRITE(IDLOG,*,ERR=1010) "             Integr TOA -> surf "
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 
 	 CALL OSOAA_INTEGR_EPOPT_ATM_DOWN(NBMU,RMU,ATM_TAUEXT_TR,
-     &				             I2_ATM,Q2_ATM,U2_ATM,
-     &  	                           I1_ATM,Q1_ATM,U1_ATM)		
+     &  			          I2_ATM,Q2_ATM,U2_ATM,
+     &  	                          I1_ATM,Q1_ATM,U1_ATM)		
   		
          !******* Traces d'expertise ***********************************
          IF (TRACE_DEBUG) THEN
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    WRITE(IDLOG,*,ERR=1010) 
-     &	       "Luminance atmos up & down ordre 1 - étape 6 : IS = ",IS
+     &         "Luminance atmos up & down ordre 1 - étape 6 : IS = ",IS
 	    WRITE(IDLOG,*,ERR=1010) " "
 	    DO I=0,CTE_NT_ATM
 	       IF ((I.EQ.0).OR.(I.EQ.2).OR.(I.EQ.13).OR.(I.EQ.24)
-     &	            .OR.(I.EQ.26)) THEN
+     &              .OR.(I.EQ.26)) THEN
 	          WRITE(IDLOG,*,ERR=1010) "Niveau atmos I : ",I
 	          WRITE(IDLOG,*,ERR=1010) 
-     &	       "  I     K      RMU          I1          Q1          U1"
+     &         "  I     K      RMU          I1          Q1          U1"
 	          DO K=-NBMU,NBMU,4
 	             WRITE(IDLOG,402,ERR=1010) 
-     &		       I,K,RMU(K),I1_ATM(I,K),Q1_ATM(I,K),U1_ATM(I,K)
+     &  	       I,K,RMU(K),I1_ATM(I,K),Q1_ATM(I,K),U1_ATM(I,K)
 	          ENDDO
 	       ENDIF
 	    ENDDO  
@@ -2365,15 +2454,15 @@ C*************************************************************************
          IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	    WRITE(IDLOG,*,ERR=1010)  
-     &	    " Order S =",IS," / Order IG = 1 - Step 7"
+     &      " Order S =",IS," / Order IG = 1 - Step 7"
 	    WRITE(IDLOG,*,ERR=1010) "             Transm. Air -> sea"
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
 	 ENDIF
 
 
 	 IF (IMAT_SURF.EQ.1) THEN	!************************
-	    				!Etape 7 : Cas mer agitée
-					!************************
+	                                !Etape 7 : Cas mer agitée
+	                                !************************
 
             IF (TRACE) WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 
@@ -2384,7 +2473,7 @@ C*************************************************************************
 
                II2=0.
                QQ2=0.
-               UU2=0.		       
+               UU2=0.       
 	       		       
 	       DO J=1,NBMU	!J direction d'incidence descendante
                   Z= GA(J)
@@ -2393,11 +2482,11 @@ C*************************************************************************
                   XU1 = U1_ATM(CTE_NT_ATM,-J)
 	  
                   II2 = II2 
-     &	              +Z*(XI1*TAW11(J,K)+XQ1*TAW12(J,K)+XU1*TAW13(J,K))
+     &                +Z*(XI1*TAW11(J,K)+XQ1*TAW12(J,K)+XU1*TAW13(J,K))
                   QQ2 = QQ2 
-     &	              +Z*(XI1*TAW21(J,K)+XQ1*TAW22(J,K)+XU1*TAW23(J,K))
+     &                +Z*(XI1*TAW21(J,K)+XQ1*TAW22(J,K)+XU1*TAW23(J,K))
                   UU2 = UU2 
-     &	              +Z*(XI1*TAW31(J,K)+XQ1*TAW32(J,K)+XU1*TAW33(J,K))
+     &                +Z*(XI1*TAW31(J,K)+XQ1*TAW32(J,K)+XU1*TAW33(J,K))
 		  
 	       ENDDO !Fin boucle sur J
 
@@ -2411,20 +2500,20 @@ C*************************************************************************
             IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) " "
 	       WRITE(IDLOG,*,ERR=1010) 
-     &	      " Downward radiance O+ / Transmitted radiance 0- :"
+     &        " Downward radiance O+ / Transmitted radiance 0- :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
-     &              ' Ang inc :',DACOS(RMU(-K))*180./INCTE_PI,
+     &              ' Ang inc :',DACOS(RMU(-K))*RAD2DEG,
      &              ' I_INC ',I1_ATM(CTE_NT_ATM,-K),
-     &		      ' Q_INC ',Q1_ATM(CTE_NT_ATM,-K),
-     &		      ' U_INC ',U1_ATM(CTE_NT_ATM,-K),
-     &              ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
+     &  	    ' Q_INC ',Q1_ATM(CTE_NT_ATM,-K),
+     &  	    ' U_INC ',U1_ATM(CTE_NT_ATM,-K),
+     &              ' Ang trans :',DACOS(RMU(-K))*RAD2DEG,
      &              ' I_TR ',I1_SEA(0,-K),
-     &		      ' Q_TR ',Q1_SEA(0,-K),
-     &		      ' U_TR ',U1_SEA(0,-K),
+     &  	    ' Q_TR ',Q1_SEA(0,-K),
+     &  	    ' U_TR ',U1_SEA(0,-K),
      &              ' I_D_SSURF ',I1_SEA(0,-K),
-     &		      ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		      ' U_D_SSURF ',U1_SEA(0,-K)
+     &  	    ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &  	    ' U_D_SSURF ',U1_SEA(0,-K)
                ENDDO
 	    ENDIF	        	   
 	   
@@ -2441,7 +2530,7 @@ C*************************************************************************
             
 	    
 	    CALL  OSOAA_INTERF_MERPLATE("TAW",SEA_IND,RMU,NBMU,
-     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
+     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -2460,17 +2549,17 @@ C*************************************************************************
      &	      " Downward radiance O+ / Transmitted radiance 0- :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
-     &              ' Ang inc :',DACOS(RMU(-K))*180./INCTE_PI,
+     &              ' Ang inc :',DACOS(RMU(-K))*RAD2DEG,
      &              ' I_INC ',IINC(K),
-     &		      ' Q_INC ',QINC(K),
-     &		      ' U_INC ',UINC(K),
-     &              ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
+     &		    ' Q_INC ',QINC(K),
+     &		    ' U_INC ',UINC(K),
+     &              ' Ang trans :',DACOS(RMU(-K))*RAD2DEG,
      &              ' I_TR ',IDEV(K),
-     &		      ' Q_TR ',QDEV(K),
-     &		      ' U_TR ',UDEV(K),
+     &		    ' Q_TR ',QDEV(K),
+     &		    ' U_TR ',UDEV(K),
      &              ' I_D_SSURF ',I1_SEA(0,-K),
-     &		      ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		      ' U_D_SSURF ',U1_SEA(0,-K)
+     &		    ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		    ' U_D_SSURF ',U1_SEA(0,-K)
                ENDDO
 	    ENDIF	    
 	 
@@ -2491,8 +2580,8 @@ C*************************************************************************
 	 ENDIF
 
 	 IF (IMAT_SURF.EQ.1) THEN	!************************
-	    				!Etape 8 : Cas mer agitée
-					!************************
+	                                !Etape 8 : Cas mer agitée
+	                                !************************
 	    IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 	       
@@ -2507,7 +2596,7 @@ C*************************************************************************
 	       
                II2=0.
                QQ2=0.
-               UU2=0.			       
+               UU2=0.	       
 	       DO J=1,NBMU	!J direction d'incidence montante
                   Z= GA(J)
                   XI1 = I1_SEA(0,J) 		
@@ -2545,7 +2634,7 @@ C*************************************************************************
 	     ENDDO
 	    
 	     CALL  OSOAA_INTERF_MERPLATE("RWW",SEA_IND,RMU,NBMU,
-     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
+     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -2570,17 +2659,17 @@ C*************************************************************************
      &	     " Upward radiance 0- / Downward radiance 0- :"
 	     DO K=1,NBMU
                 WRITE(IDLOG,500,ERR=1010)
-     &             ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
+     &             ' Ang inc :',DACOS(RMU(K))*RAD2DEG,
      &             ' I_INC ',IINC(K),
-     &		     ' Q_INC ',QINC(K),
-     &		     ' U_INC ',UINC(K),
-     &             ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
+     &		   ' Q_INC ',QINC(K),
+     &		   ' U_INC ',UINC(K),
+     &             ' Ang trans :',DACOS(RMU(-K))*RAD2DEG,
      &             ' I_RF ',IDEV(K),
-     &		     ' Q_RF ',QDEV(K),
-     &		     ' U_RF ',UDEV(K),
+     &		   ' Q_RF ',QDEV(K),
+     &		   ' U_RF ',UDEV(K),
      &             ' I_D_SSURF ',I1_SEA(0,-K),
-     &		     ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		     ' U_D_SSURF ',U1_SEA(0,-K)
+     &		   ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		   ' U_D_SSURF ',U1_SEA(0,-K)
              ENDDO
 	 ENDIF	    
 
@@ -2629,7 +2718,7 @@ C                    Ajout au signal montant de la luminance atmosphérique
 C                    descendante réfléchie sur la surface (air -> air)
 C
 C		     --> Affectation au profil atmosphérique 
-C			 pour le signal montant
+C                        pour le signal montant
 C*************************************************************************
          IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------"
@@ -2640,8 +2729,8 @@ C*************************************************************************
 	 ENDIF
 	 	
 	 IF (IMAT_SURF.EQ.1) THEN	!*************************
-	    				!Etape 10 : Cas mer agitée
-					!*************************
+	                                !Etape 10 : Cas mer agitée
+	                                !*************************
 	    IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 	       WRITE(IDLOG,*,ERR=1010) 
@@ -2654,7 +2743,7 @@ C*************************************************************************
 
                II2=0.
                QQ2=0.
-               UU2=0.			       
+               UU2=0.	       
 	       DO J=1,NBMU	!J direction d'incidence descendante
                   Z= GA(J)
                   XI1 = I1_ATM(CTE_NT_ATM,-J) 		
@@ -2688,14 +2777,14 @@ C*************************************************************************
 
                IF (TRACE) THEN
                    WRITE(IDLOG,511,ERR=1010)
-     &              ' Ang inc :',-DACOS(RMU(-K))*180./INCTE_PI,
-     &              ' Ang refl  :',DACOS(RMU(K))*180./INCTE_PI,
+     &              ' Ang inc :',-DACOS(RMU(-K))*RAD2DEG,
+     &              ' Ang refl  :',DACOS(RMU(K))*RAD2DEG,
      &              ' I_RF ',I1_REFL_L1ATM_SURF,
-     &		      ' Q_RF ',Q1_REFL_L1ATM_SURF,
-     &		      ' U_RF ',U1_REFL_L1ATM_SURF,
+     &		    ' Q_RF ',Q1_REFL_L1ATM_SURF,
+     &		    ' U_RF ',U1_REFL_L1ATM_SURF,
      &              ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		      ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		      ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		    ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		    ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
 	       ENDIF	     	 
 	                        
 	    ENDDO !Fin boucle sur direction propagation montante
@@ -2745,17 +2834,17 @@ C*************************************************************************
             IF (TRACE) THEN
 	       DO K=1,NBMU	
                    WRITE(IDLOG,500,ERR=1010)
-     &              ' Ang inc :',-DACOS(RMU(-K))*180./INCTE_PI,
+     &              ' Ang inc :',-DACOS(RMU(-K))*RAD2DEG,
      &              ' I_INC ',IINC(K),
-     &		      ' Q_INC ',QINC(K),
-     &		      ' U_INC ',UINC(K),
-     &              ' Ang refl  :',DACOS(RMU(K))*180./INCTE_PI,
+     &		    ' Q_INC ',QINC(K),
+     &		    ' U_INC ',UINC(K),
+     &              ' Ang refl  :',DACOS(RMU(K))*RAD2DEG,
      &              ' I_RF ',IDEV(K),
-     &		      ' Q_RF ',QDEV(K),
-     &		      ' U_RF ',UDEV(K),
+     &		    ' Q_RF ',QDEV(K),
+     &		    ' U_RF ',UDEV(K),
      &              ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		      ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		      ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		    ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		    ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
 	       ENDDO
 	    ENDIF	     	 
 	       
@@ -2878,7 +2967,7 @@ C-------------------------------------------------------------------------------
          ENDDO !Fin boucle sur les directions de propagation
 
 
-												
+                                                                                		
 C--------------------------------------------------------------
 C
 C   ******  BOUCLE SUR LES INTERACTIONS SUCCESSIVES   ******
@@ -2904,7 +2993,7 @@ C-----------------------------------------------------------------------
 
 C-------------------------------------------------------------------
 C* Calcul du flux diffus d'ordre IG-1 à la surface et au fond de mer 
-C* (Flux / PI précisément)
+C* (pour Es = PI)
 C-------------------------------------------------------------------
          IF (IS.EQ.0) THEN
 	 
@@ -2919,15 +3008,16 @@ C-------------------------------------------------------------------
      &			           + GA(J)*I1_SEA(CTE_NT_SEA,-J)*RMU(J)
 	    ENDDO
 
-            FLUX_DOWN_SURF_IGM1 = 2.*FLUX_DOWN_SURF_IGM1
-	    FLUX_DOWN_FOND_IGM1 = 2.*FLUX_DOWN_FOND_IGM1
+            FLUX_DOWN_SURF_IGM1 = X2PI*FLUX_DOWN_SURF_IGM1
+	    FLUX_DOWN_FOND_IGM1 = X2PI*FLUX_DOWN_FOND_IGM1
 
             IF (TRACE) THEN
-               WRITE(IDLOG,*,ERR=1010) 'Downward flux order IG-1 :'
-               WRITE(IDLOG,*,ERR=1010) '   - Flux on surface / PI :',
+               WRITE(IDLOG,*,ERR=1010) 'Downward flux order IG-1,'//
+     &	      ' for a solar irradiance at TOA equals to PI:'
+               WRITE(IDLOG,*,ERR=1010) '   - Flux on surface :',
      &               	     FLUX_DOWN_SURF_IGM1 
                WRITE(IDLOG,*,ERR=1010) 
-     &            '   - Flux on sea bottom / PI :',FLUX_DOWN_FOND_IGM1
+     &            '   - Flux on sea bottom :',FLUX_DOWN_FOND_IGM1
 	    ENDIF	    
 
 	 ENDIF ! Si IS=0
@@ -3034,7 +3124,7 @@ C                   Calcul de la luminance réfléchie au fond de mer
 C		    ==> Réflexion lambertienne
 C
 C                  NB: FLUX_DOWN_FOND_IGM1 est le flux d'ordre n-1 
-C                      au fond divisé par PI.
+C                      pour Es = PI.
 C                              -------------
 C*******************************************************************	
          IF (TRACE) THEN
@@ -3047,7 +3137,7 @@ C*******************************************************************
 
          I_REFL_BOT = 0.
 	 IF (RHO_BOT.NE.0..AND.IS.EQ.0) THEN
-	    I_REFL_BOT = RHO_BOT*FLUX_DOWN_FOND_IGM1		
+	    I_REFL_BOT = RHO_BOT*FLUX_DOWN_FOND_IGM1/INCTE_PI		
 	 ENDIF	    		
 	         
 	 DO K=1,NBMU
@@ -3055,10 +3145,13 @@ C*******************************************************************
 	    Q1_SEA(CTE_NT_SEA,K)=0.
 	    U1_SEA(CTE_NT_SEA,K)=0.
 	 ENDDO  
-	 					
+	                                         
 	 IF (TRACE) THEN
 	     WRITE(IDLOG,*,ERR=1010) 
      &	     "I reflected on bottom : ",I_REFL_BOT
+	     WRITE(IDLOG,*,ERR=1010) '  - Seabed albedo :',RHO_BOT
+	     WRITE(IDLOG,*,ERR=1010) '  - Incidente flux :',
+     &       FLUX_DOWN_FOND_IGM1
 	 ENDIF    
 	   
 
@@ -3100,8 +3193,8 @@ C     à l'initialisation à zéro près de I1_ATM, Q1_ATM et U1_ATM.
 
 	 
 	 IF (IMAT_SURF.EQ.1) THEN	!************************
-	    				!Etape 3 : Cas mer agitée	 
-					!************************	 
+	                                !Etape 3 : Cas mer agitée	 
+	                                !************************	 
 
             IF (TRACE) WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 
@@ -3114,7 +3207,7 @@ C     à l'initialisation à zéro près de I1_ATM, Q1_ATM et U1_ATM.
 
                II2=0.
                QQ2=0.
-               UU2=0.			       
+               UU2=0.	       
 	       DO J=1,NBMU	!J direction d'incidence montante
                   Z= GA(J)
                   XI1 = I1_SEA(0,J)
@@ -3140,17 +3233,17 @@ C     à l'initialisation à zéro près de I1_ATM, Q1_ATM et U1_ATM.
      &	     " Upward field 0- / Upward field transmitted 0+ :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
-     &               ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
+     &               ' Ang inc :',DACOS(RMU(K))*RAD2DEG,
      &               ' I_INC ',I1_SEA(0,K),
-     &		       ' Q_INC ',Q1_SEA(0,K),
-     &		       ' U_INC ',U1_SEA(0,K),
-     &               ' Ang trans :',DACOS(RMU(K))*180./INCTE_PI,
+     &		     ' Q_INC ',Q1_SEA(0,K),
+     &		     ' U_INC ',U1_SEA(0,K),
+     &               ' Ang trans :',DACOS(RMU(K))*RAD2DEG,
      &               ' I_TR ',I1_ATM(CTE_NT_ATM,K),
-     &		       ' Q_TR ',Q1_ATM(CTE_NT_ATM,K),
-     &		       ' U_TR ',U1_ATM(CTE_NT_ATM,K),
+     &		     ' Q_TR ',Q1_ATM(CTE_NT_ATM,K),
+     &		     ' U_TR ',U1_ATM(CTE_NT_ATM,K),
      &               ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		       ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		       ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		     ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		     ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
                ENDDO
 	    ENDIF	    	    	   
 	   
@@ -3166,7 +3259,7 @@ C     à l'initialisation à zéro près de I1_ATM, Q1_ATM et U1_ATM.
 	     ENDDO
 	    
 	     CALL  OSOAA_INTERF_MERPLATE("TWA",SEA_IND,RMU,NBMU,
-     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
+     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -3189,17 +3282,17 @@ C     à l'initialisation à zéro près de I1_ATM, Q1_ATM et U1_ATM.
      &	     " Upward field 0- / Upward field transmitted 0+ :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
-     &               ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
+     &               ' Ang inc :',DACOS(RMU(K))*RAD2DEG,
      &               ' I_INC ',IINC(K),
-     &		       ' Q_INC ',QINC(K),
-     &		       ' U_INC ',UINC(K),
-     &               ' Ang trans :',DACOS(RMU(K))*180./INCTE_PI,
+     &		     ' Q_INC ',QINC(K),
+     &		     ' U_INC ',UINC(K),
+     &               ' Ang trans :',DACOS(RMU(K))*RAD2DEG,
      &               ' I_TR ',IDEV(K),
-     &		       ' Q_TR ',QDEV(K),
-     &		       ' U_TR ',UDEV(K),
+     &		     ' Q_TR ',QDEV(K),
+     &		     ' U_TR ',UDEV(K),
      &               ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		       ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		       ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		     ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		     ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
                ENDDO
 	    ENDIF	    
 	    	    
@@ -3222,9 +3315,9 @@ C*******************************************************************
 	 ENDIF
 
          IF ((RHO_SURF.NE.0.).AND.(IS.EQ.0)) THEN
-	    I_REFL_SURF = RHO_SURF*FLUX_DOWN_SURF_IGM1
+	    I_REFL_SURF=RHO_SURF*FLUX_DOWN_SURF_IGM1/INCTE_PI
 	    DO K=1,NBMU
-	       I1_ATM(CTE_NT_ATM,K) = I1_ATM(CTE_NT_ATM,K) + I_REFL_SURF
+	       I1_ATM(CTE_NT_ATM,K)= I1_ATM(CTE_NT_ATM,K) + I_REFL_SURF
 	    ENDDO
 	 ENDIF 
 
@@ -3232,7 +3325,7 @@ C*******************************************************************
 	     WRITE(IDLOG,*,ERR=1010) 
      &	     'I reflected on surface :',I_REFL_SURF
 	     WRITE(IDLOG,*,ERR=1010) '  - Surface albedo :',RHO_SURF
-	     WRITE(IDLOG,*,ERR=1010) '  - Incidente flux / PI :',
+	     WRITE(IDLOG,*,ERR=1010) '  - Incidente flux :',
      &       FLUX_DOWN_SURF_IGM1
 	     WRITE(IDLOG,*,ERR=1010) " "
 	 ENDIF    	
@@ -3250,7 +3343,7 @@ C*************************************************************************
 	 ENDIF
 
 	 CALL OSOAA_INTEGR_EPOPT_ATM_UP(NBMU,RMU,ATM_TAUEXT_TR,
-     &				          I2_ATM,Q2_ATM,U2_ATM,
+     &				        I2_ATM,Q2_ATM,U2_ATM,
      &  	                        I1_ATM,Q1_ATM,U1_ATM)
  
 
@@ -3341,8 +3434,8 @@ C NB: traitements identiques à l'étape 7 ordre 1.
 
 
 	 IF (IMAT_SURF.EQ.1) THEN	!************************
-	    				!Etape 7 : Cas mer agitée	 
-					!************************	 
+	                                !Etape 7 : Cas mer agitée	 
+	                                !************************	 
 
             IF (TRACE) WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 
@@ -3382,17 +3475,17 @@ C NB: traitements identiques à l'étape 7 ordre 1.
      &	      " Downward radiance O+ / Transmitted radiance 0- :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
-     &              ' Ang inc :',DACOS(RMU(-K))*180./INCTE_PI,
+     &              ' Ang inc :',DACOS(RMU(-K))*RAD2DEG,
      &              ' I_INC ',I1_ATM(CTE_NT_ATM,-K),
-     &		      ' Q_INC ',Q1_ATM(CTE_NT_ATM,-K),
-     &		      ' U_INC ',U1_ATM(CTE_NT_ATM,-K),
-     &              ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
+     &		    ' Q_INC ',Q1_ATM(CTE_NT_ATM,-K),
+     &		    ' U_INC ',U1_ATM(CTE_NT_ATM,-K),
+     &              ' Ang trans :',DACOS(RMU(-K))*RAD2DEG,
      &              ' I_TR ',I1_SEA(0,-K),
-     &		      ' Q_TR ',Q1_SEA(0,-K),
-     &		      ' U_TR ',U1_SEA(0,-K),
+     &		    ' Q_TR ',Q1_SEA(0,-K),
+     &		    ' U_TR ',U1_SEA(0,-K),
      &              ' I_D_SSURF ',I1_SEA(0,-K),
-     &		      ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		      ' U_D_SSURF ',U1_SEA(0,-K)
+     &		    ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		    ' U_D_SSURF ',U1_SEA(0,-K)
                ENDDO
 	    ENDIF	        	   
 	    	   
@@ -3429,17 +3522,17 @@ C NB: traitements identiques à l'étape 7 ordre 1.
      &	      " Downward radiance O+ / Transmitted radiance 0- :"
 	       DO K=1,NBMU
                   WRITE(IDLOG,500,ERR=1010)
-     &              ' Ang inc :',DACOS(RMU(-K))*180./INCTE_PI,
+     &              ' Ang inc :',DACOS(RMU(-K))*RAD2DEG,
      &              ' I_INC ',IINC(K),
-     &		      ' Q_INC ',QINC(K),
-     &		      ' U_INC ',UINC(K),
-     &              ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
+     &		    ' Q_INC ',QINC(K),
+     &		    ' U_INC ',UINC(K),
+     &              ' Ang trans :',DACOS(RMU(-K))*RAD2DEG,
      &              ' I_TR ',IDEV(K),
-     &		      ' Q_TR ',QDEV(K),
-     &		      ' U_TR ',UDEV(K),
+     &		    ' Q_TR ',QDEV(K),
+     &		    ' U_TR ',UDEV(K),
      &              ' I_D_SSURF ',I1_SEA(0,-K),
-     &		      ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		      ' U_D_SSURF ',U1_SEA(0,-K)
+     &		    ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		    ' U_D_SSURF ',U1_SEA(0,-K)
                ENDDO
 	    ENDIF	    
 	
@@ -3465,8 +3558,8 @@ C NB: traitements identiques à l'étape 8 ordre 1.
 
 		
 	 IF (IMAT_SURF.EQ.1) THEN	!************************
-	    				!Etape 8 : Cas mer agitée	 
-					!************************	 
+	                                !Etape 8 : Cas mer agitée	 
+	                                !************************	 
             IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 	       
@@ -3481,7 +3574,7 @@ C NB: traitements identiques à l'étape 8 ordre 1.
 
                II2=0.
                QQ2=0.
-               UU2=0.			       
+               UU2=0.	       
 	       DO J=1,NBMU	!J direction d'incidence montante
                   Z= GA(J)
                   XI1 = I1_SEA(0,J) 		
@@ -3520,7 +3613,7 @@ C NB: traitements identiques à l'étape 8 ordre 1.
 	     ENDDO
 	    
 	     CALL  OSOAA_INTERF_MERPLATE("RWW",SEA_IND,RMU,NBMU,
-     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
+     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -3544,17 +3637,17 @@ C NB: traitements identiques à l'étape 8 ordre 1.
      &	     " Upward radiance 0- / Downward radiance 0- :"
 	     DO K=1,NBMU
                 WRITE(IDLOG,500,ERR=1010)
-     &             ' Ang inc :',DACOS(RMU(K))*180./INCTE_PI,
+     &             ' Ang inc :',DACOS(RMU(K))*RAD2DEG,
      &             ' I_INC ',IINC(K),
-     &		     ' Q_INC ',QINC(K),
-     &		     ' U_INC ',UINC(K),
-     &             ' Ang trans :',DACOS(RMU(-K))*180./INCTE_PI,
+     &		   ' Q_INC ',QINC(K),
+     &		   ' U_INC ',UINC(K),
+     &             ' Ang trans :',DACOS(RMU(-K))*RAD2DEG,
      &             ' I_RF ',IDEV(K),
-     &		     ' Q_RF ',QDEV(K),
-     &		     ' U_RF ',UDEV(K),
+     &		   ' Q_RF ',QDEV(K),
+     &		   ' U_RF ',UDEV(K),
      &             ' I_D_SSURF ',I1_SEA(0,-K),
-     &		     ' Q_D_SSURF ',Q1_SEA(0,-K),
-     &		     ' U_D_SSURF ',U1_SEA(0,-K)
+     &		   ' Q_D_SSURF ',Q1_SEA(0,-K),
+     &		   ' U_D_SSURF ',U1_SEA(0,-K)
              ENDDO
 	 ENDIF	    		
 		
@@ -3610,7 +3703,7 @@ C                    Ajout au signal montant de la luminance atmosphérique
 C                    descendante réfléchie sur la surface (air -> air)
 C
 C		     --> Affectation au profil atmosphérique 
-C			 pour le signal montant
+C                        pour le signal montant
 C*************************************************************************
          IF (TRACE) THEN
 	    WRITE(IDLOG,*,ERR=1010) "-------------------------------" 
@@ -3624,8 +3717,8 @@ C NB: traitements identiques à l'étape 10 ordre 1.
 
 	 	
 	 IF (IMAT_SURF.EQ.1) THEN	!*************************
-	    				!Etape 10 : Cas mer agitée	 
-					!*************************	 
+	                                !Etape 10 : Cas mer agitée	 
+	                                !*************************	 
 	     IF (TRACE) THEN
 	       WRITE(IDLOG,*,ERR=1010) " Rough sea : "
 	       WRITE(IDLOG,*,ERR=1010) 
@@ -3636,7 +3729,7 @@ C NB: traitements identiques à l'étape 10 ordre 1.
 
                II2=0.
                QQ2=0.
-               UU2=0.			       
+               UU2=0.	       
 	       DO J=1,NBMU	!J direction d'incidence descendante
                   Z= GA(J)
                   XI1 = I1_ATM(CTE_NT_ATM,-J) 		
@@ -3670,14 +3763,14 @@ C NB: traitements identiques à l'étape 10 ordre 1.
 
                IF (TRACE) THEN
                    WRITE(IDLOG,511,ERR=1010)
-     &              ' Ang inc :',-DACOS(RMU(-K))*180./INCTE_PI,
-     &              ' Ang refl:',DACOS(RMU(K))*180./INCTE_PI,
+     &              ' Ang inc :',-DACOS(RMU(-K))*RAD2DEG,
+     &              ' Ang refl:',DACOS(RMU(K))*RAD2DEG,
      &              ' I_RF ',I1_REFL_L1ATM_SURF,
-     &		      ' Q_RF ',Q1_REFL_L1ATM_SURF,
-     &		      ' U_RF ',U1_REFL_L1ATM_SURF,
+     &		    ' Q_RF ',Q1_REFL_L1ATM_SURF,
+     &		    ' U_RF ',U1_REFL_L1ATM_SURF,
      &              ' I_UP_SURF ',I1_ATM(CTE_NT_ATM,K),
-     &		      ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
-     &		      ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
+     &		    ' Q_UP_SURF ',Q1_ATM(CTE_NT_ATM,K),
+     &		    ' U_UP_SURF ',U1_ATM(CTE_NT_ATM,K)
 	       ENDIF	     	 
 	                        
 	    ENDDO !Fin boucle sur direction propagation montante
@@ -3696,7 +3789,7 @@ C NB: traitements identiques à l'étape 10 ordre 1.
 	     ENDDO         
 	    
 	     CALL  OSOAA_INTERF_MERPLATE("RAA",SEA_IND,RMU,NBMU,
-     & 				     IINC,QINC,UINC,IDEV,QDEV,UDEV,
+     & 				        IINC,QINC,UINC,IDEV,QDEV,UDEV,
      &                                  TRACE,IER)
 
             IF (IER.NE.0) GOTO 1200   ! cas d'erreur   
@@ -3724,11 +3817,11 @@ C NB: traitements identiques à l'étape 10 ordre 1.
      &	       " Downward radiance 0+ / Upward radiance 0+ :"
 	       DO K=1,NBMU		
                    WRITE(IDLOG,500,ERR=1010)
-     &              ' Ang inc :',-DACOS(RMU(-K))*180./INCTE_PI,
+     &              ' Ang inc :',-DACOS(RMU(-K))*RAD2DEG,
      &              ' I_INC ',IINC(K),
      &		    ' Q_INC ',QINC(K),
      &		    ' U_INC ',UINC(K),
-     &              ' Ang refl  :',DACOS(RMU(K))*180./INCTE_PI,
+     &              ' Ang refl  :',DACOS(RMU(K))*RAD2DEG,
      &              ' I_RF ',IDEV(K),
      &		    ' Q_RF ',QDEV(K),
      &		    ' U_RF ',UDEV(K),
@@ -3934,7 +4027,7 @@ C-------------------------------------------------------
 	    
 C* Calcul de la somme des diffusions
 C------------------------------------
-17       DO 400 J=1,NBMU
+         DO 400 J=1,NBMU
             I3_TOA_FOND(J)=I3_TOA_FOND(J)+I1_ATM(0,J)
             Q3_TOA_FOND(J)=Q3_TOA_FOND(J)+Q1_ATM(0,J)
             U3_TOA_FOND(J)=U3_TOA_FOND(J)+U1_ATM(0,J)
@@ -4067,7 +4160,7 @@ C----------------------------------------------------
 	    				       !pour la direction d'incidence solaire
 
 	       
-	    !Calcul des flux et albédo diffus en surface (O+), sous la surface (0-)
+	    !Calcul des flux et albédo diffus au TOA, en surface (O+), sous la surface (0-)
 	    DO J=1,NBMU
 
 	       FLUX_UP_TOA_DIFF = FLUX_UP_TOA_DIFF 
@@ -4110,7 +4203,7 @@ C----------------------------------------------------
 	    !------------------------
 	    !Flux descendant diffus à la surface (niveau 0+)
 	    FLUX_DOWN_SURF_DIFF = 
-     &         FLUX_DOWN_SURF_DIFF * 2.*INCTE_PI
+     &         FLUX_DOWN_SURF_DIFF * X2PI
 
 	    !Flux descendant direct à la surface (niveau 0+) 
 	    !   Flux = Es*cosThetas*exp(-TAU/cosThetas) avec Es = PI
@@ -4122,7 +4215,7 @@ C----------------------------------------------------
 
 	    !Flux montant diffus à la surface (niveau 0+)
 	    FLUX_UP_SURF_DIFF =
-     &         FLUX_UP_SURF_DIFF * 2.*INCTE_PI
+     &         FLUX_UP_SURF_DIFF * X2PI
 
 	    !Flux montant direct à la surface (niveau 0+) 
 	    !   = Flux_direct réfléchi
@@ -4132,7 +4225,8 @@ C----------------------------------------------------
 		   FLUX_UP_SURF_DIR = FLUX_UP_SURF_DIR 
      &		   		    + RAA11(N0,J)*GA(J)
 		ENDDO
-		FLUX_UP_SURF_DIR = FLUX_UP_SURF_DIR*INCTE_PI*0.5
+		FLUX_UP_SURF_DIR =  
+     &		   FLUX_UP_SURF_DIR*INCTE_PI*0.5
 		FLUX_UP_SURF_DIR = FLUX_UP_SURF_DIR*CH_ATM_TOT
 	    ELSE
 		IND2 = SEA_IND*SEA_IND			
@@ -4159,7 +4253,7 @@ C----------------------------------------------------
 	    !Au TOA
 	    !---------------------------
      	    !Flux montant diffus au TOA
-	    FLUX_UP_TOA_DIFF = FLUX_UP_TOA_DIFF * 2.*INCTE_PI
+	    FLUX_UP_TOA_DIFF = FLUX_UP_TOA_DIFF * X2PI
 
 	    !Flux montant direct au TOA 
 	    IF (IMAT_SURF.EQ.1) THEN !Cas mer agitée
@@ -4168,7 +4262,8 @@ C----------------------------------------------------
 		   FLUX_UP_TOA_DIR = FLUX_UP_TOA_DIR 
      &		   + RAA11(N0,J)*DEXP(-ATM_TAUEXT_TR_TOT/RMU(J))*GA(J)
 		ENDDO
-		FLUX_UP_TOA_DIR = FLUX_UP_TOA_DIR*INCTE_PI*0.5
+		FLUX_UP_TOA_DIR =  
+     &		   FLUX_UP_TOA_DIR*INCTE_PI*0.5
 		FLUX_UP_TOA_DIR = FLUX_UP_TOA_DIR*CH_ATM_TOT
 	    ELSE      !Cas mer plate : Flux_direct réfléchi atténué par remontée sol -> TOA
 	              !avec angle zénithal = celui d'incidence = angle zénithal solaire
@@ -4187,7 +4282,7 @@ C----------------------------------------------------
 	    !---------------------------
 	    !Flux descendant diffus sous la surface (niveau 0-)
 	    FLUX_DOWN_SSURF_DIFF =
-     &         FLUX_DOWN_SSURF_DIFF * 2.*INCTE_PI
+     &         FLUX_DOWN_SSURF_DIFF * X2PI
 	    
 	    !Flux descendant total sous la surface (niveau 0-)
 	    ! FLUX_DOWN_SSURF_DIR a été calculé au début des traitements
@@ -4196,14 +4291,14 @@ C----------------------------------------------------
 
 	    !Flux montant diffus sous la surface (niveau 0-)
 	    FLUX_UP_SSURF =
-     &         FLUX_UP_SSURF * 2.*INCTE_PI
+     &         FLUX_UP_SSURF * X2PI
 
 	    !Flux total diffus sous la surface (niveau 0-)
 	    FLUX_TOT_SSURF_DIFF = FLUX_UP_SSURF + FLUX_DOWN_SSURF_DIFF
 
 	    !Flux sphérique descendant diffus sous la surface (niveau 0-)
 	    FLUX_SPHE_DOWN_SSURF_DIFF = 
-     &	       FLUX_SPHE_DOWN_SSURF_DIFF * 2.*INCTE_PI
+     &	       FLUX_SPHE_DOWN_SSURF_DIFF * X2PI
 	    	 
 	    !Flux sphérique descendant direct sous la surface (niveau 0-)
 	    !  ==> Intégration sur L(mu)*dmu pour le flux sphérique  
@@ -4218,7 +4313,7 @@ C----------------------------------------------------
 
 	    !Flux sphérique montant diffus sous la surface (niveau 0-)
 	    FLUX_SPHE_UP_SSURF =
-     &         FLUX_SPHE_UP_SSURF * 2.*INCTE_PI
+     &         FLUX_SPHE_UP_SSURF * X2PI
 
 	    !Flux sphérique total diffus sous la surface (niveau 0-)
 	    FLUX_SPHE_TOT_SSURF_DIFF = FLUX_SPHE_UP_SSURF 
@@ -4229,9 +4324,10 @@ C----------------------------------------------------
 
             !Profil du flux descendant du TOA à la surface 
 	    !(inclue toutes diffusions, y compris du signal réfléchi remontant)
+	    VAL = 0.5*INCTE_PI*CH_ATM_TOT
             DO I=0,CTE_NT_ATM
 	       	       
-	       !Flux descendant et montant diffus, normalisé par rapport à l'éclairement TOA Es (Es=PI)
+	       !Flux descendant et montant diffus, pour un éclairement TOA Es = PI
 	       PROFIL_FLUX_DOWN_DIFF(I) = 0.
 	       PROFIL_FLUX_UP_DIFF(I) = 0.
 	       DO J=1,NBMU 
@@ -4242,36 +4338,39 @@ C----------------------------------------------------
 	       ENDDO
 	       !Multiplication par 2*PI pour avoir flux 
 	       !et division par PI pour normalisation à Es TOA  
-	       PROFIL_FLUX_DOWN_DIFF(I) = PROFIL_FLUX_DOWN_DIFF(I)* 2.
-               PROFIL_FLUX_UP_DIFF(I) = PROFIL_FLUX_UP_DIFF(I)* 2.
+	       PROFIL_FLUX_DOWN_DIFF(I) = 
+     &	      	  PROFIL_FLUX_DOWN_DIFF(I)*X2PI
+               PROFIL_FLUX_UP_DIFF(I) = 
+     &	      	  PROFIL_FLUX_UP_DIFF(I)*X2PI
      
-	       !Flux descendant et montant directs pour ep opt TAU, normalisé par rapport 
-	       !à l'éclairement TOA Es (Es=PI)  
+	       !Flux descendant et montant directs pour ep opt TAU, pour un éclairement TOA Es = PI
 	       !   Flux descendant = Es*cosThetas*exp(-TAU/cosThetas) avec Es = PI
-	       PROFIL_FLUX_DOWN_DIR(I) = 4.*CH_ATM(I)*(-TAB)  
+	       PROFIL_FLUX_DOWN_DIR(I) = 
+     &	      	  4.*CH_ATM(I)*(-TAB)*INCTE_PI 
 	       !   Flux montant = (Flux surface glitter direct)*exp[-(TAUatm-TAU)/cosThetas]
 
               IF (IMAT_SURF.EQ.1) THEN !Cas mer agitée		! MOD V1.3: 30/05/2018 : 
-									! Distinction cas mer agitée / mer plate
-		    DTAU =  ATM_TAUEXT_TR(I) - ATM_TAUEXT_TR_TOT
+				                                ! Distinction cas mer agitée / mer plate
+		  DTAU =  ATM_TAUEXT_TR(I) - ATM_TAUEXT_TR_TOT
 
                   PROFIL_FLUX_UP_DIR(I) = 0.
-		    DO J=1,NBMU
-		       PROFIL_FLUX_UP_DIR(I) = PROFIL_FLUX_UP_DIR(I) 
-     &		   	+ RAA11(N0,J)*DEXP(DTAU/RMU(J))*GA(J)		
-		    ENDDO
-		    PROFIL_FLUX_UP_DIR(I) = 
-     &            PROFIL_FLUX_UP_DIR(I)*0.5*CH_ATM_TOT  ! Integration incluant la normalisation par Es=PI
+		  DO J=1,NBMU
+		     PROFIL_FLUX_UP_DIR(I) = PROFIL_FLUX_UP_DIR(I) 
+     &		      + RAA11(N0,J)*DEXP(DTAU/RMU(J))*GA(J)		
+		  ENDDO
+		  PROFIL_FLUX_UP_DIR(I) = PROFIL_FLUX_UP_DIR(I)*VAL  ! Pour Es=PI
 
-              ELSE ! Cas mer plate					! MOD V1.3: 30/05/2018 : 
-									! Correction des trajets optiques
-									! et normalisation par Es=PI
-		    PROFIL_FLUX_UP_DIR(I) = FLUX_UP_SURF_DIR * CH_ATM_TOT 
-     &	                                 / (4.*CH_ATM(I)*INCTE_PI) 
+              ELSE ! Cas mer plate			! MOD V1.3: 30/05/2018 : 
+			                                ! Correction des trajets optiques
+			                                ! et normalisation par Es=PI
+			                                ! MOD V1.4: 12/08/2024
+			                                ! Suppression de la normalisation par PI
+			                                ! pour avoir un flux pour Es=PI.
+		    PROFIL_FLUX_UP_DIR(I) = FLUX_UP_SURF_DIR  
+     &	                                * CH_ATM_TOT / (4.*CH_ATM(I)) 
               ENDIF	   
  	       
-	       !Flux descendant et montant total : direct + diffus, , normalisé par rapport 
-	       !à l'éclairement TOA Es (Es=PI)  
+	       !Flux descendant et montant total : direct + diffus, pour un éclairement TOA Es = PI
 	       PROFIL_FLUX_DOWN_TOT(I) = PROFIL_FLUX_DOWN_DIR(I) 
      &	      	                       + PROFIL_FLUX_DOWN_DIFF(I) 
 	       PROFIL_FLUX_UP_TOT(I) = PROFIL_FLUX_UP_DIR(I) 
@@ -4285,7 +4384,7 @@ C----------------------------------------------------
 	    
 	       I = ISEA + CTE_NT_ATM + 1
 	       
-	       !Flux descendant et montant diffus, normalisé par rapport à l'éclairement TOA Es (Es=PI)
+	       !Flux descendant et montant diffus, pour un éclairement TOA Es = PI
 	       PROFIL_FLUX_DOWN_DIFF(I) = 0.
 	       PROFIL_FLUX_UP_DIFF(I) = 0.
 	       DO J=1,NBMU 
@@ -4294,21 +4393,19 @@ C----------------------------------------------------
 	          PROFIL_FLUX_UP_DIFF(I) = PROFIL_FLUX_UP_DIFF(I) 
      &	      	                         + RMU(J)*GA(J)*I3(I,J) 	
 	       ENDDO	  
-	       !Multiplication par 2*PI pour avoir flux 
-	       !et division par PI pour normalisation à Es TOA    
-	       PROFIL_FLUX_DOWN_DIFF(I) = PROFIL_FLUX_DOWN_DIFF(I)* 2
-               PROFIL_FLUX_UP_DIFF(I) = PROFIL_FLUX_UP_DIFF(I)* 2.
+	       !Multiplication par 2*PI pour avoir flux  
+	       PROFIL_FLUX_DOWN_DIFF(I) = 
+     &	          PROFIL_FLUX_DOWN_DIFF(I)*X2PI
+               PROFIL_FLUX_UP_DIFF(I) = 
+     &	          PROFIL_FLUX_UP_DIFF(I)*X2PI
 	       
-	       !Flux descendant et montant directs à la profondeur TAU_SEA, normalisé par rapport 
-	       !à l'éclairement TOA Es (Es=PI)  
-	       !   Flux = FluxTransmis*exp(-TAU_SEA/cos(ThetasWater)) / Es
+	       !Flux descendant et montant directs à la profondeur TAU_SEA, pour un éclairement TOA Es = PI
+	       !   Flux = FluxTransmis*exp(-TAU_SEA/cos(ThetasWater)) 
 	       PROFIL_FLUX_DOWN_DIR(I) 
-     &	          = FLUX_DOWN_SSURF_DIR *4.*CH_SEA_MUS(ISEA) / 
-     &            INCTE_PI
+     &	          = FLUX_DOWN_SSURF_DIR *4.*CH_SEA_MUS(ISEA) 
 	       PROFIL_FLUX_UP_DIR(I) = 0. 	!La réflexion de fond est considérée 
-						!comme un terme diffus car lambertienne
-	       !Flux descendant et montant total : direct + diffus, normalisé par rapport 
-	       !à l'éclairement TOA Es (Es=PI)  
+		                                !comme un terme diffus car lambertienne
+	       !Flux descendant et montant total : direct + diffus, pour un éclairement TOA Es = PI  
 	       PROFIL_FLUX_DOWN_TOT(I) = PROFIL_FLUX_DOWN_DIR(I) 
      &	      	                       + PROFIL_FLUX_DOWN_DIFF(I)
 	       PROFIL_FLUX_UP_TOT(I) = PROFIL_FLUX_UP_DIFF(I)
@@ -4449,7 +4546,7 @@ C----------------------
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) 
-     &  'FLUX (normalized by TOA solar irradiance): '
+     &  'FLUX (for a solar irradiance = PI at TOA): '
 	 WRITE(IDLOG,*,ERR=1010) 
      &  '***************************************** '
 	 WRITE(IDLOG,*,ERR=1010) ' '
@@ -4457,70 +4554,70 @@ C----------------------
 	 WRITE(IDLOG,*,ERR=1010) ' ----------'
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up diffuse :',FLUX_UP_TOA_DIFF / INCTE_PI
+     &	    '   - Flux Up diffuse :',FLUX_UP_TOA_DIFF
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up direct  :',FLUX_UP_TOA_DIR / INCTE_PI
+     &	    '   - Flux Up direct  :',FLUX_UP_TOA_DIR 
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Up total (diffuse + direct) :',
-     &     FLUX_UP_TOA_TOT / INCTE_PI
+     &     FLUX_UP_TOA_TOT
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down direct (incident solar flux):',
-     &      FLUX_DOWN_TOA_DIR / INCTE_PI
+     &      FLUX_DOWN_TOA_DIR
         WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' Level 0+ (surface):'
 	 WRITE(IDLOG,*,ERR=1010) ' -------------------'
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up diffuse :',FLUX_UP_SURF_DIFF / INCTE_PI
+     &	    '   - Flux Up diffuse :',FLUX_UP_SURF_DIFF
 	 WRITE(IDLOG,*,ERR=1010) 
-     &	    '   - Flux Up direct  :',FLUX_UP_SURF_DIR / INCTE_PI
+     &	    '   - Flux Up direct  :',FLUX_UP_SURF_DIR
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Up total (diffuse + direct) :',
-     &     FLUX_UP_SURF_TOT / INCTE_PI
+     &     FLUX_UP_SURF_TOT 
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down diffus :',
-     &     FLUX_DOWN_SURF_DIFF / INCTE_PI
+     &     FLUX_DOWN_SURF_DIFF
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down direct (incident solar flux):',
-     &      FLUX_DOWN_SURF_DIR / INCTE_PI
+     &      FLUX_DOWN_SURF_DIR 
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down total (diffus + direct) :',
-     &      FLUX_DOWN_SURF_TOT / INCTE_PI
+     &      FLUX_DOWN_SURF_TOT
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux diffus total (up + down) :',
-     &     FLUX_TOT_SURF_DIFF / INCTE_PI
+     &     FLUX_TOT_SURF_DIFF
         WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' Level 0- (below surface):'
 	 WRITE(IDLOG,*,ERR=1010) ' -------------------------'
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) '   - Flux Up :',
-     &  FLUX_UP_SSURF / INCTE_PI
+     &  FLUX_UP_SSURF
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down diffuse :',
-     &     FLUX_DOWN_SSURF_DIFF / INCTE_PI
+     &     FLUX_DOWN_SSURF_DIFF
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down direct (transmitted incident solar flux):',
-     &      FLUX_DOWN_SSURF_DIR / INCTE_PI
+     &      FLUX_DOWN_SSURF_DIR 
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux Down total (diffuse + direct) :',
-     &      FLUX_DOWN_SSURF_TOT / INCTE_PI
+     &      FLUX_DOWN_SSURF_TOT 
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Flux diffus total (up + down) :', 
-     &     FLUX_TOT_SSURF_DIFF / INCTE_PI
+     &     FLUX_TOT_SSURF_DIFF
        
         WRITE(IDLOG,*,ERR=1010) ''
 	 WRITE(IDLOG,*,ERR=1010) '   - Spherical Flux Up:', 
-     &	    FLUX_SPHE_UP_SSURF / INCTE_PI
+     &	    FLUX_SPHE_UP_SSURF
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Spherical Flux Down diffuse :',
-     &      FLUX_SPHE_DOWN_SSURF_DIFF / INCTE_PI
+     &      FLUX_SPHE_DOWN_SSURF_DIFF
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Spherical Flux Down direct :',
-     &      FLUX_SPHE_DOWN_SSURF_DIR / INCTE_PI
+     &      FLUX_SPHE_DOWN_SSURF_DIR
 	 WRITE(IDLOG,*,ERR=1010) 
      &	    '   - Spherical Flux total diffuse (up + down) :',
-     &      FLUX_SPHE_TOT_SSURF_DIFF / INCTE_PI
+     &      FLUX_SPHE_TOT_SSURF_DIFF
 	 WRITE(IDLOG,*,ERR=1010) ' ' 
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 WRITE(IDLOG,*,ERR=1010) ' Ratio Flux down total 0- /0+ :',
@@ -4537,22 +4634,23 @@ C----------------------
      &	 ' Profile of downward and upward flux'//
      &	 ' from TOA to the sea bottom '
         WRITE(IDLOG,*,ERR=1010) 
-     &	 ' normalized by the solar irradiance at TOA :'
+     &	 ' for a solar irradiance at TOA equals to PI:'
         WRITE(IDLOG,*,ERR=1010) 
      &	 ' -----------------------------------------------------------'
-        WRITE(IDLOG,*,ERR=1010) 'Level    Z(m)         Direct_Down'//
-     &	 '   Diffuse_Down  Total_Down '//
-     &	 '   Direct_Up     Diffuse_Up    Total_Up   Total_Up/Total_Down'
+        WRITE(IDLOG,*,ERR=1010) 'Level    Z(m)          Direct_Down '//
+     &	 '    Diffuse_Down    Total_Down  '//
+     &	 '    Direct_Up       Diffuse_Up      Total_Up '//
+     &	 '    Total_Up/Total_Down'
 	 
 	 WRITE(IDLOG,*,ERR=1010) ' '
 	 DO I=0,NT_TOT
 	    WRITE(IDLOG,600,ERR=1010) 
      &           I,PROFIL_Z(I),
      &           PROFIL_FLUX_DOWN_DIR(I),
-     &	          PROFIL_FLUX_DOWN_DIFF(I),
+     &	         PROFIL_FLUX_DOWN_DIFF(I),
      &           PROFIL_FLUX_DOWN_TOT(I),
-     &		   PROFIL_FLUX_UP_DIR(I),
-     &	          PROFIL_FLUX_UP_DIFF(I),
+     &		 PROFIL_FLUX_UP_DIR(I),
+     &	         PROFIL_FLUX_UP_DIFF(I),
      &           PROFIL_FLUX_UP_TOT(I),
      &           (PROFIL_FLUX_UP_TOT(I)/PROFIL_FLUX_DOWN_TOT(I))
 	 ENDDO
@@ -4567,22 +4665,23 @@ C------------------------------------------------------------------
      &' Profile of downward and upward fluxes'//
      &' from TOA to the sea bottom '
       WRITE(11,*,ERR=1301) 
-     &' normalised to the solar irradiance at TOA :'
+     &' for a solar extra-terrestrial irradiance at TOA equals to PI :'
       WRITE(11,*,ERR=1301) 
      &' ------------------------------------------------------'
-      WRITE(11,*,ERR=1301) 'Level    Z(m)         Direct_Down'//
-     &	 '   Diffuse_Down  Total_Down '//
-     &	 '   Direct_Up     Diffuse_Up    Total_Up   Total_Up/Total_Down'
+      WRITE(11,*,ERR=1301) 'Level    Z(m)          Direct_Down '//
+     &	 '    Diffuse_Down    Total_Down  '//
+     &	 '    Direct_Up       Diffuse_Up      Total_Up '//
+     &	 '    Total_Up/Total_Down'
 	 
       WRITE(11,*,ERR=1301) ' '
       DO I=0,NT_TOT
 	 WRITE(11,600,ERR=1301) 
      &       I,PROFIL_Z(I),
      &       PROFIL_FLUX_DOWN_DIR(I),
-     &	      PROFIL_FLUX_DOWN_DIFF(I),
+     &	     PROFIL_FLUX_DOWN_DIFF(I),
      &       PROFIL_FLUX_DOWN_TOT(I),
      &       PROFIL_FLUX_UP_DIR(I),
-     &	      PROFIL_FLUX_UP_DIFF(I),
+     &	     PROFIL_FLUX_UP_DIFF(I),
      &       PROFIL_FLUX_UP_TOT(I),
      &       (PROFIL_FLUX_UP_TOT(I)/PROFIL_FLUX_DOWN_TOT(I))
       ENDDO
@@ -4668,6 +4767,7 @@ C----------------------------------------------
 C* Format
 C---------  
 
+   15 FORMAT(1X,I3,4(2X,E13.5))
    20 FORMAT(F9.6,6(A5,E12.5))  
    30 FORMAT(A10,1X,I4,7X,F8.4,6X,F10.8)    	  
    31 FORMAT(A10,1X,I4,7X,F8.4,6X,F10.8,6X,F10.8) 
@@ -4675,7 +4775,8 @@ C---------
   402 FORMAT(I4,2X,I4,2X,F10.6,2X,3(2X,E10.4))              
   500 FORMAT(A10,F9.3,3(A7,E9.3),1X,A12,F8.4,3(A6,E9.3),3(A11,E9.3))   
   511 FORMAT(A10,F9.3,1X,A12,F8.4,3(A6,E9.3),3(A11,E9.3))   
-  600 FORMAT(2X,I4,1X,F12.5,2X,7(2X,E12.6))     
+C  600 FORMAT(2X,I4,1X,F12.5,2X,7(2X,E12.6))       
+  600 FORMAT(2X,I4,1X,F12.5,2X,7(2X,E14.6E3))     
       END      !FIN DE LA PROCEDURE OSOAA_SOS_CORE
       
       
@@ -4776,8 +4877,8 @@ C==============================================================================
 C* Définition des variables    
 C*-----------------------------------------------------------------------
 
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				!  Tableau des mu de Gauss.
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                !  Tableau des mu de Gauss.
 
       DOUBLE PRECISION ALPHA(0:CTE_OS_NB_MAX)	!  Paramètres alpha(k).
       DOUBLE PRECISION BETA(0:CTE_OS_NB_MAX)	!  Paramètres beta(k).
@@ -4787,18 +4888,18 @@ C*-----------------------------------------------------------------------
 	! Fonctions de Legendre et fonctions dérivées pour le calcul
 	! de la matrice de phase des molécules.
       DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				!   Fonction de Legendre PSL à l'ordre L=2
-      				!   et S=IS en fonction de l'angle mu.
+                                !   Fonction de Legendre PSL à l'ordre L=2
+                                !   et S=IS en fonction de l'angle mu.
       DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				!   Fonction RSL à l'ordre L=2 et S=IS.
+                                !   Fonction RSL à l'ordre L=2 et S=IS.
       DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				!   Fonction TSL à l'ordre L=2 et S=IS
-							
+                                !   Fonction TSL à l'ordre L=2 et S=IS
+                                        
 	! Eléments Pij de la matrice de phase des aérosols pour un ordre
 	! IS de la décomposition en séries de Fourier.
 	! Soit mup la direction d'incidence (-1 < mup < 1)
 	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+	! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &       -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -4822,19 +4923,19 @@ C*-----------------------------------------------------------------------
 
       DOUBLE PRECISION 
      &    PSL(-1:CTE_OS_NB_MAX,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Fonction de Legendre PSL pour l'ordre S=IS
-      				! en fonction de l'ordre L et de l'angle mu.
+                                ! Fonction de Legendre PSL pour l'ordre S=IS
+                                ! en fonction de l'ordre L et de l'angle mu.
       DOUBLE PRECISION 
      &    RSL(-1:CTE_OS_NB_MAX,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Fonction RSL.
+                                ! Fonction RSL.
       DOUBLE PRECISION 
      &    TSL(-1:CTE_OS_NB_MAX,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				  ! Fonction TSL.
+                                ! Fonction TSL.
 
       DOUBLE PRECISION C	! Valeur ponctuelle du mu de Gauss.
 
       DOUBLE PRECISION A,B,D,E,F     ! Coefficients pour la récurrence 
-      				     ! sur PSL, RSL et TSL.
+                                     ! sur PSL, RSL et TSL.
 
       DOUBLE PRECISION X	! Variable intermédiaire de calcul.
       DOUBLE PRECISION XX	! Variable intermédiaire de calcul.
@@ -5034,31 +5135,31 @@ C* Boucles sur les directions d'incidence (K = mup,
 C* avec -1 < mup < 1) et d'émergence (J = mu > 0)
 C------------------------------------------------------
       DO 32 J=-NBMU,NBMU
-         DO 32 K=-NBMU,NBMU
+         DO 321 K=-NBMU,NBMU
             SBP=0.
             SATT=0.
             SARR=0.
             SGR=0.
             SGT=0.
             SART=0.
-	    
+   
             IF(IS.GT.OS_NB) GOTO 1
 
 C* Boucle de sommation sur L = IS à OS_NB.
 C-----------------------------------------------
-           DO 33 L=IS,OS_NB
-              R1=TSL(L,J)*TSL(L,K)
-              R2=RSL(L,J)*RSL(L,K)
-              SBP=SBP+BETA(L)*PSL(L,J)*PSL(L,K)
-              SATT=SATT+ALPHA(L)*R1+ZETA(L)*R2
-              SARR=SARR+ZETA(L)*R1+ALPHA(L)*R2
-              SGR=SGR+GAMMA(L)*PSL(L,J)*RSL(L,K)
-              SGT=SGT+GAMMA(L)*PSL(L,J)*TSL(L,K)
-              SART=SART+ALPHA(L)*RSL(L,K)*TSL(L,J)+
-     &             ZETA(L)*RSL(L,J)*TSL(L,K)
-  33       CONTINUE
+            DO 33 L=IS,OS_NB
+               R1=TSL(L,J)*TSL(L,K)
+               R2=RSL(L,J)*RSL(L,K)
+               SBP=SBP+BETA(L)*PSL(L,J)*PSL(L,K)
+               SATT=SATT+ALPHA(L)*R1+ZETA(L)*R2
+               SARR=SARR+ZETA(L)*R1+ALPHA(L)*R2
+               SGR=SGR+GAMMA(L)*PSL(L,J)*RSL(L,K)
+               SGT=SGT+GAMMA(L)*PSL(L,J)*TSL(L,K)
+               SART=SART+ALPHA(L)*RSL(L,K)*TSL(L,J)+
+     &              ZETA(L)*RSL(L,J)*TSL(L,K)
+  33        CONTINUE
   
- 1         CONTINUE
+ 1          CONTINUE
 
             BP(J,K)=SBP
             ATT(J,K)=SATT
@@ -5066,8 +5167,8 @@ C-----------------------------------------------
             GR(J,K)=SGR
             GT(J,K)=SGT
             ART(J,K)=SART
-   32 CONTINUE
-   
+  321    CONTINUE
+   32 CONTINUE   
       RETURN
       END  	!FIN DE LA PROCEDURE OSOAA_NOYAUX      
       
@@ -5101,17 +5202,17 @@ C       XDEL(0:CTE_NT_ATM)  (double)  (E)  Pourcentage d'aérosols par niveau.
 C       YDEL(0:CTE_NT_ATM)  (double)  (E)  Pourcentage de molécules par niveau.
 C
 C       BETA0	  (double)  (E) 
-C       BETA2     (double)  (E) 	.
-C       GAMMA2	  (double)  (E) 	
+C       BETA2     (double)  (E) .
+C       GAMMA2	  (double)  (E) 
 C                   Coefficients du développement de la matrice de phase
 C                   moléculaire en fonctions de Legendre.
 C
-C       XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
+C       XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 
 C      		     Fonction de Legendre PSL à l'ordre L=2 et S=IS
-C      		     en fonction de l'angle mu.     		
-C       XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
+C      		     en fonction de l'angle mu.     
+C       XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 
 C     		     Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
-C       XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
+C       XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 
 C     		     Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
 C	
 C       BP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
@@ -5128,9 +5229,9 @@ C               la diffusion est exprimée par Pij(mu,mup).
 C
 C       CH(0:CTE_NT_ATM)  (double)  (E)  Atténuation du faisceau solaire direct/4.
 C
-C       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
+C       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
 C	         Vecteur fonction source I,Q,U en fonction du niveau du profil
 C	         et de la direction.
 C 
@@ -5162,10 +5263,10 @@ C*------------------------------------------------------------------
       DOUBLE PRECISION BETA2	! de phase moléculaire en fonctions de Legendre.
       DOUBLE PRECISION GAMMA2
 
-      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
+      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       			      ! Fonction de Legendre PSL à l'ordre L=2 et S=IS
       			      ! en fonction de l'angle mu.
-      		
+      
       DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       			! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu
       DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
@@ -5175,7 +5276,7 @@ C*------------------------------------------------------------------
 	! IS de la décomposition en séries de Fourier.
 	! Soit mup la direction d'incidence (-1 < mup < 1)
 	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+	! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &       -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -5187,20 +5288,18 @@ C*------------------------------------------------------------------
      &       -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! -P13 ou -P31.
     
 
-      DOUBLE PRECISION CH(0:CTE_NT_ATM)	! Atténuation du faisceau solaire 
-                                        ! direct / 4.
+      DOUBLE PRECISION CH(0:CTE_NT_ATM) ! Atténuation du faisceau solaire direct / 4.
 
-	! Vecteur fonction source en fonction du niveau du profil
-	! et de la direction.
+      ! Vecteur fonction source en fonction du niveau du profil et de la direction.
       DOUBLE PRECISION 
-     &       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour I.
+     &       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                      ! Fonction source pour I.
       DOUBLE PRECISION 
-     &       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour Q.
+     &       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                      ! Fonction source pour Q.
       DOUBLE PRECISION
-     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour U.
+     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                      ! Fonction source pour U.
 
       DOUBLE PRECISION SPL   ! Valeur de la fonction de XPL pour mu = mus.
       DOUBLE PRECISION SA1   ! Elément P11 de la matrice de phase moléculaire.
@@ -5210,17 +5309,17 @@ C*------------------------------------------------------------------
       DOUBLE PRECISION SB2   ! Elément P21 de la matrice de phase des aérosols.
       DOUBLE PRECISION SC2   ! Elément P31 de la matrice de phase des aérosols.
  
-      DOUBLE PRECISION PCRAY	! Valeur du pourcentage de molécules.
-      DOUBLE PRECISION PCAER	! Valeur du pourcentage d'aérosols.
+      DOUBLE PRECISION PCRAY ! Valeur du pourcentage de molécules.
+      DOUBLE PRECISION PCAER ! Valeur du pourcentage d'aérosols.
 
-      DOUBLE PRECISION ATTDIR	! Valeur ponctuelle du tableau CH.
+      DOUBLE PRECISION ATTDIR ! Valeur ponctuelle du tableau CH.
 
           
-      INTEGER*4 IS	! Ordre en cours du développement en séries de Fourier.
+      INTEGER*4 IS      ! Ordre en cours du développement en séries de Fourier.
       INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
       
-      INTEGER JK	! Numéro de stockage de mus dans le tableau RMU
-      			! (0 par défaut).
+      INTEGER JK        ! Numéro de stockage de mus dans le tableau RMU
+                        ! (0 par défaut).
 
       INTEGER*4 J,K
 
@@ -5317,7 +5416,7 @@ C        -GT(mup,mu)   -ART(mu,mup)    ATT(mu,mup)
 C 
 C      Les termes réellement calculés sont équivalents en suivant les règles
 C      de permutation des indices. 
-C	
+C
 C      Une intégration spatiale est appliquée sur les directions d'incidence.
 C
 C      Calcul pour chaque niveau du profil et pour chaque direction de propagation.
@@ -5336,27 +5435,27 @@ C       XDEL(0:CTE_NT_ATM)  (double)  (E)  Pourcentage d'aérosols par niveau.
 C       YDEL(0:CTE_NT_ATM)  (double)  (E)  Pourcentage de molécules par niveau.
 C
 C       BETA0	  (double)  (E) 
-C       BETA2     (double)  (E) 	.
+C       BETA2     (double)  (E)
 C       GAMMA2	  (double)  (E) 
-C       ALPHA2    (double)  (E) 	
+C       ALPHA2    (double)  (E)
 C                   Coefficients du développement de la matrice de phase
 C                   moléculaire en fonctions de Legendre
 C
-C       XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
+C       XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
 C      		     Fonction de Legendre PSL à l'ordre L=2 et S=IS
-C      		     en fonction de l'angle mu.     		
-C       XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
+C      		     en fonction de l'angle mu.     
+C       XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
 C     		     Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
-C       XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
+C       XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
 C     		     Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
 C
-C      	
+C      
 C       I1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)    Champ I.
 C       Q1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)    Champ Q.
 C       U1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)    Champ U.
-C         	     Champ de luminance d'ordre  IG en fonction du 
+C                     Champ de luminance d'ordre  IG en fonction du 
 C                    niveau du profil et de la direction. 
-C	
+C
 C       BP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 
 C                    Elément P11.
 C       GR(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 
@@ -5377,11 +5476,11 @@ C               la diffusion est exprimée par Pij(mu,mup).
 C
 C       GA(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) Tableau des poids de Gauss.
 C
-C       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C	         Vecteur fonction source I,Q,U en fonction du niveau du profil
-C	         et de la direction.
+C       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C                 Vecteur fonction source I,Q,U en fonction du niveau du profil
+C                 et de la direction.
 C
 C
 C Common utilisé:
@@ -5408,47 +5507,44 @@ C*------------------------------------------------------------------
       DOUBLE PRECISION XDEL(0:CTE_NT_ATM)  ! Pourcentage d'aérosols par niveau.
       DOUBLE PRECISION YDEL(0:CTE_NT_ATM)  ! Pourcentage de molécules par niveau.
 
-      DOUBLE PRECISION BETA0	! Coefficients du développement de la matrice 
-      DOUBLE PRECISION BETA2	! de phase moléculaire en fonctions de Legendre.
-      DOUBLE PRECISION GAMMA2	
-      DOUBLE PRECISION ALPHA2	
+      DOUBLE PRECISION BETA0  ! Coefficients du développement de la matrice 
+      DOUBLE PRECISION BETA2  ! de phase moléculaire en fonctions de Legendre.
+      DOUBLE PRECISION GAMMA2
+      DOUBLE PRECISION ALPHA2
 
-      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction de Legendre PSL à l'ordre L=2 et S=IS
-      			! en fonction de l'angle mu.     		
-      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
-      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
-
-
-      	! Champ de luminance d'ordre IG-1 en fonction du niveau du profil
-	! et de la direction.       	
-      DOUBLE PRECISION 
-     &       I1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ I.
-      DOUBLE PRECISION 
-     &       Q1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ Q.
-      DOUBLE PRECISION 
-     &       U1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ U.
-
-	! Vecteur fonction source en fonction du niveau du profil
-	! et de la direction.
-      DOUBLE PRECISION 
-     &       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour I.
-      DOUBLE PRECISION 
-     &       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour Q.
-      DOUBLE PRECISION 
-     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour U.
+      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+               ! Fonction de Legendre PSL à l'ordre L=2 et S=IS en fonction de l'angle mu.     
+      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+               ! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
+      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+               ! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
 
 
-	! Eléments Pij de la matrice de phase des aérosols pour un ordre
-	! IS de la décomposition en séries de Fourier.
-	! Soit mup la direction d'incidence (-1 < mup < 1)
-	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+      ! Champ de luminance d'ordre IG-1 en fonction du niveau du profil et de la direction.       
+      DOUBLE PRECISION 
+     &       I1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Champ I.
+      DOUBLE PRECISION 
+     &       Q1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Champ Q.
+      DOUBLE PRECISION 
+     &       U1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Champ U.
+
+      ! Vecteur fonction source en fonction du niveau du profil et de la direction.
+      DOUBLE PRECISION 
+     &       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                      ! Fonction source pour I.
+      DOUBLE PRECISION 
+     &       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                      ! Fonction source pour Q.
+      DOUBLE PRECISION 
+     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                      ! Fonction source pour U.
+
+
+        ! Eléments Pij de la matrice de phase des aérosols pour un ordre
+        ! IS de la décomposition en séries de Fourier.
+        ! Soit mup la direction d'incidence (-1 < mup < 1)
+        ! et mu celle de diffusion (-1 < mu < 1),
+        ! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &       -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -5471,42 +5567,42 @@ C*------------------------------------------------------------------
 
       DOUBLE PRECISION GA(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Tableau des poids de Gauss
 
-      DOUBLE PRECISION XPK	! Valeur de XPL pour les directions de 
-      				! diffusion mu > 0 (indice K).	
-      DOUBLE PRECISION XRK	! Valeur de XRL pour mu > 0.
-      DOUBLE PRECISION XTK	! Valeur de XTL pour mu > 0.
-      DOUBLE PRECISION YPK	! Valeur de XPL pour -mu.	
-      DOUBLE PRECISION YRK	! Valeur de XRL pour -mu.
-      DOUBLE PRECISION YTK	! Valeur de XTL pour -mu.	
-      	
-      DOUBLE PRECISION XPJ	! Valeur de XPL pour les directions incidentes
-      				! mu = mup > 0 (indice J).
-      DOUBLE PRECISION XRJ	! Valeur de XRL pour mu = mup > 0.
-      DOUBLE PRECISION XTJ	! Valeur de XTL pour mu = mup > 0.
-      DOUBLE PRECISION YPJ	! Valeur de XPL pour mu = -mup.	
-      DOUBLE PRECISION YRJ	! Valeur de XRL pour mu = -mup.
-      DOUBLE PRECISION YTJ	! Valeur de XTL pour mu = -mup.		
+      DOUBLE PRECISION XPK      ! Valeur de XPL pour les directions de 
+                                ! diffusion mu > 0 (indice K).
+      DOUBLE PRECISION XRK      ! Valeur de XRL pour mu > 0.
+      DOUBLE PRECISION XTK      ! Valeur de XTL pour mu > 0.
+      DOUBLE PRECISION YPK      ! Valeur de XPL pour -mu.
+      DOUBLE PRECISION YRK      ! Valeur de XRL pour -mu.
+      DOUBLE PRECISION YTK      ! Valeur de XTL pour -mu.
+      
+      DOUBLE PRECISION XPJ      ! Valeur de XPL pour les directions incidentes
+                                ! mu = mup > 0 (indice J).
+      DOUBLE PRECISION XRJ      ! Valeur de XRL pour mu = mup > 0.
+      DOUBLE PRECISION XTJ      ! Valeur de XTL pour mu = mup > 0.
+      DOUBLE PRECISION YPJ      ! Valeur de XPL pour mu = -mup.
+      DOUBLE PRECISION YRJ      ! Valeur de XRL pour mu = -mup.
+      DOUBLE PRECISION YTJ      ! Valeur de XTL pour mu = -mup.
 
-      DOUBLE PRECISION XI1	! Valeur de I du champ montant d'ordre IG-1.
-      DOUBLE PRECISION XQ1	! Valeur de Q du champ montant d'ordre IG-1.
-      DOUBLE PRECISION XU1	! Valeur de U du champ montant d'ordre IG-1.
-      DOUBLE PRECISION XI2	! Valeur de I du champ descendant d'ordre IG-1.
-      DOUBLE PRECISION XQ2	! Valeur de Q du champ descendant d'ordre IG-1.
-      DOUBLE PRECISION XU2	! Valeur de U du champ descendant d'ordre IG-1.
+      DOUBLE PRECISION XI1      ! Valeur de I du champ montant d'ordre IG-1.
+      DOUBLE PRECISION XQ1      ! Valeur de Q du champ montant d'ordre IG-1.
+      DOUBLE PRECISION XU1      ! Valeur de U du champ montant d'ordre IG-1.
+      DOUBLE PRECISION XI2      ! Valeur de I du champ descendant d'ordre IG-1.
+      DOUBLE PRECISION XQ2      ! Valeur de Q du champ descendant d'ordre IG-1.
+      DOUBLE PRECISION XU2      ! Valeur de U du champ descendant d'ordre IG-1.
 
-      DOUBLE PRECISION II1	! Valeur intermédiaire pour le calcul de I2 (mu < 0).
-      DOUBLE PRECISION QQ1	! Valeur intermédiaire pour le calcul de Q2 (mu < 0).
-      DOUBLE PRECISION UU1	! Valeur intermédiaire pour le calcul de U2 (mu < 0).
-      DOUBLE PRECISION II2 	! Valeur intermédiaire pour le calcul de I2 (mu > 0).
-      DOUBLE PRECISION QQ2 	! Valeur intermédiaire pour le calcul de Q2 (mu > 0).
-      DOUBLE PRECISION UU2 	! Valeur intermédiaire pour le calcul de U2 (mu > 0).
+      DOUBLE PRECISION II1      ! Valeur intermédiaire pour le calcul de I2 (mu < 0).
+      DOUBLE PRECISION QQ1      ! Valeur intermédiaire pour le calcul de Q2 (mu < 0).
+      DOUBLE PRECISION UU1      ! Valeur intermédiaire pour le calcul de U2 (mu < 0).
+      DOUBLE PRECISION II2      ! Valeur intermédiaire pour le calcul de I2 (mu > 0).
+      DOUBLE PRECISION QQ2      ! Valeur intermédiaire pour le calcul de Q2 (mu > 0).
+      DOUBLE PRECISION UU2      ! Valeur intermédiaire pour le calcul de U2 (mu > 0).
 
-      DOUBLE PRECISION Z   	! Valeur ponctuelle du tableau des poids de Gauss.
+      DOUBLE PRECISION Z        ! Valeur ponctuelle du tableau des poids de Gauss.
 
-      DOUBLE PRECISION PCRAY	! Valeur du pourcentage de molécules.
-      DOUBLE PRECISION PCAER	! Valeur du pourcentage d'aérosols.
+      DOUBLE PRECISION PCRAY    ! Valeur du pourcentage de molécules.
+      DOUBLE PRECISION PCAER    ! Valeur du pourcentage d'aérosols.
  
-      DOUBLE PRECISION BPJK	! Valeur des éléments de la matrice de 
+      DOUBLE PRECISION BPJK     ! Valeur des éléments de la matrice de 
       DOUBLE PRECISION BPJMK    ! phase du mélange molécules + aérosols.
       DOUBLE PRECISION GTJMK
       DOUBLE PRECISION GTJK
@@ -5525,7 +5621,7 @@ C*------------------------------------------------------------------
       DOUBLE PRECISION ATTJK
       DOUBLE PRECISION ATTJMK
 
-      INTEGER*4 IS	! Ordre en cours du développement en séries de Fourier.
+      INTEGER*4 IS      ! Ordre en cours du développement en séries de Fourier.
       INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
 
       INTEGER*4 I
@@ -5562,7 +5658,7 @@ C------------------------------------------------------
 
 C* Boucle sur le profil.
 C-----------------------
-         DO 455 I=0,CTE_NT_ATM
+         DO 466 I=0,CTE_NT_ATM
             II1=0.
             II2=0.
             QQ1=0.
@@ -5643,7 +5739,9 @@ C--------------------------
             Q2(I,-K)=QQ1 * 0.5
             U2(I,K)=UU2 * 0.5
             U2(I,-K)=UU1 * 0.5
- 455  CONTINUE   ! Boucle sur I et K
+         
+ 466     CONTINUE   ! Boucle sur I
+ 455  CONTINUE   ! Boucle sur K
  
       GOTO 212
       
@@ -5658,7 +5756,7 @@ C------------------------------------------------------
 
 C* Boucle sur le profil.
 C------------------------
-         DO 45 I=0,CTE_NT_ATM
+         DO 46 I=0,CTE_NT_ATM
             II1=0.
             II2=0.
             QQ1=0.
@@ -5692,7 +5790,7 @@ C------------------------------------------------------
                ARTKMJ=ART(K,-J)*PCAER
                ATTJMK=ATT(J,-K)*PCAER
                ATTJK=ATT(J,K)*PCAER
-	       
+      
 C* Calculs de la fonction source d'ordre IG, pour chaque 
 C* niveau du profil et chaque direction.
 C------------------------------------------------------
@@ -5733,29 +5831,30 @@ C--------------------------
             Q2(I,-K)=QQ1 * 0.5
             U2(I,K)=UU2  * 0.5
             U2(I,-K)=UU1 * 0.5
-	    
-   45 CONTINUE    ! Boucle sur I et K
+           
+   46    CONTINUE    ! Boucle sur I 
+   45 CONTINUE    ! Boucle sur K
 
   212 CONTINUE
 
       !Mode expert spécifique : annulation de la diffusion atmosphérique
       IF (EXPERT_MODE_FORCED_FATM_NULL) THEN 
          WRITE(6,*) 
-     &	 " \n WARNING : ATMOS SOURCE FUNCTION FORCED TO NULL \n"
+     &   " \n WARNING : ATMOS SOURCE FUNCTION FORCED TO NULL \n"
          DO K=1,NBMU
-	    DO I=0,CTE_NT_ATM
-	       I2(I,K)=0.
-	       I2(I,-K)=0.
-	       Q2(I,K)=0.
-	       Q2(I,-K)=0.
-	       U2(I,K)=0.
-	       U2(I,-K)=0.
-	    ENDDO
-	 ENDDO
+            DO I=0,CTE_NT_ATM
+               I2(I,K)=0.
+               I2(I,-K)=0.
+               Q2(I,K)=0.
+               Q2(I,-K)=0.
+               U2(I,K)=0.
+               U2(I,-K)=0.
+            ENDDO
+         ENDDO
       ENDIF
       
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_FSOURCE_ATM_ORDREIG
+      END       !FIN DE LA PROCEDURE OSOAA_FSOURCE_ATM_ORDREIG
 
 
 
@@ -5780,7 +5879,7 @@ C        -GT(mup,mu)   -ART(mu,mup)    ATT(mu,mup)
 C 
 C      Les termes réellement calculés sont équivalents en suivant les règles
 C      de permutation des indices. 
-C	
+C        
 C      Une intégration spatiale est appliquée sur les directions d'incidence.
 C
 C      Calcul pour chaque niveau du profil et pour chaque direction de 
@@ -5792,9 +5891,9 @@ C        Le tableau CH_SEA_MUS donne l'atténuation de la surface à la profondeur
 C        Le couple (EI_TR_SSURF,EQ_TR_SSURF) est alors l'éclairement solaire transmis 
 C        sous la surface (composantes relatives aux paramètres de Stokes I et Q).
 C        Il s'agit de l'éclairement solaire transmis, calculé pour une mer plate.
-C		
-C	  ==> Conditions indispensables pour une expression correcte du champ solaire
-C	      dans la mer.
+C                
+C          ==> Conditions indispensables pour une expression correcte du champ solaire
+C              dans la mer.
 C
 C      NB: Si EXPERT_MODE_FORCED_FSEA_NULL = .TRUE. la fonction source est posée nulle.
 C          (constante introduite par #define)
@@ -5821,26 +5920,26 @@ C       PC_RAY(0:CTE_NT_SEA)  (double)  (E)  Pourcentage de molécules par niveau
 C       PC_CHL(0:CTE_NT_SEA)  (double)  (E)  Pourcentage de phytoplancton par niveau.
 C       PC_MLP(0:CTE_NT_SEA)  (double)  (E)  Pourcentage de sédiments par niveau.
 C
-C       BETA0	  (double)  (E) 
-C       BETA2     (double)  (E) 	.
-C       GAMMA2	  (double)  (E) 
-C       ALPHA2    (double)  (E) 	
+C       BETA0     (double)  (E) 
+C       BETA2     (double)  (E).
+C       GAMMA2    (double)  (E) 
+C       ALPHA2    (double)  (E)
 C                   Coefficients du développement de la matrice de phase
 C                   moléculaire en fonctions de Legendre
 C
-C       XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
-C      		     Fonction de Legendre PSL à l'ordre L=2 et S=IS
-C      		     en fonction de l'angle mu.     		
-C       XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
-C     		     Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
-C       XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
-C     		     Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
+C       XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
+C                    Fonction de Legendre PSL à l'ordre L=2 et S=IS
+C                    en fonction de l'angle mu.     
+C       XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
+C                    Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
+C       XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
+C                    Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
 C
 C       EI_TR_SSURF (double) (E)  Eclairement solaire direct transmis sous la surface
-C				  --> Composante selon I
+C                                 --> Composante selon I
 C
 C       EQ_TR_SSURF (double) (E)  Eclairement solaire direct transmis sous la surface
-C				  --> Composante selon Q
+C                                 --> Composante selon Q
 C
 C       BP_CHL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)
 C                    (E)  Elément P11.
@@ -5879,11 +5978,11 @@ C               Soit mup la direction d'incidence ( -1 < mup < 1)
 C               et mu celle de diffusion ( -1 < mu < 1),
 C               la diffusion est exprimée par Pij(mu,mup).
 C
-C       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C	         Vecteur fonction source I,Q,U en fonction du niveau du profil
-C	         et de la direction.
+C       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C                 Vecteur fonction source I,Q,U en fonction du niveau du profil
+C                 et de la direction.
 C
 C
 C Common utilisé:
@@ -5900,11 +5999,11 @@ C==============================================================================
      &                          PC_RAY,PC_CHL,PC_MLP,
      &                          BETA0,BETA2,GAMMA2,ALPHA2,
      &                          XPL,XRL,XTL,
-     &				EI_TR_SSURF,EQ_TR_SSURF,
+     &                          EI_TR_SSURF,EQ_TR_SSURF,
      &                          BP_CHL,GR_CHL,GT_CHL,
-     &				ARR_CHL,ART_CHL,
+     &                          ARR_CHL,ART_CHL,
      &                          BP_MLP,GR_MLP,GT_MLP,
-     &				ARR_MLP,ART_MLP,
+     &                          ARR_MLP,ART_MLP,
      &                          I2,Q2,U2)
       
       IMPLICIT NONE
@@ -5914,51 +6013,50 @@ C==============================================================================
 C* Définition des variables     
 C*------------------------------------------------------------------
 
-      DOUBLE PRECISION CH_SEA_MUS(0:CTE_NT_SEA)	
+      DOUBLE PRECISION CH_SEA_MUS(0:CTE_NT_SEA)
                                 ! Atténuation du faisceau solaire direct / 4
                                 ! dans la mer en fonction de la profondeur pour la 
-				! direction de propagation du faisceau solaire transmis.
+                                ! direction de propagation du faisceau solaire transmis.
 
       DOUBLE PRECISION PC_RAY(0:CTE_NT_SEA)   !Pourcentage de molécules  par niveau.
       DOUBLE PRECISION PC_CHL(0:CTE_NT_SEA)   !Pourcentage de phytoplancton par niveau.
       DOUBLE PRECISION PC_MLP(0:CTE_NT_SEA)   !Pourcentage de sédiments par niveau.
       
-      DOUBLE PRECISION BETA0	! Coefficients du développement de la matrice 
-      DOUBLE PRECISION BETA2	! de phase moléculaire en fonctions de Legendre.
-      DOUBLE PRECISION GAMMA2	
-      DOUBLE PRECISION ALPHA2	
+      DOUBLE PRECISION BETA0     ! Coefficients du développement de la matrice 
+      DOUBLE PRECISION BETA2     ! de phase moléculaire en fonctions de Legendre.
+      DOUBLE PRECISION GAMMA2
+      DOUBLE PRECISION ALPHA2
 
-      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			      ! Fonction de Legendre PSL à l'ordre L=2 et S=IS
-      			      ! en fonction de l'angle mu.     		
-      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
-      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
+      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                     ! Fonction de Legendre PSL à l'ordre L=2 et S=IS
+                     ! en fonction de l'angle mu.     
+      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                     ! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
+      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                     ! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
 
 
-      	! Eclairement solaire direct transmis sous la surface (composante U nulle) 
-      DOUBLE PRECISION EI_TR_SSURF	! Champ I.
-      DOUBLE PRECISION EQ_TR_SSURF	! Champ Q.
+      ! Eclairement solaire direct transmis sous la surface (composante U nulle) 
+      DOUBLE PRECISION EI_TR_SSURF   ! Champ I.
+      DOUBLE PRECISION EQ_TR_SSURF   ! Champ Q.
 
-	! Vecteur fonction source en fonction du niveau du profil
-	! et de la direction.
+      ! Vecteur fonction source en fonction du niveau du profil et de la direction.
       DOUBLE PRECISION 
-     &       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour I.
+     &       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                     ! Fonction source pour I.
       DOUBLE PRECISION 
-     &       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour Q.
+     &       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                     ! Fonction source pour Q.
       DOUBLE PRECISION 
-     &       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour U.
+     &       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                     ! Fonction source pour U.
 
 
-	! Eléments Pij de la matrice de phase du phytoplancton pour un ordre
-	! IS de la décomposition en séries de Fourier.
-	! Soit mup la direction d'incidence (-1 < mup < 1)
-	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+      ! Eléments Pij de la matrice de phase du phytoplancton pour un ordre
+      ! IS de la décomposition en séries de Fourier.
+      ! Soit mup la direction d'incidence (-1 < mup < 1)
+      ! et mu celle de diffusion (-1 < mu < 1),
+      ! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP_CHL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &           -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -5976,11 +6074,11 @@ C*------------------------------------------------------------------
      &            -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! -P23 ou -P32.
       
 
-	! Eléments Pij de la matrice de phase des sédiments pour un ordre
-	! IS de la décomposition en séries de Fourier.
-	! Soit mup la direction d'incidence (-1 < mup < 1)
-	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+      ! Eléments Pij de la matrice de phase des sédiments pour un ordre
+      ! IS de la décomposition en séries de Fourier.
+      ! Soit mup la direction d'incidence (-1 < mup < 1)
+      ! et mu celle de diffusion (-1 < mu < 1),
+      ! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP_MLP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &           -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -5999,33 +6097,33 @@ C*------------------------------------------------------------------
 
 
 
-      DOUBLE PRECISION XPK	! Valeur de XPL pour les directions de
-      				! diffusion mu > 0 (indice K).	
-      DOUBLE PRECISION XRK	! Valeur de XRL pour mu > 0.
-      DOUBLE PRECISION XTK	! Valeur de XTL pour mu > 0.
-      DOUBLE PRECISION YPK	! Valeur de XPL pour -mu.	
-      DOUBLE PRECISION YRK	! Valeur de XRL pour -mu.
-      DOUBLE PRECISION YTK	! Valeur de XTL pour -mu.	
-      	
-      DOUBLE PRECISION XPJ	! Valeur de XPL pour les directions incidentes
-      				! mu = mup > 0 (indice J).
-      DOUBLE PRECISION XRJ	! Valeur de XRL pour mu = mup > 0.
-      DOUBLE PRECISION XTJ	! Valeur de XTL pour mu = mup > 0.
-      DOUBLE PRECISION YPJ	! Valeur de XPL pour mu = -mup.	
-      DOUBLE PRECISION YRJ	! Valeur de XRL pour mu = -mup.
-      DOUBLE PRECISION YTJ	! Valeur de XTL pour mu = -mup.		
+      DOUBLE PRECISION XPK      ! Valeur de XPL pour les directions de
+                                ! diffusion mu > 0 (indice K).
+      DOUBLE PRECISION XRK      ! Valeur de XRL pour mu > 0.
+      DOUBLE PRECISION XTK      ! Valeur de XTL pour mu > 0.
+      DOUBLE PRECISION YPK      ! Valeur de XPL pour -mu.
+      DOUBLE PRECISION YRK      ! Valeur de XRL pour -mu.
+      DOUBLE PRECISION YTK      ! Valeur de XTL pour -mu.
+      
+      DOUBLE PRECISION XPJ      ! Valeur de XPL pour les directions incidentes
+                                ! mu = mup > 0 (indice J).
+      DOUBLE PRECISION XRJ      ! Valeur de XRL pour mu = mup > 0.
+      DOUBLE PRECISION XTJ      ! Valeur de XTL pour mu = mup > 0.
+      DOUBLE PRECISION YPJ      ! Valeur de XPL pour mu = -mup.
+      DOUBLE PRECISION YRJ      ! Valeur de XRL pour mu = -mup.
+      DOUBLE PRECISION YTJ      ! Valeur de XTL pour mu = -mup.
 
-      DOUBLE PRECISION XI2	! Valeur de I du champ descendant d'ordre IG-1.
-      DOUBLE PRECISION XQ2	! Valeur de Q du champ descendant d'ordre IG-1.
+      DOUBLE PRECISION XI2      ! Valeur de I du champ descendant d'ordre IG-1.
+      DOUBLE PRECISION XQ2      ! Valeur de Q du champ descendant d'ordre IG-1.
 
       DOUBLE PRECISION ATTDIR   ! Atténuation dans l'océan pour la direction
-      				! d'incidence solaire transmise.
+                                ! d'incidence solaire transmise.
 
-      DOUBLE PRECISION PCRAY	! Valeur du pourcentage de molécules.
-      DOUBLE PRECISION PCCHL	! Valeur du pourcentage de phytoplancton.
-      DOUBLE PRECISION PCMLP	! Valeur du pourcentage des sédiments.
+      DOUBLE PRECISION PCRAY    ! Valeur du pourcentage de molécules.
+      DOUBLE PRECISION PCCHL    ! Valeur du pourcentage de phytoplancton.
+      DOUBLE PRECISION PCMLP    ! Valeur du pourcentage des sédiments.
  
-      DOUBLE PRECISION BPJK	! Valeur des éléments de la matrice de 
+      DOUBLE PRECISION BPJK     ! Valeur des éléments de la matrice de 
       DOUBLE PRECISION BPJMK    ! phase du mélange hydrosols.
       DOUBLE PRECISION GTJMK
       DOUBLE PRECISION GTJK
@@ -6038,11 +6136,11 @@ C*------------------------------------------------------------------
       DOUBLE PRECISION ARTKJ
       DOUBLE PRECISION ARTKMJ
 
-      INTEGER*4 IS	! Ordre en cours du développement en séries de Fourier.
+      INTEGER*4 IS      ! Ordre en cours du développement en séries de Fourier.
       INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
 
-      INTEGER*4 JKW	! Numéro de stockage de mus dans l'eau dans le tableau RMU
-      			! (JKW=-M0 ==> Correspond au musw vrai < 0).
+      INTEGER*4 JKW     ! Numéro de stockage de mus dans l'eau dans le tableau RMU
+                        ! (JKW=-M0 ==> Correspond au musw vrai < 0).
 
       INTEGER*4 I
       INTEGER*4 K
@@ -6078,16 +6176,16 @@ C------------------------------------------------------
 
 C* Boucle sur le profil.
 C-----------------------
-         DO 455 I=0,CTE_NT_SEA
+         DO 466 I=0,CTE_NT_SEA
             
             PCRAY=PC_RAY(I)
-            PCCHL=PC_CHL(I)	   
+            PCCHL=PC_CHL(I)
             PCMLP=PC_MLP(I)
             ATTDIR=CH_SEA_MUS(I)
 
 C* Direction d'incidence solaire : mup.
 C------------------------------------------------------
-            J=-JKW	!valeur M0
+            J=-JKW     !valeur M0
 
 C* Calcul des éléments de la matrice de phase P(mu,mup) 
 C* à l'ordre IS pour le mélange molécules + hydrosols.
@@ -6100,29 +6198,29 @@ C------------------------------------------------------
             YTJ=XTL(-J)
 
             BPJK=BP_CHL(J,K)*PCCHL+BP_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(BETA0+BETA2*XPJ*XPK)
+     &             +PCRAY*(BETA0+BETA2*XPJ*XPK)
             BPJMK=BP_CHL(J,-K)*PCCHL+BP_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(BETA0+BETA2*XPJ*YPK)
+     &             +PCRAY*(BETA0+BETA2*XPJ*YPK)
             GTJMK=GT_CHL(J,-K)*PCCHL+GT_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPJ*YTK)
+     &             +PCRAY*(GAMMA2*XPJ*YTK)
             GTJK=GT_CHL(J,K)*PCCHL+GT_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPJ*XTK)          
+     &             +PCRAY*(GAMMA2*XPJ*XTK)          
             GRJK=GR_CHL(J,K)*PCCHL+GR_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPJ*XRK)
+     &             +PCRAY*(GAMMA2*XPJ*XRK)
             GRJMK=GR_CHL(J,-K)*PCCHL+GR_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPJ*YRK)
+     &             +PCRAY*(GAMMA2*XPJ*YRK)
             GRKJ=GR_CHL(K,J)*PCCHL+GR_MLP(K,J)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPK*XRJ)
+     &             +PCRAY*(GAMMA2*XPK*XRJ)
             GRKMJ=GR_CHL(K,-J)*PCCHL+GR_MLP(K,-J)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPK*YRJ)
+     &             +PCRAY*(GAMMA2*XPK*YRJ)
             ARRJK=ARR_CHL(J,K)*PCCHL+ARR_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XRJ*XRK)
+     &             +PCRAY*(ALPHA2*XRJ*XRK)
             ARRJMK=ARR_CHL(J,-K)*PCCHL+ARR_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XRJ*YRK)
+     &             +PCRAY*(ALPHA2*XRJ*YRK)
             ARTKJ=ART_CHL(K,J)*PCCHL+ART_MLP(K,J)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XTK*XRJ)
+     &             +PCRAY*(ALPHA2*XTK*XRJ)
             ARTKMJ=ART_CHL(K,-J)*PCCHL+ART_MLP(K,-J)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XTK*YRJ)
+     &             +PCRAY*(ALPHA2*XTK*YRJ)
   
 
 
@@ -6133,7 +6231,7 @@ C------------------------------------------------------
                
 C* Récupération des valeurs de luminance d'ordre IG-1.
 C------------------------------------------------------
-            XI2 = EI_TR_SSURF * ATTDIR		
+            XI2 = EI_TR_SSURF * ATTDIR
             XQ2 = EQ_TR_SSURF * ATTDIR
 
 C* Application à la direction d'incidence solaire.
@@ -6144,8 +6242,9 @@ C-------------------------------------------------
             Q2(I,-K) =XI2*GRJK  +XQ2*ARRJK  
             U2(I,K)  =XI2*GTJMK -XQ2*ARTKMJ 
             U2(I,-K) =XI2*GTJK  +XQ2*ARTKJ  
-
- 455  CONTINUE   ! Boucle sur I et K
+          
+ 466     CONTINUE   ! Boucle sur I 
+ 455  CONTINUE   ! Boucle sur K
  
       GOTO 212
       
@@ -6160,15 +6259,15 @@ C------------------------------------------------------
 
 C* Boucle sur le profil.
 C------------------------
-         DO 45 I=0,CTE_NT_SEA
+         DO 46 I=0,CTE_NT_SEA
             
-            PCCHL=PC_CHL(I)	   
+            PCCHL=PC_CHL(I)           
             PCMLP=PC_MLP(I)
-	    ATTDIR=CH_SEA_MUS(I)
+            ATTDIR=CH_SEA_MUS(I)
 
 C* Direction d'incidence solaire : mup.
 C------------------------------------------------------
-            J=-JKW	 !valeur M0
+            J=-JKW         !valeur M0
 
 
 C* Calcul des éléments de la matrice de phase aérosols P(mu,mup)
@@ -6187,10 +6286,10 @@ C------------------------------------------------------
             ARTKJ=ART_CHL(K,J)*PCCHL + ART_MLP(K,J)*PCMLP
             ARTKMJ=ART_CHL(K,-J)*PCCHL + ART_MLP(K,-J)*PCMLP
             
-	       
+               
 C* Récupération des valeurs de luminance d'ordre IG-1.
 C------------------------------------------------------
-            XI2 = EI_TR_SSURF * ATTDIR		
+            XI2 = EI_TR_SSURF * ATTDIR
             XQ2 = EQ_TR_SSURF * ATTDIR
 
 C* Application à la direction d'incidence solaire.
@@ -6201,8 +6300,9 @@ C-------------------------------------------------
             Q2(I,-K)= XI2*GRJK  +XQ2*ARRJK 
             U2(I,K) = XI2*GTJMK -XQ2*ARTKMJ 
             U2(I,-K)= XI2*GTJK  +XQ2*ARTKJ  
-
-   45 CONTINUE    ! Boucle sur I et K
+         
+   46    CONTINUE   ! Boucle sur I 
+   45 CONTINUE    ! Boucle sur K
 
   212 CONTINUE
 
@@ -6210,21 +6310,21 @@ C-------------------------------------------------
       !Mode expert spécifique : annulation de la diffusion marine
       IF (EXPERT_MODE_FORCED_FSEA_NULL) THEN 
          WRITE(6,*) 
-     &	 " \n WARNING : SEA SOURCE FUNCTION FORCED TO NULL \n"
+     &   " \n WARNING : SEA SOURCE FUNCTION FORCED TO NULL \n"
          DO K=1,NBMU
-	    DO I=0,CTE_NT_SEA
-	       I2(I,K)=0.
-	       I2(I,-K)=0.
-	       Q2(I,K)=0.
-	       Q2(I,-K)=0.
-	       U2(I,K)=0.
-	       U2(I,-K)=0.
-	    ENDDO
-	 ENDDO
+            DO I=0,CTE_NT_SEA
+               I2(I,K)=0.
+               I2(I,-K)=0.
+               Q2(I,K)=0.
+               Q2(I,-K)=0.
+               U2(I,K)=0.
+               U2(I,-K)=0.
+            ENDDO
+         ENDDO
       ENDIF
-      	
+      
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_FSOURCE_SEA_ORDRE1_MERPLATE
+      END        !FIN DE LA PROCEDURE OSOAA_FSOURCE_SEA_ORDRE1_MERPLATE
 
 
 
@@ -6250,7 +6350,7 @@ C        -GT(mup,mu)   -ART(mu,mup)    ATT(mu,mup)
 C 
 C      Les termes réellement calculés sont équivalents en suivant les règles
 C      de permutation des indices. 
-C	
+C
 C      Une intégration spatiale est appliquée sur les directions d'incidence.
 C
 C      Calcul pour chaque niveau du profil et pour chaque direction de propagation.
@@ -6270,26 +6370,26 @@ C       PC_RAY(0:CTE_NT_SEA)  (double)  (E)  Pourcentage de molécules par niveau
 C       PC_CHL(0:CTE_NT_SEA)  (double)  (E)  Pourcentage de phytoplancton par niveau.
 C       PC_MLP(0:CTE_NT_SEA)  (double)  (E)  Pourcentage de sédiments par niveau.
 C
-C       BETA0	  (double)  (E) 
-C       BETA2     (double)  (E) 	.
-C       GAMMA2	  (double)  (E) 
-C       ALPHA2    (double)  (E) 	
+C       BETA0     (double)  (E) 
+C       BETA2     (double)  (E)
+C       GAMMA2    (double)  (E) 
+C       ALPHA2    (double)  (E)
 C                   Coefficients du développement de la matrice de phase
 C                   moléculaire en fonctions de Legendre
 C
-C       XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
-C      		     Fonction de Legendre PSL à l'ordre L=2 et S=IS
-C      		     en fonction de l'angle mu.     		
-C       XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
-C     		     Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
-C       XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 	
-C     		     Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
-C      	
+C       XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
+C                    Fonction de Legendre PSL à l'ordre L=2 et S=IS
+C                    en fonction de l'angle mu.     
+C       XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
+C                    Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
+C       XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
+C                    Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
+C      
 C       I1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)    Champ I.
 C       Q1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)    Champ Q.
 C       U1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)    Champ U.
-C         	     Champ de luminance d'ordre IG-1 en fonction du 
-C                    niveau du profil et de la direction. 	
+C                    Champ de luminance d'ordre IG-1 en fonction du 
+C                    niveau du profil et de la direction. 
 C
 C       BP_CHL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)
 C                    (E)  Elément P11.
@@ -6329,11 +6429,11 @@ C               la diffusion est exprimée par Pij(mu,mup).
 C
 C       GA(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) Tableau des poids des angles.
 C
-C       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)	
-C	         Vecteur fonction source I,Q,U en fonction du niveau du profil
-C	         et de la direction.
+C       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (S)
+C            Vecteur fonction source I,Q,U en fonction du niveau du profil
+C            et de la direction.
 C
 C
 C Common utilisé:
@@ -6350,9 +6450,9 @@ C==============================================================================
      &                                     BETA0,BETA2,GAMMA2,ALPHA2,
      &                                     XPL,XRL,XTL,I1,Q1,U1,
      &                                     BP_CHL,GR_CHL,GT_CHL,
-     &					   ARR_CHL,ART_CHL,ATT_CHL,
+     &                                     ARR_CHL,ART_CHL,ATT_CHL,
      &                                     BP_MLP,GR_MLP,GT_MLP,
-     &					   ARR_MLP,ART_MLP,ATT_MLP,GA,
+     &                                     ARR_MLP,ART_MLP,ATT_MLP,GA,
      &                                     I2,Q2,U2)
       
       IMPLICIT NONE
@@ -6366,47 +6466,44 @@ C*------------------------------------------------------------------
       DOUBLE PRECISION PC_CHL(0:CTE_NT_SEA)   !Pourcentage de phytoplancton par niveau.
       DOUBLE PRECISION PC_MLP(0:CTE_NT_SEA)   !Pourcentage de sédiments par niveau.
       
-      DOUBLE PRECISION BETA0	! Coefficients du développement de la matrice 
-      DOUBLE PRECISION BETA2	! de phase moléculaire en fonctions de Legendre.
-      DOUBLE PRECISION GAMMA2	
-      DOUBLE PRECISION ALPHA2	
+      DOUBLE PRECISION BETA0      ! Coefficients du développement de la matrice 
+      DOUBLE PRECISION BETA2      ! de phase moléculaire en fonctions de Legendre.
+      DOUBLE PRECISION GAMMA2
+      DOUBLE PRECISION ALPHA2
 
-      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			      ! Fonction de Legendre PSL à l'ordre L=2 et S=IS
-      			      ! en fonction de l'angle mu.     		
-      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
-      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
-
-
-      	! Champ de luminance d'ordre IG-1 en fonction du niveau du profil
-	! et de la direction.       	
-      DOUBLE PRECISION 
-     &       I1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ I.
-      DOUBLE PRECISION 
-     &       Q1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ Q.
-      DOUBLE PRECISION 
-     &       U1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ U.
-
-	! Vecteur fonction source en fonction du niveau du profil
-	! et de la direction.
-      DOUBLE PRECISION 
-     &       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour I.
-      DOUBLE PRECISION 
-     &       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour Q.
-      DOUBLE PRECISION 
-     &       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour U.
+      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                   ! Fonction de Legendre PSL à l'ordre L=2 et S=IS en fonction de l'angle mu.     
+      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                   ! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
+      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                   ! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
 
 
-	! Eléments Pij de la matrice de phase du phytoplancton pour un ordre
-	! IS de la décomposition en séries de Fourier.
-	! Soit mup la direction d'incidence (-1 < mup < 1)
-	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+      ! Champ de luminance d'ordre IG-1 en fonction du niveau du profil et de la direction.       
+      DOUBLE PRECISION 
+     &       I1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Champ I.
+      DOUBLE PRECISION 
+     &       Q1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Champ Q.
+      DOUBLE PRECISION 
+     &       U1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Champ U.
+
+      ! Vecteur fonction source en fonction du niveau du profil et de la direction.
+      DOUBLE PRECISION 
+     &       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                     ! Fonction source pour I.
+      DOUBLE PRECISION 
+     &       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                     ! Fonction source pour Q.
+      DOUBLE PRECISION 
+     &       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                     ! Fonction source pour U.
+
+
+      ! Eléments Pij de la matrice de phase du phytoplancton pour un ordre
+      ! IS de la décomposition en séries de Fourier.
+      ! Soit mup la direction d'incidence (-1 < mup < 1)
+      ! et mu celle de diffusion (-1 < mu < 1),
+      ! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP_CHL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &           -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -6426,11 +6523,11 @@ C*------------------------------------------------------------------
      &    ATT_CHL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &            -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! P33.    
 
-	! Eléments Pij de la matrice de phase des sédiments pour un ordre
-	! IS de la décomposition en séries de Fourier.
-	! Soit mup la direction d'incidence (-1 < mup < 1)
-	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+      ! Eléments Pij de la matrice de phase des sédiments pour un ordre
+      ! IS de la décomposition en séries de Fourier.
+      ! Soit mup la direction d'incidence (-1 < mup < 1)
+      ! et mu celle de diffusion (-1 < mu < 1),
+      ! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP_MLP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &           -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -6455,43 +6552,43 @@ C*------------------------------------------------------------------
 
       DOUBLE PRECISION GA(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! Tableau des poids de Gauss
 
-      DOUBLE PRECISION XPK	! Valeur de XPL pour les directions de
-      				! diffusion mu > 0 (indice K).	
-      DOUBLE PRECISION XRK	! Valeur de XRL pour mu > 0.
-      DOUBLE PRECISION XTK	! Valeur de XTL pour mu > 0.
-      DOUBLE PRECISION YPK	! Valeur de XPL pour -mu.	
-      DOUBLE PRECISION YRK	! Valeur de XRL pour -mu.
-      DOUBLE PRECISION YTK	! Valeur de XTL pour -mu.	
-      	
-      DOUBLE PRECISION XPJ	! Valeur de XPL pour les directions incidentes
-      				! mu = mup > 0 (indice J).
-      DOUBLE PRECISION XRJ	! Valeur de XRL pour mu = mup > 0.
-      DOUBLE PRECISION XTJ	! Valeur de XTL pour mu = mup > 0.
-      DOUBLE PRECISION YPJ	! Valeur de XPL pour mu = -mup.	
-      DOUBLE PRECISION YRJ	! Valeur de XRL pour mu = -mup.
-      DOUBLE PRECISION YTJ	! Valeur de XTL pour mu = -mup.		
+      DOUBLE PRECISION XPK      ! Valeur de XPL pour les directions de
+                                ! diffusion mu > 0 (indice K).
+      DOUBLE PRECISION XRK      ! Valeur de XRL pour mu > 0.
+      DOUBLE PRECISION XTK      ! Valeur de XTL pour mu > 0.
+      DOUBLE PRECISION YPK      ! Valeur de XPL pour -mu.
+      DOUBLE PRECISION YRK      ! Valeur de XRL pour -mu.
+      DOUBLE PRECISION YTK      ! Valeur de XTL pour -mu.
+      
+      DOUBLE PRECISION XPJ      ! Valeur de XPL pour les directions incidentes
+                                ! mu = mup > 0 (indice J).
+      DOUBLE PRECISION XRJ      ! Valeur de XRL pour mu = mup > 0.
+      DOUBLE PRECISION XTJ      ! Valeur de XTL pour mu = mup > 0.
+      DOUBLE PRECISION YPJ      ! Valeur de XPL pour mu = -mup.
+      DOUBLE PRECISION YRJ      ! Valeur de XRL pour mu = -mup.
+      DOUBLE PRECISION YTJ      ! Valeur de XTL pour mu = -mup.
 
-      DOUBLE PRECISION XI1	! Valeur de I du champ montant d'ordre IG-1.
-      DOUBLE PRECISION XQ1	! Valeur de Q du champ montant d'ordre IG-1.
-      DOUBLE PRECISION XU1	! Valeur de U du champ montant d'ordre IG-1.
-      DOUBLE PRECISION XI2	! Valeur de I du champ descendant d'ordre IG-1.
-      DOUBLE PRECISION XQ2	! Valeur de Q du champ descendant d'ordre IG-1.
-      DOUBLE PRECISION XU2	! Valeur de U du champ descendant d'ordre IG-1.
+      DOUBLE PRECISION XI1      ! Valeur de I du champ montant d'ordre IG-1.
+      DOUBLE PRECISION XQ1      ! Valeur de Q du champ montant d'ordre IG-1.
+      DOUBLE PRECISION XU1      ! Valeur de U du champ montant d'ordre IG-1.
+      DOUBLE PRECISION XI2      ! Valeur de I du champ descendant d'ordre IG-1.
+      DOUBLE PRECISION XQ2      ! Valeur de Q du champ descendant d'ordre IG-1.
+      DOUBLE PRECISION XU2      ! Valeur de U du champ descendant d'ordre IG-1.
 
-      DOUBLE PRECISION II1	! Valeur intermédiaire pour le calcul de I2 (mu < 0).
-      DOUBLE PRECISION QQ1	! Valeur intermédiaire pour le calcul de Q2 (mu < 0).
-      DOUBLE PRECISION UU1	! Valeur intermédiaire pour le calcul de U2 (mu < 0).
-      DOUBLE PRECISION II2 	! Valeur intermédiaire pour le calcul de I2 (mu > 0).
-      DOUBLE PRECISION QQ2 	! Valeur intermédiaire pour le calcul de Q2 (mu > 0).
-      DOUBLE PRECISION UU2 	! Valeur intermédiaire pour le calcul de U2 (mu > 0).
+      DOUBLE PRECISION II1      ! Valeur intermédiaire pour le calcul de I2 (mu < 0).
+      DOUBLE PRECISION QQ1      ! Valeur intermédiaire pour le calcul de Q2 (mu < 0).
+      DOUBLE PRECISION UU1      ! Valeur intermédiaire pour le calcul de U2 (mu < 0).
+      DOUBLE PRECISION II2      ! Valeur intermédiaire pour le calcul de I2 (mu > 0).
+      DOUBLE PRECISION QQ2      ! Valeur intermédiaire pour le calcul de Q2 (mu > 0).
+      DOUBLE PRECISION UU2      ! Valeur intermédiaire pour le calcul de U2 (mu > 0).
 
       DOUBLE PRECISION Z        ! Valeur ponctuelle du tableau des poids de Gauss.
 
-      DOUBLE PRECISION PCRAY	! Valeur du pourcentage de molécules.
-      DOUBLE PRECISION PCCHL	! Valeur du pourcentage de phytoplancton.
-      DOUBLE PRECISION PCMLP	! Valeur du pourcentage des sédiments.
+      DOUBLE PRECISION PCRAY    ! Valeur du pourcentage de molécules.
+      DOUBLE PRECISION PCCHL    ! Valeur du pourcentage de phytoplancton.
+      DOUBLE PRECISION PCMLP    ! Valeur du pourcentage des sédiments.
  
-      DOUBLE PRECISION BPJK	! Valeur des éléments de la matrice de 
+      DOUBLE PRECISION BPJK    ! Valeur des éléments de la matrice de 
       DOUBLE PRECISION BPJMK    ! phase du mélange molécules + aérosols.
       DOUBLE PRECISION GTJMK
       DOUBLE PRECISION GTJK
@@ -6510,7 +6607,7 @@ C*------------------------------------------------------------------
       DOUBLE PRECISION ATTJK
       DOUBLE PRECISION ATTJMK
 
-      INTEGER*4 IS	! Ordre en cours du développement en séries de Fourier.
+      INTEGER*4 IS      ! Ordre en cours du développement en séries de Fourier.
       INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
 
       INTEGER*4 I
@@ -6547,7 +6644,7 @@ C------------------------------------------------------
 
 C* Boucle sur le profil.
 C-----------------------
-         DO 455 I=0,CTE_NT_SEA
+         DO 466 I=0,CTE_NT_SEA
             II1=0.
             II2=0.
             QQ1=0.
@@ -6555,7 +6652,7 @@ C-----------------------
             UU1=0.
             UU2=0.
             PCRAY=PC_RAY(I)
-            PCCHL=PC_CHL(I)	   
+            PCCHL=PC_CHL(I)
             PCMLP=PC_MLP(I)
 
 
@@ -6574,41 +6671,41 @@ C------------------------------------------------------
                YTJ=XTL(-J)
 
                BPJK=BP_CHL(J,K)*PCCHL+BP_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(BETA0+BETA2*XPJ*XPK)
+     &             +PCRAY*(BETA0+BETA2*XPJ*XPK)
                BPJMK=BP_CHL(J,-K)*PCCHL+BP_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(BETA0+BETA2*XPJ*YPK)
+     &             +PCRAY*(BETA0+BETA2*XPJ*YPK)
                GTJMK=GT_CHL(J,-K)*PCCHL+GT_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPJ*YTK)
+     &             +PCRAY*(GAMMA2*XPJ*YTK)
                GTJK=GT_CHL(J,K)*PCCHL+GT_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPJ*XTK)
+     &             +PCRAY*(GAMMA2*XPJ*XTK)
                GTKMJ=GT_CHL(K,-J)*PCCHL+GT_MLP(K,-J)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPK*YTJ)
+     &             +PCRAY*(GAMMA2*XPK*YTJ)
                GTKJ=GT_CHL(K,J)*PCCHL+GT_MLP(K,J)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPK*XTJ)
+     &             +PCRAY*(GAMMA2*XPK*XTJ)
                GRJK=GR_CHL(J,K)*PCCHL+GR_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPJ*XRK)
+     &             +PCRAY*(GAMMA2*XPJ*XRK)
                GRJMK=GR_CHL(J,-K)*PCCHL+GR_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPJ*YRK)
+     &             +PCRAY*(GAMMA2*XPJ*YRK)
                GRKJ=GR_CHL(K,J)*PCCHL+GR_MLP(K,J)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPK*XRJ)
+     &             +PCRAY*(GAMMA2*XPK*XRJ)
                GRKMJ=GR_CHL(K,-J)*PCCHL+GR_MLP(K,-J)*PCMLP
-     &  	   +PCRAY*(GAMMA2*XPK*YRJ)
+     &             +PCRAY*(GAMMA2*XPK*YRJ)
                ARRJK=ARR_CHL(J,K)*PCCHL+ARR_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XRJ*XRK)
+     &             +PCRAY*(ALPHA2*XRJ*XRK)
                ARRJMK=ARR_CHL(J,-K)*PCCHL+ARR_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XRJ*YRK)
+     &             +PCRAY*(ALPHA2*XRJ*YRK)
                ARTJK=ART_CHL(J,K)*PCCHL+ART_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XTJ*XRK)
+     &             +PCRAY*(ALPHA2*XTJ*XRK)
                ARTJMK=ART_CHL(J,-K)*PCCHL+ART_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XTJ*YRK)
+     &             +PCRAY*(ALPHA2*XTJ*YRK)
                ARTKJ=ART_CHL(K,J)*PCCHL+ART_MLP(K,J)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XTK*XRJ)
+     &             +PCRAY*(ALPHA2*XTK*XRJ)
                ARTKMJ=ART_CHL(K,-J)*PCCHL+ART_MLP(K,-J)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XTK*YRJ)
+     &             +PCRAY*(ALPHA2*XTK*YRJ)
                ATTJMK=ATT_CHL(J,-K)*PCCHL+ATT_MLP(J,-K)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XTJ*YTK)
+     &             +PCRAY*(ALPHA2*XTJ*YTK)
                ATTJK=ATT_CHL(J,K)*PCCHL+ATT_MLP(J,K)*PCMLP
-     &  	   +PCRAY*(ALPHA2*XTJ*XTK)
+     &             +PCRAY*(ALPHA2*XTJ*XTK)
 
 
 
@@ -6651,7 +6748,8 @@ C--------------------------
             Q2(I,-K)=QQ1 * 0.5
             U2(I,K)=UU2 * 0.5
             U2(I,-K)=UU1 * 0.5
- 455  CONTINUE   ! Boucle sur I et K
+ 466     CONTINUE   ! Boucle sur I
+ 455  CONTINUE   ! Boucle sur K
  
       GOTO 212
       
@@ -6666,14 +6764,14 @@ C------------------------------------------------------
 
 C* Boucle sur le profil.
 C------------------------
-         DO 45 I=0,CTE_NT_SEA
+         DO 46 I=0,CTE_NT_SEA
             II1=0.
             II2=0.
             QQ1=0.
             QQ2=0.
             UU1=0.
             UU2=0.
-            PCCHL=PC_CHL(I)	   
+            PCCHL=PC_CHL(I)  
             PCMLP=PC_MLP(I)
 
 C* Boucle sur les directions d'incidence mup
@@ -6701,7 +6799,7 @@ C------------------------------------------------------
                ARTKMJ=ART_CHL(K,-J)*PCCHL + ART_MLP(K,-J)*PCMLP
                ATTJMK=ATT_CHL(J,-K)*PCCHL + ATT_MLP(J,-K)*PCMLP
                ATTJK=ATT_CHL(J,K)*PCCHL + ATT_MLP(J,K)*PCMLP
-	       
+      
 C* Calculs de la fonction source d'ordre IG, pour chaque 
 C* niveau du profil et chaque direction.
 C------------------------------------------------------
@@ -6742,8 +6840,9 @@ C--------------------------
             Q2(I,-K)=QQ1 * 0.5
             U2(I,K)=UU2  * 0.5
             U2(I,-K)=UU1 * 0.5
-	    
-   45 CONTINUE    ! Boucle sur I et K
+
+   46    CONTINUE   ! Boucle sur I
+   45 CONTINUE    ! Boucle sur K
 
   212 CONTINUE
 
@@ -6751,21 +6850,21 @@ C--------------------------
       !Mode expert spécifique : annulation de la diffusion marine
       IF (EXPERT_MODE_FORCED_FSEA_NULL) THEN 
          WRITE(6,*) 
-     &	 " \n WARNING : SEA SOURCE FUNCTION FORCED TO NULL \n"
+     &   " \n WARNING : SEA SOURCE FUNCTION FORCED TO NULL \n"
          DO K=1,NBMU
-	    DO I=0,CTE_NT_SEA
-	       I2(I,K)=0.
-	       I2(I,-K)=0.
-	       Q2(I,K)=0.
-	       Q2(I,-K)=0.
-	       U2(I,K)=0.
-	       U2(I,-K)=0.
-	    ENDDO
-	 ENDDO
+            DO I=0,CTE_NT_SEA
+               I2(I,K)=0.
+               I2(I,-K)=0.
+               Q2(I,K)=0.
+               Q2(I,-K)=0.
+               U2(I,K)=0.
+               U2(I,-K)=0.
+            ENDDO
+         ENDDO
       ENDIF
       
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_FSOURCE_SEA_ORDREIG
+      END      !FIN DE LA PROCEDURE OSOAA_FSOURCE_SEA_ORDREIG
 
 
 
@@ -6811,7 +6910,7 @@ C     U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (E)
 C                                                  Fonction source pour U
 C                          Vecteur fonction source en fonction du niveau du 
 C                          profil et de la direction.
-C    	
+C    
 C     I1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ I.
 C     Q1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ Q.
 C     U1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ U.
@@ -6821,7 +6920,7 @@ C
 C
 C      Les conditions limites sont supposées affectées aux champs I1, Q1 et U1
 C      au passage des arguments (par le programme appelant) :
-C      		I1(CTE_NT_ATM,K>0) en surface  (resp. Q1 et U1)
+C             I1(CTE_NT_ATM,K>0) en surface  (resp. Q1 et U1)
 C
 C Common utilisé:
 C --------------
@@ -6842,54 +6941,53 @@ C* Définition des variables
 C*------------------------------------------------------------------
 
 C* Directions de propagation :
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				!  Tableau des mu de Gauss.
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                !  Tableau des mu de Gauss.
 
 C* Profil d'épaisseur optique :
-      DOUBLE PRECISION H(0:CTE_NT_ATM)	!  Epaisseur optique pour chaque niveau.
-     	
+      DOUBLE PRECISION H(0:CTE_NT_ATM)  !  Epaisseur optique pour chaque niveau.
+ 
 C* Vecteur fonction source en fonction du niveau du profil et de la direction.
       DOUBLE PRECISION 
      &       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      					!  Fonction source pour I.
+                                       !  Fonction source pour I.
       DOUBLE PRECISION 
      &       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      					!  Fonction source pour Q.
+                                       !  Fonction source pour Q.
       DOUBLE PRECISION 
-     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      					!  Fonction source pour U.
+     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                       !  Fonction source pour U.
 
-C* Champ de luminance en fonction du niveau du profil et de la direction.       	
+C* Champ de luminance en fonction du niveau du profil et de la direction.       
       DOUBLE PRECISION 
-     &       I1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ I.
+     &       I1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  !  Champ I.
       DOUBLE PRECISION 
-     &       Q1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ Q.
+     &       Q1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  !  Champ Q.
       DOUBLE PRECISION 
-     &       U1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ U.
+     &       U1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  !  Champ U.
 
-      DOUBLE PRECISION RMUK 	! Valeur K du tableau des mu de Gauss 
+      DOUBLE PRECISION RMUK     ! Valeur K du tableau des mu de Gauss 
 
-      DOUBLE PRECISION ZI1	! Valeur intermédiaire pour le calcul de I1
-      				! à l'ordre IG.
-      DOUBLE PRECISION ZQ1	! Valeur intermédiaire pour le calcul de Q1.
-      DOUBLE PRECISION ZU1	! Valeur intermédiaire pour le calcul de U1.
+      DOUBLE PRECISION ZI1    ! Valeur intermédiaire pour le calcul de I1 à l'ordre IG.
+      DOUBLE PRECISION ZQ1    ! Valeur intermédiaire pour le calcul de Q1.
+      DOUBLE PRECISION ZU1    ! Valeur intermédiaire pour le calcul de U1.
 
-      DOUBLE PRECISION DTAU   	! Epaisseur optique d'une couche.
+      DOUBLE PRECISION DTAU   ! Epaisseur optique d'une couche.
 
-      DOUBLE PRECISION ATT	! Atténuation entre deux niveaux consécutifs.
+      DOUBLE PRECISION ATT    ! Atténuation entre deux niveaux consécutifs.
 
-      DOUBLE PRECISION MATT	! 1 - att.
+      DOUBLE PRECISION MATT   ! 1 - att.
 
-      DOUBLE PRECISION ATTDTAU	! att * dtau
+      DOUBLE PRECISION ATTDTAU  ! att * dtau
 
-      DOUBLE PRECISION A,B	! Coefficients d'interpolation linéaire
+      DOUBLE PRECISION A,B    ! Coefficients d'interpolation linéaire
 
-      INTEGER*4 I,JJ		! Indices de niveau.
-      INTEGER*4 K		! Indice de direction.
-      INTEGER*4 NBMU            ! Nombre d'angles effectifs des simulations
-		
-		
-C------------------------------------------------------	
+      INTEGER*4 I,JJ        ! Indices de niveau.
+      INTEGER*4 K           ! Indice de direction.
+      INTEGER*4 NBMU        ! Nombre d'angles effectifs des simulations
+
+
+C------------------------------------------------------
 C* Intégration du champ de luminance montant (mu > 0) du sol au TOA.
 C*
 C* Intégration de proche en proche du sol au TOA par linéarisation
@@ -6903,8 +7001,8 @@ C* Initialisation par la valeur au sol.
          ZI1=I1(CTE_NT_ATM,K)
          ZQ1=Q1(CTE_NT_ATM,K)
          ZU1=U1(CTE_NT_ATM,K)
-		
-         DO 108 I=CTE_NT_ATM-1,0,-1
+
+         DO 109 I=CTE_NT_ATM-1,0,-1
             JJ=I+1
             DTAU = H(JJ)-H(I)
             ATT = DEXP(-DTAU/RMUK)
@@ -6925,12 +7023,13 @@ C* Initialisation par la valeur au sol.
             A = (U2(JJ,K) - B) / DTAU
             ZU1 = ZU1*ATT + MATT*(A*RMUK+B) - A*ATTDTAU
             U1(I,K)=ZU1
-108   CONTINUE        !Boucles sur I et K
+109      CONTINUE        !Boucles sur I
+108   CONTINUE        !Boucles sur K
 
 
 
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_INTEGR_EPOPT_ATM_UP
+      END      !FIN DE LA PROCEDURE OSOAA_INTEGR_EPOPT_ATM_UP
 
 
 
@@ -6973,7 +7072,7 @@ C     U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (E)
 C                                                  Fonction source pour U
 C                          Vecteur fonction source en fonction du niveau du 
 C                          profil et de la direction.
-C    	
+C    
 C     I1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ I.
 C     Q1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ Q.
 C     U1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ U.
@@ -6983,7 +7082,7 @@ C
 C
 C      Les conditions limites sont supposées affectées aux champs I1, Q1 et U1
 C      au passage des arguments (par le programme appelant) :
-C      		I1(0,K<0) = 0. au TOA          (resp. Q1 et U1)
+C               I1(0,K<0) = 0. au TOA          (resp. Q1 et U1)
 C
 C Common utilisé:
 C --------------
@@ -7004,52 +7103,51 @@ C* Définition des variables
 C*------------------------------------------------------------------
 
 C* Directions de propagation :
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				!  Tableau des mu de Gauss.
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                !  Tableau des mu de Gauss.
 
 C* Profil d'épaisseur optique :
-      DOUBLE PRECISION H(0:CTE_NT_ATM)	!  Epaisseur optique pour chaque niveau.
-     	
+      DOUBLE PRECISION H(0:CTE_NT_ATM)  !  Epaisseur optique pour chaque niveau.
+     
 C* Vecteur fonction source en fonction du niveau du profil et de la direction.
       DOUBLE PRECISION 
      &       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      					!  Fonction source pour I.
+                                      !  Fonction source pour I.
       DOUBLE PRECISION 
      &       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      					!  Fonction source pour Q.
+                                      !  Fonction source pour Q.
       DOUBLE PRECISION 
-     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      					!  Fonction source pour U.
+     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                      !  Fonction source pour U.
 
-C* Champ de luminance en fonction du niveau du profil et de la direction.       	
+C* Champ de luminance en fonction du niveau du profil et de la direction.       
       DOUBLE PRECISION 
-     &       I1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ I.
+     &       I1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  !  Champ I.
       DOUBLE PRECISION 
-     &       Q1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ Q.
+     &       Q1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  !  Champ Q.
       DOUBLE PRECISION 
-     &       U1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ U.
+     &       U1(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  !  Champ U.
 
-      DOUBLE PRECISION RMUK 	! Valeur K du tableau des mu de Gauss 
+      DOUBLE PRECISION RMUK   ! Valeur K du tableau des mu de Gauss 
 
-      DOUBLE PRECISION ZI1	! Valeur intermédiaire pour le calcul de I1
-      				! à l'ordre IG.
-      DOUBLE PRECISION ZQ1	! Valeur intermédiaire pour le calcul de Q1.
-      DOUBLE PRECISION ZU1	! Valeur intermédiaire pour le calcul de U1.
+      DOUBLE PRECISION ZI1    ! Valeur intermédiaire pour le calcul de I1 à l'ordre IG.
+      DOUBLE PRECISION ZQ1    ! Valeur intermédiaire pour le calcul de Q1.
+      DOUBLE PRECISION ZU1    ! Valeur intermédiaire pour le calcul de U1.
 
-      DOUBLE PRECISION DTAU   	! Epaisseur optique d'une couche.
+      DOUBLE PRECISION DTAU   ! Epaisseur optique d'une couche.
 
-      DOUBLE PRECISION ATT	! Atténuation entre deux niveaux consécutifs.
+      DOUBLE PRECISION ATT    ! Atténuation entre deux niveaux consécutifs.
 
-      DOUBLE PRECISION MATT	! 1 - att.
+      DOUBLE PRECISION MATT   ! 1 - att.
 
-      DOUBLE PRECISION ATTDTAU	! att * dtau
+      DOUBLE PRECISION ATTDTAU  ! att * dtau
 
-      DOUBLE PRECISION A,B	! Coefficients d'interpolation linéaire
+      DOUBLE PRECISION A,B    ! Coefficients d'interpolation linéaire
 
-      INTEGER*4 I,JJ		! Indices de niveau.
-      INTEGER*4 K		! Indice de direction.
-      INTEGER*4 NBMU            ! Nombre d'angles effectifs des simulations
-		
+      INTEGER*4 I,JJ          ! Indices de niveau.
+      INTEGER*4 K             ! Indice de direction.
+      INTEGER*4 NBMU          ! Nombre d'angles effectifs des simulations
+
 
 
 C------------------------------------------------------
@@ -7068,7 +7166,7 @@ C* Initialisation par la valeur au TOA.
          ZQ1=Q1(0,K)
          ZU1=U1(0,K)
 
-         DO 109 I=1,CTE_NT_ATM
+         DO 110 I=1,CTE_NT_ATM
             JJ=I-1
             DTAU = H(I)-H(JJ)
             ATT = DEXP(DTAU/RMUK)
@@ -7089,10 +7187,11 @@ C* Initialisation par la valeur au TOA.
             A = (B- U2(JJ,K)) / DTAU
             ZU1 = ZU1*ATT + MATT*(A*RMUK+B) + A*ATTDTAU
             U1(I,K)=ZU1
-  109 CONTINUE  !Boucles sur I et K
+  110    CONTINUE  !Boucles sur I 
+  109 CONTINUE  !Boucles sur K
 
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_INTEGR_EPOPT_ATM_DOWN
+      END      !FIN DE LA PROCEDURE OSOAA_INTEGR_EPOPT_ATM_DOWN
 
 
 
@@ -7120,7 +7219,7 @@ C      Les couches sont supposées homogènes.
 C
 C      Les conditions limites sont supposées affectées aux champs I1, Q1 et U1
 C      au passage des arguments (par le programme appelant) :
-C      		I1(CTE_NT_SEA,K>0) au fond  (resp. Q1 et U1)
+C               I1(CTE_NT_SEA,K>0) au fond  (resp. Q1 et U1)
 C
 C
 C Description des paramètres
@@ -7138,7 +7237,7 @@ C     U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (E)
 C                                                  Fonction source pour U
 C                          Vecteur fonction source en fonction du niveau du 
 C                          profil et de la direction.
-C    	
+C    
 C     I1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ I.
 C     Q1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ Q.
 C     U1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ U.
@@ -7155,7 +7254,7 @@ C     Aucun
 C
 C==============================================================================
       SUBROUTINE OSOAA_INTEGR_EPOPT_SEA_UP(NBMU,RMU,H,I2,Q2,U2,
-     &        				   I1,Q1,U1)
+     &                                     I1,Q1,U1)
       
       IMPLICIT NONE
       
@@ -7164,53 +7263,52 @@ C* Définition des variables
 C*------------------------------------------------------------------
 
 C* Directions de propagation :
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				!  Tableau des mu de Gauss.
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                !  Tableau des mu de Gauss.
 
 C* Profil d'épaisseur optique :
-      DOUBLE PRECISION H(0:CTE_NT_SEA)	!  Epaisseur optique pour chaque niveau.
-     	
+      DOUBLE PRECISION H(0:CTE_NT_SEA)  !  Epaisseur optique pour chaque niveau.
+     
 C* Vecteur fonction source en fonction du niveau du profil et de la direction.
       DOUBLE PRECISION 
      &       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      					!  Fonction source pour I.
+                                     !  Fonction source pour I.
       DOUBLE PRECISION 
      &       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      					!  Fonction source pour Q.
+                                     !  Fonction source pour Q.
       DOUBLE PRECISION 
-     &       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      					!  Fonction source pour U.
+     &       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                     !  Fonction source pour U.
 
-C* Champ de luminance en fonction du niveau du profil et de la direction.       	
+C* Champ de luminance en fonction du niveau du profil et de la direction.       
       DOUBLE PRECISION 
-     &       I1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ I.
+     &       I1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   !  Champ I.
       DOUBLE PRECISION
-     &       Q1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ Q.
+     &       Q1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   !  Champ Q.
       DOUBLE PRECISION 
-     &       U1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ U.
+     &       U1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   !  Champ U.
 
-      DOUBLE PRECISION RMUK 	! Valeur K du tableau des mu de Gauss 
+      DOUBLE PRECISION RMUK    ! Valeur K du tableau des mu de Gauss 
 
-      DOUBLE PRECISION ZI1	! Valeur intermédiaire pour le calcul de I1
-      				! à l'ordre IG.
-      DOUBLE PRECISION ZQ1	! Valeur intermédiaire pour le calcul de Q1.
-      DOUBLE PRECISION ZU1	! Valeur intermédiaire pour le calcul de U1.
+      DOUBLE PRECISION ZI1   ! Valeur intermédiaire pour le calcul de I1 à l'ordre IG.
+      DOUBLE PRECISION ZQ1   ! Valeur intermédiaire pour le calcul de Q1.
+      DOUBLE PRECISION ZU1   ! Valeur intermédiaire pour le calcul de U1.
 
-      DOUBLE PRECISION DTAU   	! Epaisseur optique d'une couche.
+      DOUBLE PRECISION DTAU  ! Epaisseur optique d'une couche.
 
-      DOUBLE PRECISION ATT	! Atténuation entre deux niveaux consécutifs.
+      DOUBLE PRECISION ATT   ! Atténuation entre deux niveaux consécutifs.
 
-      DOUBLE PRECISION MATT	! 1 - att.
+      DOUBLE PRECISION MATT  ! 1 - att.
 
-      DOUBLE PRECISION ATTDTAU	! att * dtau
+      DOUBLE PRECISION ATTDTAU   ! att * dtau
 
-      DOUBLE PRECISION A,B	! Coefficients d'interpolation linéaire
+      DOUBLE PRECISION A,B   ! Coefficients d'interpolation linéaire
 
-      INTEGER*4 I,JJ		! Indices de niveau.
-      INTEGER*4 K		! Indice de direction.
-      INTEGER*4 NBMU            ! Nombre d'angles effectifs des simulations
-		
-C------------------------------------------------------	
+      INTEGER*4 I,JJ        ! Indices de niveau.
+      INTEGER*4 K           ! Indice de direction.
+      INTEGER*4 NBMU        ! Nombre d'angles effectifs des simulations
+ 
+C------------------------------------------------------
 C* Intégration du champ de luminance montant (mu > 0) du fond à la surface.
 C*
 C* Intégration de proche en proche du fond à la surface par linéarisation
@@ -7224,8 +7322,8 @@ C* Initialisation par la valeur au fond de mer.
          ZI1=I1(CTE_NT_SEA,K)
          ZQ1=Q1(CTE_NT_SEA,K)
          ZU1=U1(CTE_NT_SEA,K)
-		
-         DO 108 I=CTE_NT_SEA-1,0,-1
+
+         DO 109 I=CTE_NT_SEA-1,0,-1
             JJ=I+1
             DTAU = H(JJ)-H(I)
             ATT = DEXP(-DTAU/RMUK)
@@ -7246,11 +7344,12 @@ C* Initialisation par la valeur au fond de mer.
             A = (U2(JJ,K) - B) / DTAU
             ZU1 = ZU1*ATT + MATT*(A*RMUK+B) - A*ATTDTAU
             U1(I,K)=ZU1
-108   CONTINUE        !Boucles sur I et K
+109      CONTINUE        !Boucles sur I 
+108   CONTINUE        !Boucles sur K
 
 
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_INTEGR_EPOPT_SEA_UP
+      END     !FIN DE LA PROCEDURE OSOAA_INTEGR_EPOPT_SEA_UP
 
 
 
@@ -7279,7 +7378,7 @@ C      Les couches sont supposées homogènes.
 C
 C      Les conditions limites sont supposées affectées aux champs I1, Q1 et U1
 C      au passage des arguments (par le programme appelant) :
-C      		I1(0,K<0) en surface	    (resp. Q1 et U1)
+C              I1(0,K<0) en surface    (resp. Q1 et U1)
 C
 C Description des paramètres
 C -------------------------- 
@@ -7296,7 +7395,7 @@ C     U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (E)
 C                                                  Fonction source pour U
 C                          Vecteur fonction source en fonction du niveau du 
 C                          profil et de la direction.
-C    	
+C    
 C     I1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ I.
 C     Q1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ Q.
 C     U1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double) (S) Champ U.
@@ -7322,52 +7421,51 @@ C* Définition des variables
 C*------------------------------------------------------------------
 
 C* Directions de propagation :
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				!  Tableau des mu de Gauss.
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                !  Tableau des mu de Gauss.
 
 C* Profil d'épaisseur optique :
-      DOUBLE PRECISION H(0:CTE_NT_SEA)	!  Epaisseur optique pour chaque niveau.
-     	
+      DOUBLE PRECISION H(0:CTE_NT_SEA)  !  Epaisseur optique pour chaque niveau.
+     
 C* Vecteur fonction source en fonction du niveau du profil et de la direction.
       DOUBLE PRECISION 
      &       I2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      					!  Fonction source pour I.
+                                     !  Fonction source pour I.
       DOUBLE PRECISION 
      &       Q2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      					!  Fonction source pour Q.
+                                     !  Fonction source pour Q.
       DOUBLE PRECISION 
-     &       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      					!  Fonction source pour U.
+     &       U2(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                     !  Fonction source pour U.
 
-C* Champ de luminance en fonction du niveau du profil et de la direction.       	
+C* Champ de luminance en fonction du niveau du profil et de la direction.      
       DOUBLE PRECISION 
-     &       I1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ I.
+     &       I1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  !  Champ I.
       DOUBLE PRECISION 
-     &       Q1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ Q.
+     &       Q1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  !  Champ Q.
       DOUBLE PRECISION 
-     &       U1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	!  Champ U.
+     &       U1(0:CTE_NT_SEA,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  !  Champ U.
 
-      DOUBLE PRECISION RMUK 	! Valeur K du tableau des mu de Gauss 
+      DOUBLE PRECISION RMUK     ! Valeur K du tableau des mu de Gauss 
 
-      DOUBLE PRECISION ZI1	! Valeur intermédiaire pour le calcul de I1
-      				! à l'ordre IG.
-      DOUBLE PRECISION ZQ1	! Valeur intermédiaire pour le calcul de Q1.
-      DOUBLE PRECISION ZU1	! Valeur intermédiaire pour le calcul de U1.
+      DOUBLE PRECISION ZI1    ! Valeur intermédiaire pour le calcul de I1  à l'ordre IG.
+      DOUBLE PRECISION ZQ1    ! Valeur intermédiaire pour le calcul de Q1.
+      DOUBLE PRECISION ZU1    ! Valeur intermédiaire pour le calcul de U1.
 
-      DOUBLE PRECISION DTAU   	! Epaisseur optique d'une couche.
+      DOUBLE PRECISION DTAU   ! Epaisseur optique d'une couche.
 
-      DOUBLE PRECISION ATT	! Atténuation entre deux niveaux consécutifs.
+      DOUBLE PRECISION ATT    ! Atténuation entre deux niveaux consécutifs.
 
-      DOUBLE PRECISION MATT	! 1 - att.
+      DOUBLE PRECISION MATT   ! 1 - att.
 
-      DOUBLE PRECISION ATTDTAU	! att * dtau
+      DOUBLE PRECISION ATTDTAU   ! att * dtau
 
-      DOUBLE PRECISION A,B	! Coefficients d'interpolation linéaire
+      DOUBLE PRECISION A,B    ! Coefficients d'interpolation linéaire
 
-      INTEGER*4 I,JJ		! Indices de niveau.
-      INTEGER*4 K		! Indice de direction.
-      INTEGER*4 NBMU            ! Nombre d'angles effectifs des simulations
-		
+      INTEGER*4 I,JJ         ! Indices de niveau.
+      INTEGER*4 K            ! Indice de direction.
+      INTEGER*4 NBMU         ! Nombre d'angles effectifs des simulations
+
 
 
 C------------------------------------------------------
@@ -7382,11 +7480,11 @@ C------------------------------------------------------
          RMUK=RMU(K)
 
 C* Initialisation par la valeur en surface.
-	 ZI1=I1(0,K)
+         ZI1=I1(0,K)
          ZQ1=Q1(0,K)
          ZU1=U1(0,K)
 
-         DO 109 I=1,CTE_NT_SEA
+         DO 110 I=1,CTE_NT_SEA
             JJ=I-1
             DTAU = H(I)-H(JJ)
             ATT = DEXP(DTAU/RMUK)
@@ -7407,10 +7505,11 @@ C* Initialisation par la valeur en surface.
             A = (B- U2(JJ,K)) / DTAU
             ZU1 = ZU1*ATT + MATT*(A*RMUK+B) + A*ATTDTAU
             U1(I,K)=ZU1
-  109 CONTINUE  !Boucles sur I et K
+  110    CONTINUE  !Boucles sur I 
+  109 CONTINUE  !Boucles sur K
 
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_INTEGR_EPOPT_SEA_DOWN
+      END      !FIN DE LA PROCEDURE OSOAA_INTEGR_EPOPT_SEA_DOWN
 
 
 
@@ -7443,8 +7542,8 @@ C      Supposons avoir un comportement de série géométrique convergente à
 C      partir de l'ordre IG-2 de diffusion.
 C      La raison de la série est estimée entre les termes IG-2 et IG-1, ainsi
 C      qu'entre les termes IG-1 et IG :
-C 		_ q  = D1 / A1  (rapport des ordres IG-1 / IG-2 pour I)
-C		_ q' = G1 / D1  (rapport des ordres IG / IG-1 pour I)
+C                 _ q  = D1 / A1  (rapport des ordres IG-1 / IG-2 pour I)
+C                _ q' = G1 / D1  (rapport des ordres IG / IG-1 pour I)
 C     On teste que q et q' sont voisins (condition pour une approximation de
 C     série géométrique).
 C     On teste en même temps le rapport de la somme des termes de la série
@@ -7461,34 +7560,34 @@ C --------------------------
 C
 C    NBMU (I4)    (E)  Nombre d'angles (positifs) effectivement utiles
 C
-C    I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)		
+C    I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
 C                         Paramètre de Stokes I pour le cumul des
-C      		          ordres de diffusion précédant IG en cours.
+C                         ordres de diffusion précédant IG en cours.
 C    Q3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)  Paramètre de Stokes Q.
 C    U3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)  Paramètre de Stokes U.
-C            			
+C            
 C    A1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C       	          Paramètre de Stokes I pour l'ordre IG-2. 
+C                         Paramètre de Stokes I pour l'ordre IG-2. 
 C    B1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			  Paramètre de Stokes Q pour l'ordre IG-2.
+C                         Paramètre de Stokes Q pour l'ordre IG-2.
 C    C1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			  Paramètre de Stokes U pour l'ordre IG-2.
+C                         Paramètre de Stokes U pour l'ordre IG-2.
 C
 C    D1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			  Paramètre de Stokes I pour l'ordre IG-1.	
+C                         Paramètre de Stokes I pour l'ordre IG-1.
 C    E1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			  Paramètre de Stokes Q pour l'ordre IG-1.
+C                         Paramètre de Stokes Q pour l'ordre IG-1.
 C    F1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			  Paramètre de Stokes U pour l'ordre IG-1.
+C                         Paramètre de Stokes U pour l'ordre IG-1.
 C
 C    G1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      		          Paramètre de Stokes I pour l'ordre IG.	
+C                         Paramètre de Stokes I pour l'ordre IG.
 C    H1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			  Paramètre de Stokes Q pour l'ordre IG.
+C                         Paramètre de Stokes Q pour l'ordre IG.
 C    P1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			  Paramètre de Stokes U pour l'ordre IG.
+C                         Paramètre de Stokes U pour l'ordre IG.
 C
-C    Z1	   (double)   (S)    Paramètre de convergence.
+C    Z1   (double)   (S)    Paramètre de convergence.
 C
 C
 C Common utilisé:
@@ -7509,42 +7608,42 @@ C==============================================================================
 C* Définition des variables     
 C*------------------------------------------------------------------
 
-      DOUBLE PRECISION Z1	! Paramètre de convergence.
+      DOUBLE PRECISION Z1    ! Paramètre de convergence.
 
-	! Fonctions pour le test de convergence en séries géométriques,
-	! champ émergeant au TOA (mu > 0) et descendant au sol (mu < 0).
-	! Les fonctions sont établies pour un ordre S du développement
-	! en séries de Fourier, en fonction de l'angle mu.		
-      DOUBLE PRECISION I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)		
+      ! Fonctions pour le test de convergence en séries géométriques,
+      ! champ émergeant au TOA (mu > 0) et descendant au sol (mu < 0).
+      ! Les fonctions sont établies pour un ordre S du développement
+      ! en séries de Fourier, en fonction de l'angle mu.
+      DOUBLE PRECISION I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
                                 ! Paramètre de Stokes I pour le cumul des
-      				! ordres de diffusion précédant IG en cours.
+                                ! ordres de diffusion précédant IG en cours.
       DOUBLE PRECISION Q3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes Q.
+                                ! Paramètre de Stokes Q.
       DOUBLE PRECISION U3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes U.
-            			
+                                ! Paramètre de Stokes U.
+            
       DOUBLE PRECISION A1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-       				! Paramètre de Stokes I pour l'ordre IG-2. 
+                                ! Paramètre de Stokes I pour l'ordre IG-2. 
       DOUBLE PRECISION B1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-2.
+                                ! Paramètre de Stokes Q pour l'ordre IG-2.
       DOUBLE PRECISION C1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes U pour l'ordre IG-2.
+                                ! Paramètre de Stokes U pour l'ordre IG-2.
 
       DOUBLE PRECISION D1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG-1.
+                                ! Paramètre de Stokes I pour l'ordre IG-1.
       DOUBLE PRECISION E1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-1.
+                                ! Paramètre de Stokes Q pour l'ordre IG-1.
       DOUBLE PRECISION F1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG-1.
+                                ! Paramètre de Stokes U pour l'ordre IG-1.
 
       DOUBLE PRECISION G1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG.
+                                ! Paramètre de Stokes I pour l'ordre IG.
       DOUBLE PRECISION H1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG.
+                                ! Paramètre de Stokes Q pour l'ordre IG.
       DOUBLE PRECISION P1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG.
+                                ! Paramètre de Stokes U pour l'ordre IG.
 
-      DOUBLE PRECISION Y	! Variable pour les tests d'arrêt.
+      DOUBLE PRECISION Y        ! Variable pour les tests d'arrêt.
 
       INTEGER*4 K
       INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
@@ -7562,7 +7661,7 @@ C----------------------------------------------------------------------------
          Y=((G1(K)/D1(K)-D1(K)/A1(K))
      &       /((1-G1(K)/D1(K))**2)*(G1(K)/I3(K)))
          Z1=DMAX1(Z1,DABS(Y))
-	 
+
    51    CONTINUE
    
          IF (B1(K).EQ.0.D+00) GO TO 53
@@ -7571,7 +7670,7 @@ C----------------------------------------------------------------------------
          Y=((H1(K)/E1(K)-E1(K)/B1(K))
      &       /((1-H1(K)/E1(K))**2)*(H1(K)/Q3(K)))
          Z1=DMAX1(Z1,DABS(Y))
-	 
+
    53    CONTINUE
    
          IF (C1(K).EQ.0.D+00) GO TO 55
@@ -7580,13 +7679,13 @@ C----------------------------------------------------------------------------
          Y=((P1(K)/F1(K)-F1(K)/C1(K))
      &       /((1-P1(K)/F1(K))**2)*(P1(K)/U3(K)))
          Z1=DMAX1(Z1,DABS(Y))
-	 
+
    55    CONTINUE
    
    99 CONTINUE
 
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_PARAM_CONV
+      END      !FIN DE LA PROCEDURE OSOAA_PARAM_CONV
 
 
 
@@ -7607,17 +7706,17 @@ C
 C    I1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E)
 C    Q1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E)
 C    U1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E)
-C      	 Champ de luminance d'ordre IG en fonction de la direction
-C        (pour les niveaux présélectionnés)     	
+C        Champ de luminance d'ordre IG en fonction de la direction
+C        (pour les niveaux présélectionnés)     
 C
-C    I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)	
+C    I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
 C            Paramètre de Stokes I pour le cumul des ordres de diffusion 
 C            précédant IG en cours, en fonction de la direction
 C            (pour les niveaux présélectionnés)
 C    Q3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) Paramètre de Stokes Q.
 C    U3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) Paramètre de Stokes U
 C
-C    Z1	   (double)   (S)    Variable seuil pour les tests d'arrêt.
+C    Z1   (double)   (S)    Variable seuil pour les tests d'arrêt.
 C
 C
 C Common utilisé:
@@ -7637,27 +7736,26 @@ C==============================================================================
 C* Définition des variables     
 C*------------------------------------------------------------------
 
-      DOUBLE PRECISION Z1	! Variable seuil pour les tests d'arrêt.
+      DOUBLE PRECISION Z1    ! Variable seuil pour les tests d'arrêt.
 
-      	! Champ de luminance d'ordre IG en fonction du niveau du profil
-	! et de la direction.       	
-      DOUBLE PRECISION I1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ I.
-      DOUBLE PRECISION Q1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ Q.
-      DOUBLE PRECISION U1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	! Champ U.
+      ! Champ de luminance d'ordre IG en fonction du niveau du profil et de la direction.       
+      DOUBLE PRECISION I1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)    ! Champ I.
+      DOUBLE PRECISION Q1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)    ! Champ Q.
+      DOUBLE PRECISION U1(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)    ! Champ U.
 
-	! Fonctions pour le test de convergence en séries géométrique,
-	! champ montant (mu > 0) et descendant (mu < 0).
-	! Les fonctions sont établies pour un ordre S du développement
-	! en séries de Fourier, en fonction de l'angle mu.	
-      DOUBLE PRECISION I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)		
+      ! Fonctions pour le test de convergence en séries géométrique,
+      ! champ montant (mu > 0) et descendant (mu < 0).
+      ! Les fonctions sont établies pour un ordre S du développement
+      ! en séries de Fourier, en fonction de l'angle mu.
+      DOUBLE PRECISION I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
                                 ! Paramètre de Stokes I pour le cumul des
-      				! ordres de diffusion précédant IG en cours.
+                                ! ordres de diffusion précédant IG en cours.
       DOUBLE PRECISION Q3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes Q.
+                                ! Paramètre de Stokes Q.
       DOUBLE PRECISION U3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes U.
+                                ! Paramètre de Stokes U.
  
-      DOUBLE PRECISION Y	! Variable pour les tests d'arrêt.
+      DOUBLE PRECISION Y        ! Variable pour les tests d'arrêt.
      
       INTEGER*4 K 
       INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
@@ -7675,12 +7773,12 @@ C---------------------------------------------------------------------------
   
          Y=I1(K)/I3(K)
          Z1=DMAX1(Z1,DABS(Y))
-	 
+
    92    IF (Q3(K).EQ.0.D+00) GO TO 94
    
          Y=Q1(K)/Q3(K)
          Z1=DMAX1(Z1,DABS(Y))
-	 
+ 
    94    IF (U3(K).EQ.0.D+00) GO TO 88
    
          Y=U1(K)/U3(K)
@@ -7688,7 +7786,7 @@ C---------------------------------------------------------------------------
    88 CONTINUE
    
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_ARRET_DIFFUS
+      END        !FIN DE LA PROCEDURE OSOAA_ARRET_DIFFUS
 
 
 
@@ -7708,21 +7806,21 @@ C
 C    NBMU (I4) (E)  Nombre d'angles (positifs) effectivement utiles
 C
 C    D1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E) 
-C                            Paramètre de Stokes I pour l'ordre IG-1.	
+C                            Paramètre de Stokes I pour l'ordre IG-1.
 C    E1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      		             Paramètre de Stokes Q pour l'ordre IG-1.
+C                            Paramètre de Stokes Q pour l'ordre IG-1.
 C    F1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			     Paramètre de Stokes U pour l'ordre IG-1.
+C                            Paramètre de Stokes U pour l'ordre IG-1.
 C
 C    G1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			     Paramètre de Stokes I pour l'ordre IG.	
+C                            Paramètre de Stokes I pour l'ordre IG.
 C    H1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			     Paramètre de Stokes Q pour l'ordre IG.
+C                            Paramètre de Stokes Q pour l'ordre IG.
 C    P1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
-C      			     Paramètre de Stokes U pour l'ordre IG.
+C                            Paramètre de Stokes U pour l'ordre IG.
 C
 C
-C    I3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E/S)	
+C    I3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E/S)
 C            Paramètre de Stokes I pour le cumul des ordres de diffusion 
 C            précédant l'ordre IG en cours.
 C    Q3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E/S) Paramètre de Stokes Q.
@@ -7746,46 +7844,46 @@ C==============================================================================
 
 C Constantes OSOAA_AJOUT_QUEUE
 C ----------------------------  
-      INTEGER*4 NT_TOT		! Nombre total de couches (atmosphère + mer)      
-      PARAMETER(NT_TOT=CTE_NT_ATM+CTE_NT_SEA+1)		
+      INTEGER*4 NT_TOT      ! Nombre total de couches (atmosphère + mer)      
+      PARAMETER(NT_TOT=CTE_NT_ATM+CTE_NT_SEA+1)
    
    
    
 C* Définition des variables     
 C*------------------------------------------------------------------
 
-	! Cumul précédent des ordres d'interaction.
-	! Les fonctions sont établies pour un ordre S du développement
-	! en séries de Fourier, en fonction de l'angle mu.	
-      DOUBLE PRECISION I3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)		
+      ! Cumul précédent des ordres d'interaction.
+      ! Les fonctions sont établies pour un ordre S du développement
+      ! en séries de Fourier, en fonction de l'angle mu.
+      DOUBLE PRECISION I3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
                                 ! Paramètre de Stokes I pour le cumul des
-      				! ordres de diffusion précédant IG en cours.
+                                ! ordres de diffusion précédant IG en cours.
       DOUBLE PRECISION Q3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes Q.
+                                ! Paramètre de Stokes Q.
       DOUBLE PRECISION U3(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes U
-				
+                                ! Paramètre de Stokes U
+
       DOUBLE PRECISION D1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG-1.
+                                ! Paramètre de Stokes I pour l'ordre IG-1.
       DOUBLE PRECISION E1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG-1.
+                                ! Paramètre de Stokes Q pour l'ordre IG-1.
       DOUBLE PRECISION F1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG-1.
+                                ! Paramètre de Stokes U pour l'ordre IG-1.
 
       DOUBLE PRECISION G1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes I pour l'ordre IG.
+                                ! Paramètre de Stokes I pour l'ordre IG.
       DOUBLE PRECISION H1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      				! Paramètre de Stokes Q pour l'ordre IG.
+                                ! Paramètre de Stokes Q pour l'ordre IG.
       DOUBLE PRECISION P1(0:NT_TOT,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      			  	! Paramètre de Stokes U pour l'ordre IG.
+                                ! Paramètre de Stokes U pour l'ordre IG.
 
 
-      DOUBLE PRECISION I1QUEUE	
-      		! Valeur estimée de la queue de série géométrique pour I.
+      DOUBLE PRECISION I1QUEUE
+                    ! Valeur estimée de la queue de série géométrique pour I.
       DOUBLE PRECISION Q1QUEUE
-      		! Valeur estimée de la queue de série géométrique pour Q.
+                    ! Valeur estimée de la queue de série géométrique pour Q.
       DOUBLE PRECISION U1QUEUE
-      		! Valeur estimée de la queue de série géométrique pour U.
+                    ! Valeur estimée de la queue de série géométrique pour U.
 
       INTEGER*4 J
       INTEGER*4 K
@@ -7800,34 +7898,34 @@ C------------------------------------------------------
          DO 610 J=-NBMU,NBMU
       
             IF (J.EQ.0) GOTO 610
-	
+
             IF (D1(K,J).EQ.0.) THEN
                I1QUEUE = 0.
-            ELSE	
+            ELSE
                I1QUEUE = G1(K,J) / ( 1-G1(K,J)/D1(K,J) )
             ENDIF
-	 	
+
             IF (E1(K,J).EQ.0.) THEN
                Q1QUEUE = 0.
-            ELSE	
+            ELSE
                Q1QUEUE = H1(K,J) / ( 1-H1(K,J)/E1(K,J) )
-            ENDIF	
-	
+            ENDIF
+
             IF (F1(K,J).EQ.0.) THEN
                U1QUEUE = 0.
-            ELSE	
+            ELSE
                U1QUEUE = P1(K,J) / ( 1-P1(K,J)/F1(K,J) )
-            ENDIF	
+            ENDIF
 
             I3(K,J)=I3(K,J)+I1QUEUE
             Q3(K,J)=Q3(K,J)+Q1QUEUE
             U3(K,J)=U3(K,J)+U1QUEUE
-	
+
   610    CONTINUE
   600 CONTINUE
       
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_AJOUT_QUEUE
+      END        !FIN DE LA PROCEDURE OSOAA_AJOUT_QUEUE
       
       
 
@@ -7849,26 +7947,26 @@ C
 C      mu > 0 ==> Champ émergeant au TOA
 C      mu < 0 ==> Champ descendant au fond de mer
 C
-C    I4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) 	
+C    I4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E)
 C    Q4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) 
 C    U4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) 
 C        Tableaux de sommation des ordres S de la décomposition
 C        en séries de Fourier, en fonction de l'angle mu.
 C
-C    I5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) 	
+C    I5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E)
 C    Q5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) 
-C    U5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) 	
+C    U5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E)
 C        Tableaux de sommation des ordres S de la décomposition
 C        en séries de Fourier, avec permutation du signe des ordres S,
-C	 en fonction de l'angle mu.
+C        en fonction de l'angle mu.
 C
-C    I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)	
+C    I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  (double)  (E)
 C            Paramètre de Stokes I pour le cumul des ordres de diffusion 
 C            précédant IG en cours.
 C    Q3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) Paramètre de Stokes Q.
 C    U3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)   (double)  (E) Paramètre de Stokes U
 C
-C    Z1	   (double)   (S)    Variable seuil pour les tests d'arrêt.
+C    Z1    (double)   (S)    Variable seuil pour les tests d'arrêt.
 C
 C
 C   
@@ -7889,34 +7987,34 @@ C==============================================================================
 C* Définition des variables     
 C*------------------------------------------------------------------
 
-      DOUBLE PRECISION Z1	! Variable seuil pour les tests d'arrêt.
+      DOUBLE PRECISION Z1      ! Variable seuil pour les tests d'arrêt.
 
-	! Tableaux de sommation des ordres S de la décomposition
-        ! en séries de Fourier, en fonction de l'angle mu.
-      DOUBLE PRECISION I4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
+      ! Tableaux de sommation des ordres S de la décomposition
+      ! en séries de Fourier, en fonction de l'angle mu.
+      DOUBLE PRECISION I4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION Q4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION U4(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
 
-        ! Tableaux de sommation des ordres S de la décomposition
-        ! en séries de Fourier, avec permutation du signe des ordres S,
-	! en fonction de l'angle mu.
-      DOUBLE PRECISION I5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
+      ! Tableaux de sommation des ordres S de la décomposition
+      ! en séries de Fourier, avec permutation du signe des ordres S,
+      ! en fonction de l'angle mu.
+      DOUBLE PRECISION I5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
       DOUBLE PRECISION Q5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
-      DOUBLE PRECISION U5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
+      DOUBLE PRECISION U5(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
 
-	! Champ émergeant au TOA (mu > 0) et descendant au sol (mu < 0).
-	! Les fonctions sont établies pour un ordre S du développement
-	! en séries de Fourier, en fonction de l'angle mu.
-      DOUBLE PRECISION I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)		
+      ! Champ émergeant au TOA (mu > 0) et descendant au sol (mu < 0).
+      ! Les fonctions sont établies pour un ordre S du développement
+      ! en séries de Fourier, en fonction de l'angle mu.
+      DOUBLE PRECISION I3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
                                 ! Paramètre de Stokes I pour le cumul des
-      				! ordres de diffusion précédant IG en cours.
+                                ! ordres de diffusion précédant IG en cours.
       DOUBLE PRECISION Q3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes Q.
+                                ! Paramètre de Stokes Q.
       DOUBLE PRECISION U3(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  
-      				! Paramètre de Stokes U.
+                                ! Paramètre de Stokes U.
  
 
-      DOUBLE PRECISION Y	! Variable pour les tests d'arrêt.
+      DOUBLE PRECISION Y      ! Variable pour les tests d'arrêt.
       
       INTEGER*4 J
       INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
@@ -7937,15 +8035,15 @@ C----------------------------------------------------------------------------
          IF (J.EQ.0) GOTO 169
 
          IF (Q4(J).EQ.0.D+00) GO TO 71
-	 
+ 
          Y=DABS(Q3(J)/Q4(J))
          Z1=DMAX1(Z1,Y)
-	 
+ 
    71    IF (I4(J).EQ.0.D+00) GO TO 73
    
          Y=DABS(I3(J)/I4(J))
          Z1=DMAX1(Z1,Y)
-	 
+
    73    IF (U4(J).EQ.0.D+00) GO TO 74
    
          Y=DABS(U3(J)/U4(J))
@@ -7955,12 +8053,12 @@ C----------------------------------------------------------------------------
    
          Y=DABS(Q3(J)/Q5(J))
          Z1=DMAX1(Z1,Y)
-	 
+ 
   771    IF (U5(J).EQ.0.D+00) GO TO 772
   
          Y=DABS(U3(J)/U5(J))
          Z1=DMAX1(Z1,Y)
-	 
+ 
   772    IF (I5(J).EQ.0.D+00) GO TO 169
   
          Y=DABS(I3(J)/I5(J))
@@ -7969,7 +8067,7 @@ C----------------------------------------------------------------------------
   169 CONTINUE
 
       RETURN
-      END  	!FIN DE LA PROCEDURE OSOAA_ARRET_FOURIER
+      END        !FIN DE LA PROCEDURE OSOAA_ARRET_FOURIER
       
       
       
@@ -7996,7 +8094,7 @@ C
 C
 C      L'indice de réfraction relatif du dioptre, entre le milieu de 
 C      réflexion (N1) et le milieu de transmission (N2), est N = N1/N2.
-C			
+C                       
 C      La matrice de Fresnel, exprimée pour un repère lié au plan de réflexion
 C      s'écrit pour une réflexion comme pour une transmission :
 C                   | F11(i)  F12(i)    0    |
@@ -8045,15 +8143,15 @@ C       * Dans le cas d'un dépassement de l'angle limite d'incidence
 C         (incidence donnant une transmission à 90°) 
 C          ==> La transmission est nulle et la réflexion est totale
 C
-C              	  Cas d'une transmission	| 	Cas d'une réflexion
-C   		      F11(i) = 0.0		|    	   F11(i) = 1.0
-C                     F12(i) = 0.0		|          F12(i) = 0.0
-C                     F33(i) = 0.0		|          F33(i) = 1.0
+C                Cas d'une transmission         | Cas d'une réflexion
+C                     F11(i) = 0.0              |       F11(i) = 1.0
+C                     F12(i) = 0.0              |          F12(i) = 0.0
+C                     F33(i) = 0.0              |          F33(i) = 1.0
 C
 C
 C
 C
-C	Pour le cas d'une transmission, la matrice F(i) est N*N*Tflux 
+C       Pour le cas d'une transmission, la matrice F(i) est N*N*Tflux 
 C      (avec Tflux la matrice de transmission en flux)
 C
 C       ==> Applicable pour le calcul de luminances transmises
@@ -8067,33 +8165,33 @@ C Description des paramètres
 C -------------------------- 
 C    
 C       CINTER (CHAR*3) (E) : Chaine de 3 caractères précisant le type d'interface
-C			      à simuler :
-C   				une réflexion air -> air : "RAA"  
-C			  	une réflexion mer -> mer : "RWW"
-C				une transmission air -> mer : "TAW"
-C				une transmission mer -> air : "TWA"
+C                             à simuler :
+C                               une réflexion air -> air : "RAA"  
+C                               une réflexion mer -> mer : "RWW"
+C                               une transmission air -> mer : "TAW"
+C                               une transmission mer -> air : "TWA"
 C
 C       IND   (double) (E)  : Indice de réfraction de l'eau / air.
 C
-C	RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) (E) : Cosinus des angles.
-C	
+C       RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (DOUBLE) (E) : Cosinus des angles.
+C
 C       NBMU (I4) (E) : Nombre d'angles (positifs) effectivement utiles
 C
 C       I_INC(1:CTE_OS_NBMU_MAX) (double) (E)  
 C       Q_INC(1:CTE_OS_NBMU_MAX) (double) (E)
 C       U_INC(1:CTE_OS_NBMU_MAX) (double) (E) :
-C			Valeur des champs I, Q et U incidents 
-C			- sous la surface : champ Up au niveau 0-
-C 			- en surface : champ Down au niveau 0+
+C                       Valeur des champs I, Q et U incidents 
+C                       - sous la surface : champ Up au niveau 0-
+C                       - en surface : champ Down au niveau 0+
 C
 C      I_DEV_INTERPO(1:CTE_OS_NBMU_MAX) (double) (S) 
 C      Q_DEV_INTERPO(1:CTE_OS_NBMU_MAX) (double) (S) 
 C      U_DEV_INTERPO(1:CTE_OS_NBMU_MAX) (double) (S) 
-C			Valeur des champs I, Q et U déviés, 
+C                       Valeur des champs I, Q et U déviés, 
 C                       les angles de transmission étant les angles du tableau RMU
 C                       (i.e. du fichier des angles de propagation)
-C			- en surface : champ Up au niveau 0+
-C			- sous la surface : champ Down au niveau 0-
+C                       - en surface : champ Up au niveau 0+
+C                       - sous la surface : champ Down au niveau 0-
 C
 C       TRACE  (LOGICAL)  (E)  ! = vrai si écriture dans le fichier trace.
 C       IER  (I4)   (S) : code d'erreur =0 si pas d'erreur, =-1 sinon
@@ -8121,233 +8219,244 @@ C
 C
 C==============================================================================
       SUBROUTINE OSOAA_INTERF_MERPLATE(CINTER,IND,RMU,NBMU,
-     & 				I_INC,Q_INC,U_INC,
-     &				       I_DEV_INTERPO,Q_DEV_INTERPO,
-     &				       U_DEV_INTERPO, TRACE, IER)
+     &                                 I_INC,Q_INC,U_INC,
+     &                                 I_DEV_INTERPO,Q_DEV_INTERPO,
+     &                                 U_DEV_INTERPO, TRACE, IER)
       
       IMPLICIT NONE
       
 C Constantes 
 C -----------------            
-      INTEGER*2 IDLOG	! Numéro identifiant du fichier Trace	    
+      INTEGER*2 IDLOG      ! Numéro identifiant du fichier Trace    
       PARAMETER(IDLOG=INCTE_IDLOG_SOS)
       
       
 C* Définition des variables     
 C*------------------------------------------------------------------
 C* Directions de propagation :
-      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      				!  (E) Tableau des mu de Gauss.
+      DOUBLE PRECISION RMU(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                !  (E) Tableau des mu de Gauss.
 
-      DOUBLE PRECISION RMUT(1:CTE_OS_NBMU_MAX)	! Tableau des mu transmis.
-				
-      DOUBLE PRECISION IND	! (E) Indice de réfraction de l'eau / air
+      DOUBLE PRECISION RMUT(1:CTE_OS_NBMU_MAX)      ! Tableau des mu transmis.
 
-      DOUBLE PRECISION I_INC(1:CTE_OS_NBMU_MAX)	! (E) Valeur du champ I incident
-      						!     sous l'eau : champ Up au niveau 0-
-						!     en surface : champ Down au niveau 0+
-      DOUBLE PRECISION Q_INC(1:CTE_OS_NBMU_MAX)	! (E) Valeur du champ Q incident
-      DOUBLE PRECISION U_INC(1:CTE_OS_NBMU_MAX)	! (E) Valeur du champ U incident
+      DOUBLE PRECISION IND      ! (E) Indice de réfraction de l'eau / air
 
-      DOUBLE PRECISION I_DEV(1:CTE_OS_NBMU_MAX)	
-      				! Valeur du champ I dévié (transmis ou réfléchi) 
-      				! pour les angles correspondant aux angles de déviation.
-				!   - en surface : champ Up au niveau 0+
-      				!   - sous l'eau : champ Down au niveau 0-
-      DOUBLE PRECISION Q_DEV(1:CTE_OS_NBMU_MAX)	! Valeur du champ Q dévié
-      DOUBLE PRECISION U_DEV(1:CTE_OS_NBMU_MAX)	! Valeur du champ U dévié
+      DOUBLE PRECISION I_INC(1:CTE_OS_NBMU_MAX) ! (E) Valeur du champ I incident
+                                                !     sous l'eau : champ Up au niveau 0-
+                                                !     en surface : champ Down au niveau 0+
+      DOUBLE PRECISION Q_INC(1:CTE_OS_NBMU_MAX) ! (E) Valeur du champ Q incident
+      DOUBLE PRECISION U_INC(1:CTE_OS_NBMU_MAX) ! (E) Valeur du champ U incident
 
-      DOUBLE PRECISION I_DEV_INTERPO(1:CTE_OS_NBMU_MAX)	
-      				! (S)  Valeur du champ I dévié pour les 
-      				!      pour les angles correspondant aux angles 
-				!      de déviation. 
-				!      - en surface : champ Up au niveau 0+
-      				!      - sous l'eau : champ Down au niveau 0-
-      DOUBLE PRECISION Q_DEV_INTERPO(1:CTE_OS_NBMU_MAX)	! (S)  Valeur du champ Q dévié
-      DOUBLE PRECISION U_DEV_INTERPO(1:CTE_OS_NBMU_MAX)	! (S)  Valeur du champ U dévié
+      DOUBLE PRECISION I_DEV(1:CTE_OS_NBMU_MAX)
+                                ! Valeur du champ I dévié (transmis ou réfléchi) 
+                                ! pour les angles correspondant aux angles de déviation.
+                                !   - en surface : champ Up au niveau 0+
+                                !   - sous l'eau : champ Down au niveau 0-
+      DOUBLE PRECISION Q_DEV(1:CTE_OS_NBMU_MAX) ! Valeur du champ Q dévié
+      DOUBLE PRECISION U_DEV(1:CTE_OS_NBMU_MAX) ! Valeur du champ U dévié
 
-      DOUBLE PRECISION COS_I	! Cosinus de l'angle d'incidence.
-      DOUBLE PRECISION SIN2_I	! Sinus carré de l'angle d'incidence.
-      DOUBLE PRECISION COS_T	! Cosinus de l'angle réfracté.
-      DOUBLE PRECISION SIN2_T	! Sinus carré de l'angle réfracté.
-      DOUBLE PRECISION N1SN2	! Rapport de l'indice N1 du milieu incident
-      				! sur l'indice N2 du milieu de réfraction.
+      DOUBLE PRECISION I_DEV_INTERPO(1:CTE_OS_NBMU_MAX)
+                                ! (S)  Valeur du champ I dévié pour les 
+                                !      pour les angles correspondant aux angles 
+                                !      de déviation. 
+                                !      - en surface : champ Up au niveau 0+
+                                !      - sous l'eau : champ Down au niveau 0-
+      DOUBLE PRECISION Q_DEV_INTERPO(1:CTE_OS_NBMU_MAX) ! (S)  Valeur du champ Q dévié
+      DOUBLE PRECISION U_DEV_INTERPO(1:CTE_OS_NBMU_MAX) ! (S)  Valeur du champ U dévié
+
+      DOUBLE PRECISION COS_I    ! Cosinus de l'angle d'incidence.
+      DOUBLE PRECISION SIN2_I   ! Sinus carré de l'angle d'incidence.
+      DOUBLE PRECISION COS_T    ! Cosinus de l'angle réfracté.
+      DOUBLE PRECISION SIN2_T   ! Sinus carré de l'angle réfracté.
+      DOUBLE PRECISION N1SN2    ! Rapport de l'indice N1 du milieu incident
+                                ! sur l'indice N2 du milieu de réfraction.
 
       DOUBLE PRECISION COS_TMAX ! Cosinus de l'angle maximal de transmission.
       
-      DOUBLE PRECISION CL	! Coefficient de réflexion ou transmission parallèle.
-      DOUBLE PRECISION CR	! Coefficient de réflexion ou transmission perpendiculaire.
+      DOUBLE PRECISION CL      ! Coefficient de réflexion ou transmission parallèle.
+      DOUBLE PRECISION CR      ! Coefficient de réflexion ou transmission perpendiculaire.
       
-      DOUBLE PRECISION COEFT	! Coefficient de pondération de la matrice de Fresnel
-      				! en transmission.
+      DOUBLE PRECISION COEFT   ! Coefficient de pondération de la matrice de Fresnel en transmission.
  
-      DOUBLE PRECISION F11(1:CTE_OS_NBMU_MAX)	
+      DOUBLE PRECISION F11(1:CTE_OS_NBMU_MAX)
                                 ! Elément R11 de la matrice de Fresnel en réflexion
-      				! ou transmission en fonction de l'angle d'incidence.
+                                ! ou transmission en fonction de l'angle d'incidence.
       DOUBLE PRECISION F12(1:CTE_OS_NBMU_MAX)     
-      				! Elément R12 de la matrice de Fresnel.
+                                ! Elément R12 de la matrice de Fresnel.
       DOUBLE PRECISION F33(1:CTE_OS_NBMU_MAX)    
-      				! Elément R33 de la matrice de Fresnel
+                                ! Elément R33 de la matrice de Fresnel
 
 
-      INTEGER*4 IER       	! (S) code d'erreur =0 si pas d'erreur, =-1 sinon
+      INTEGER*4 IER             ! (S) code d'erreur =0 si pas d'erreur, =-1 sinon
 
-      INTEGER*4 NBMU      	!  (E) Nombre d'angles effectifs des simulations      
-      INTEGER*4 NBMUT     	!  Nombre d'angles pour lesquels il y a une transmission
-      				!  pour une incidence selon les angles de Gauss
+      INTEGER*4 NBMU            !  (E) Nombre d'angles effectifs des simulations      
+      INTEGER*4 NBMUT           !  Nombre d'angles pour lesquels il y a une transmission
+                                !  pour une incidence selon les angles de Gauss
       
       INTEGER*4 NBMU_INTERPO    !  Nombre d'angles de propagation pour lesquels il y a 
-      				!  une transmission non nulle à interpoler.
+                                !  une transmission non nulle à interpoler.
       
-      INTEGER*4 J	  	! Indice d'angle
+      INTEGER*4 J               ! Indice d'angle
       
-      CHARACTER*3 CINTER	! (E) Chaine de caractères précisant le cas d'interface 
-      				!   une réflexion air -> air : "RAA"
-				!   une réflexion mer -> mer : "RWW"
-				!   une transmission air -> mer : "TAW"
-				!   une transmission mer -> air : "TWA"
+      CHARACTER*3 CINTER        ! (E) Chaine de caractères précisant le cas d'interface 
+                                !   une réflexion air -> air : "RAA"
+                                !   une réflexion mer -> mer : "RWW"
+                                !   une transmission air -> mer : "TAW"
+                                !   une transmission mer -> air : "TWA"
 
-      LOGICAL TRACE        	! (E) = vrai si écriture dans le fichier trace
+      LOGICAL TRACE             ! (E) = vrai si écriture dans le fichier trace
+
+      DOUBLE PRECISION RAD2DEG  ! 180./PI
 
 
-
+C* Conversion radians en degrés
+C------------------------------
+      RAD2DEG = 180.D+00/INCTE_PI
 
 C* Initialisation
 C----------------
       NBMUT=0     
 
 
-C* Calcul du rapport d'indice du milieu incident sur le milieu de réfraction	
+C* Calcul du rapport d'indice du milieu incident sur le milieu de réfraction
 C---------------------------------------------------------------------------      
       IF ((CINTER.NE."RAA").AND.(CINTER.NE."TAW").AND.
      &    (CINTER.NE."RWW").AND.(CINTER.NE."TWA")) GOTO 900
 
-      IF (CINTER.EQ."RAA") THEN	!Cas de la réflexion air --> air  
-	  N1SN2 = 1.D+00/IND  !milieu incident d'indice 1, milieu de réfraction d'indice IND
+      IF (CINTER.EQ."RAA") THEN !Cas de la réflexion air --> air  
+          N1SN2 = 1.D+00/IND  !milieu incident d'indice 1, milieu de réfraction d'indice IND
       ENDIF
       
       IF (CINTER.EQ."TAW") THEN !Cas de la transmission air --> mer 
-	  N1SN2 = 1.D+00/IND  !milieu incident d'indice 1, milieu de réfraction d'indice IND
+          N1SN2 = 1.D+00/IND  !milieu incident d'indice 1, milieu de réfraction d'indice IND
       ENDIF
       
       IF (CINTER.EQ."RWW") THEN !Cas de la réflexion mer --> mer
-	  N1SN2 = IND !milieu incident d'indice IND, milieu de réfraction d'indice 1
+          N1SN2 = IND !milieu incident d'indice IND, milieu de réfraction d'indice 1
       ENDIF
       
       IF (CINTER.EQ."TWA") THEN !Cas de la transmission mer --> air   
-	  N1SN2 = IND !milieu incident d'indice IND, milieu de réfraction d'indice 1
+          N1SN2 = IND !milieu incident d'indice IND, milieu de réfraction d'indice 1
       ENDIF     
       
       
       IF (TRACE) THEN
       
          WRITE(IDLOG,*,ERR=910) "\n Flat sea :"
-	 
+         
          IF (CINTER.EQ."RAA") THEN
-	    WRITE(IDLOG,*,ERR=910) " Reflection Air -> Air  "
-	 ENDIF   
+            WRITE(IDLOG,*,ERR=910) " Reflection Air -> Air  "
+         ENDIF   
 
          IF (CINTER.EQ."RWW") THEN
-	    WRITE(IDLOG,*,ERR=910) " Reflection Sea -> Sea  "
-	 ENDIF   
-	 
+            WRITE(IDLOG,*,ERR=910) " Reflection Sea -> Sea  "
+         ENDIF   
+         
          IF (CINTER.EQ."TAW") THEN
-	    WRITE(IDLOG,*,ERR=910) " Transmission Air -> Sea  "
-	 ENDIF  
+            WRITE(IDLOG,*,ERR=910) " Transmission Air -> Sea  "
+         ENDIF  
 
          IF (CINTER.EQ."TWA") THEN
-	    WRITE(IDLOG,*,ERR=910) " Transmission Sea -> Air  "
-	 ENDIF   	  	 
+            WRITE(IDLOG,*,ERR=910) " Transmission Sea -> Air  "
+         ENDIF   
       ENDIF 
       
       
       
-C* Calcul des éléments de la matrice de Fresnel	(réflexion ou transmission)
+C* Calcul des éléments de la matrice de Fresnel (réflexion ou transmission)
 C--------------------------------------------------------------------------
       DO 104 J=1,NBMU
 
-         !Cosinus de l'angle d'incidence	
-	 COS_I=RMU(J)		
-		 
-	 SIN2_I= 1.D+00-COS_I*COS_I
+         !Cosinus de l'angle d'incidence
+         COS_I=RMU(J)
+ 
+         SIN2_I= 1.D+00-COS_I*COS_I
 
 C* Cosinus de l'angle de réfraction (angle / normale au dioptre) :
 C-----------------------------------------------------------------
-	 SIN2_T = N1SN2*N1SN2*SIN2_I
-	 
-	 IF (SIN2_T.LE.1.D+00) THEN
-	 
+         SIN2_T = N1SN2*N1SN2*SIN2_I
+ 
+         IF (SIN2_T.LE.1.D+00) THEN
+ 
              COS_T = DSQRT(1.D+00 - SIN2_T)
-	     RMUT(J)=COS_T	!Stockage de mu transmis
+             RMUT(J)=COS_T      !Stockage de mu transmis
 
 C* Coefficients de réflexion parallèle et perpendiculaire
 C--------------------------------------------------------
-	     CL= (COS_I - N1SN2*COS_T) / (COS_I + N1SN2*COS_T)
-	     CR= (N1SN2*COS_I - COS_T) / (N1SN2*COS_I + COS_T)
+             CL= (COS_I - N1SN2*COS_T) / (COS_I + N1SN2*COS_T)
+             CR= (N1SN2*COS_I - COS_T) / (N1SN2*COS_I + COS_T)
 
 C* Coefficients de réflexion ou transmission parallèle et perpendiculaire
-C------------------------------------------------------------------------	 
-	     COEFT = 1.D+00
-	     IF ((CINTER.EQ."TAW").OR.(CINTER.EQ."TWA")) THEN    
-	        IF (COS_I.NE.0.) THEN
-		   COEFT = COS_T  / (COS_I*N1SN2*N1SN2*N1SN2)
-		ELSE
-		   !Cas d'une incidence à 90 degrés ==> Pas de transmission
-		   COEFT = 0.
-		ENDIF   
-	        CL= N1SN2 * (1.D+00+CL)
-	        CR= 1.D+00 + CR
-		
-		NBMUT=NBMUT+1	!Incrémentation du nb de mu transmis (hors réflexion totale)
-	     ENDIF 
-	 	
+C------------------------------------------------------------------------
+             COEFT = 1.D+00
+             IF ((CINTER.EQ."TAW").OR.(CINTER.EQ."TWA")) THEN    
+                IF (COS_I.NE.0.) THEN
+                   COEFT = COS_T  / (COS_I*N1SN2*N1SN2*N1SN2)
+                ELSE
+                   !Cas d'une incidence à 90 degrés ==> Pas de transmission
+                   COEFT = 0.
+                ENDIF   
+                CL= N1SN2 * (1.D+00+CL)
+                CR= 1.D+00 + CR
+                
+                NBMUT=NBMUT+1      !Incrémentation du nb de mu transmis (hors réflexion totale)
+             ENDIF 
+
 C* Eléments de la matrice de Fresnel en réflexion ou transmission
 C----------------------------------------------------------------
              F11(J)=.5*(CL*CL+CR*CR) * COEFT
              F12(J)=.5*(CL*CL-CR*CR) * COEFT
              F33(J)=CL*CR * COEFT
 
-	 ELSE ! Gestion dépassement de l'angle limite
+         ELSE ! Gestion dépassement de l'angle limite
 
-             RMUT(J)=0.	!Stockage de mu transmis
-	     
-	     IF ((CINTER.EQ."TAW").OR.(CINTER.EQ."TWA")) THEN    
-	        F11(J)=0.D+00
+             RMUT(J)=0.      !Stockage de mu transmis
+    
+             IF ((CINTER.EQ."TAW").OR.(CINTER.EQ."TWA")) THEN    
+                F11(J)=0.D+00
                 F12(J)=0.D+00
                 F33(J)=0.D+00
-	     ELSE
-	        F11(J)=1.D+00
+             ELSE
+                F11(J)=1.D+00
                 F12(J)=0.D+00
                 F33(J)=1.D+00
-	     ENDIF
-	     
-	 ENDIF !Fin test transmission possible	
+             ENDIF
+             
+         ENDIF !Fin test transmission possible
+
+
+         !coupure de la polarisation de surface
+         IF (CTE_POLAR_SWITCHED_OFF.EQ.1) THEN  
+             F12(J)=0.D+00
+             F33(J)=0.D+00
+         ENDIF 
 
 
 C* Passage de l'interface : champ pour les angles de transmissions
-C*                          directement associés aux angles de Gauss incident	
+C*                          directement associés aux angles de Gauss incident
 C--------------------------------------------------------------
-        I_DEV(J) = F11(J)*I_INC(J) + F12(J)*Q_INC(J)
-	 Q_DEV(J) = F12(J)*I_INC(J) + F11(J)*Q_INC(J)
-	 U_DEV(J) = F33(J)*U_INC(J) 
-	 
-	 
+         I_DEV(J) = F11(J)*I_INC(J) + F12(J)*Q_INC(J)
+         Q_DEV(J) = F12(J)*I_INC(J) + F11(J)*Q_INC(J)
+         U_DEV(J) = F33(J)*U_INC(J) 
+ 
+
 C* Fichier trace 
 C-----------------
          IF (TRACE) THEN
-	 
+ 
             WRITE(IDLOG,200,ERR=910) 
-     &           ' Angle inc :',DACOS(COS_I)*180./INCTE_PI,
-     &           ' Ang trans :',DACOS(RMUT(J))*180./INCTE_PI,
+     &           ' Angle inc :',DACOS(COS_I)*RAD2DEG,
+     &           ' Ang trans :',DACOS(RMUT(J))*RAD2DEG,
      &           ' F11 ',F11(J),' F12 ',F12(J),' F33 ',F33(J),
      &           ' I_I ',I_INC(J),' I_D ',I_DEV(J),
-     &		   ' Q_I ',Q_INC(J),' Q_D ',Q_DEV(J),
-     &		   ' U_I ',U_INC(J),' U_D ',U_DEV(J)
+     &           ' Q_I ',Q_INC(J),' Q_D ',Q_DEV(J),
+     &           ' U_I ',U_INC(J),' U_D ',U_DEV(J)
 
          ENDIF
-	 
+
  104  CONTINUE
  
+
       IF (TRACE) THEN
          WRITE(IDLOG,*,ERR=910) " "
          WRITE(IDLOG,*,ERR=910) " "
@@ -8359,76 +8468,75 @@ C--------------------------------------------------------------
       
       IF ((CINTER.EQ."TAW").OR.(CINTER.EQ."TWA")) THEN  
          !Cas d'une transmission : angles de transmission 
-	 !                         à interpoler aux angles de Gauss
-	 !                         ==> jusqu'à l'angle de transmission maximal
-	
-	
-	 IF (N1SN2.GT.1.) THEN
-	    !Cas transition mer -> air
-	    NBMU_INTERPO = NBMU
-	 ELSE
-	    !Cas transition air -> mer
-	    COS_TMAX = DSQRT(1. - N1SN2*N1SN2)
-	    J=1
-	    DO WHILE (RMU(J).GT.COS_TMAX)
-	       J=J+1
-	    ENDDO
-	    NBMU_INTERPO=J
-	 ENDIF
-	  
-	 
-	 CALL SOS_INTERPO_SPLINT(NBMUT, RMUT, I_DEV(1),
-     &	                         NBMU_INTERPO, RMU(1), I_DEV_INTERPO, 
-     &                          IER)	
-	 IF (IER.NE.0) GOTO 920   ! cas d'erreur  
+         !                         à interpoler aux angles de Gauss
+         !                         ==> jusqu'à l'angle de transmission maximal
 
-	 CALL SOS_INTERPO_SPLINT(NBMUT, RMUT, Q_DEV(1),
-     &	                         NBMU_INTERPO, RMU(1), Q_DEV_INTERPO, 
-     &                          IER)	
-	 IF (IER.NE.0) GOTO 920   ! cas d'erreur  
-	 
-	 CALL SOS_INTERPO_SPLINT(NBMUT, RMUT, U_DEV(1),
-     &	                         NBMU_INTERPO, RMU(1), U_DEV_INTERPO, 
-     &                          IER)	
-	 IF (IER.NE.0) GOTO 920   ! cas d'erreur  
-	 
+
+         IF (N1SN2.GT.1.) THEN
+            !Cas transition mer -> air
+            NBMU_INTERPO = NBMU
+         ELSE
+            !Cas transition air -> mer
+            COS_TMAX = DSQRT(1. - N1SN2*N1SN2)
+            J=1
+            DO WHILE (RMU(J).GT.COS_TMAX)
+               J=J+1
+            ENDDO
+            NBMU_INTERPO=J
+         ENDIF
+  
+         CALL SOS_INTERPO_SPLINT(NBMUT, RMUT, I_DEV(1),
+     &                           NBMU_INTERPO, RMU(1), I_DEV_INTERPO, 
+     &                          IER)
+         IF (IER.NE.0) GOTO 920   ! cas d'erreur  
+
+         CALL SOS_INTERPO_SPLINT(NBMUT, RMUT, Q_DEV(1),
+     &                           NBMU_INTERPO, RMU(1), Q_DEV_INTERPO, 
+     &                          IER)
+         IF (IER.NE.0) GOTO 920   ! cas d'erreur  
+         
+         CALL SOS_INTERPO_SPLINT(NBMUT, RMUT, U_DEV(1),
+     &                           NBMU_INTERPO, RMU(1), U_DEV_INTERPO, 
+     &                          IER)
+         IF (IER.NE.0) GOTO 920   ! cas d'erreur  
+         
 
          IF (N1SN2.LE.1.) THEN
-	    !Cas transition air -> mer : 
-	    !on force à zéro les valeurs de I, Q, U pour les directions 
-	    !en dehors du cône de transmission (mal interpolées par la fonction Splint)
-	    
-	    DO J=NBMU_INTERPO,NBMU
-	       I_DEV_INTERPO(J)=0.D+00
-	       Q_DEV_INTERPO(J)=0.D+00
-	       U_DEV_INTERPO(J)=0.D+00
-	    ENDDO
+            !Cas transition air -> mer : 
+            !on force à zéro les valeurs de I, Q, U pour les directions 
+            !en dehors du cône de transmission (mal interpolées par la fonction Splint)
+    
+            DO J=NBMU_INTERPO,NBMU
+               I_DEV_INTERPO(J)=0.D+00
+               Q_DEV_INTERPO(J)=0.D+00
+               U_DEV_INTERPO(J)=0.D+00
+            ENDDO
 
-	 ENDIF
-	 	 
+         ENDIF
+ 
          IF (TRACE) THEN
-	    WRITE(IDLOG,*,ERR=910) 'Nb transmitted angles :', NBMUT
-	    WRITE(IDLOG,*,ERR=910) 'Nb Gauss angles for interpo :',
-     &                 	           NBMU_INTERPO
-	    
-	    DO J=1,NBMU
-	       WRITE(IDLOG,210,ERR=910) 
-     &           ' Ang gauss :',DACOS(RMU(J))*180./INCTE_PI,
+            WRITE(IDLOG,*,ERR=910) 'Nb transmitted angles :', NBMUT
+            WRITE(IDLOG,*,ERR=910) 'Nb Gauss angles for interpo :',
+     &                             NBMU_INTERPO
+    
+            DO J=1,NBMU
+               WRITE(IDLOG,210,ERR=910) 
+     &           ' Ang gauss :',DACOS(RMU(J))*RAD2DEG,
      &           ' I_AngGauss ',I_DEV_INTERPO(J),
      &           ' Q_AngGauss ',Q_DEV_INTERPO(J),
      &           ' U_AngGauss ',U_DEV_INTERPO(J)
-	    ENDDO
+            ENDDO
          ENDIF
-	 	 	  
+  
        ELSE !Cas d'une réflexion : angles inchangés
        
          DO J=1,NBMU
-	    I_DEV_INTERPO(J) = I_DEV(J)
-    	    Q_DEV_INTERPO(J) = Q_DEV(J)
-     	    U_DEV_INTERPO(J) = U_DEV(J)
-	 ENDDO 
-	 
-	       
+            I_DEV_INTERPO(J) = I_DEV(J)
+            Q_DEV_INTERPO(J) = Q_DEV(J)
+            U_DEV_INTERPO(J) = U_DEV(J)
+         ENDDO 
+
+       
        ENDIF ! Fin test si transmission
        
                     
@@ -8464,7 +8572,7 @@ C---------
 
 
       RETURN
-      END  	!OSOAA_INTERF_MERPLATE
+      END        !OSOAA_INTERF_MERPLATE
       
       
       
@@ -8498,7 +8606,7 @@ C      YDEL(0:CTE_NT_ATM)  (double)  (E) Pourcentage de molécules par niveau.
 C
 C      BETA0   (double)  (E)  
 C      BETA2   (double)  (E) 
-C      GAMMA2  (double)  (E)	
+C      GAMMA2  (double)  (E)
 C      ALPHA2  (double)  (E)
 C             Coefficients du développement de la matrice 
 C             de phase moléculaire en fonctions de Legendre.
@@ -8517,17 +8625,17 @@ C             Eléments Pij de la matrice de phase des aérosols pour un ordre
 C             IS de la décomposition en séries de Fourier.
 C             Soit mup la direction d'incidence ( -1 < mup < 1)
 C             et mu celle de diffusion ( -1 < mu < 1),
-C             la diffusion est exprimée par Pij(mu,mup).	
+C             la diffusion est exprimée par Pij(mu,mup).
 C
 C      XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (double)  (E) 
-C      		        Fonction de Legendre PSL à l'ordre L=2
-C   		        et S=IS en fonction de l'angle mu.
+C                       Fonction de Legendre PSL à l'ordre L=2
+C                      et S=IS en fonction de l'angle mu.
 C      XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (double)  (E)
-C      		        Fonction RSL à l'ordre L=2 et S=IS.
+C                       Fonction RSL à l'ordre L=2 et S=IS.
 C      XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) (double)  (E)
-C      		        Fonction TSL à l'ordre L=2 et S=IS
-C	      Fonctions de Legendre et fonctions dérivées pour le calcul
-C	      de la matrice de phase.
+C                       Fonction TSL à l'ordre L=2 et S=IS
+C              Fonctions de Legendre et fonctions dérivées pour le calcul
+C              de la matrice de phase.
 C
 C      IS (I4)   (E)  Ordre de la décomposition en séries de Fourier.
 C
@@ -8547,7 +8655,7 @@ C             profil et de la direction, pour la diffusion de
 C             la lumière obtenue par réflexion de Fresnel du faisceau 
 C             solaire direct.
 C                          
-C			
+C
 C Common utilisé:
 C --------------
 C     Aucun
@@ -8561,37 +8669,36 @@ C==============================================================================
      &                                       BETA0,BETA2,GAMMA2,ALPHA2,
      &                                       BP,GR,GT,ARR,ART,
      &                                       XPL,XRL,XTL,IS,NBMU,
-     &					     H,I2,Q2,U2)
+     &                                       H,I2,Q2,U2)
       
       IMPLICIT NONE
 
 
 C* Définition des variables    
 C*-----------------------------------------------------------------------     
-	! Vecteur fonction source en fonction du niveau du profil
-	! et de la direction.
+      ! Vecteur fonction source en fonction du niveau du profil et de la direction.
       DOUBLE PRECISION 
-     &       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour I.
+     &       I2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour I.
       DOUBLE PRECISION 
-     &       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour Q.
+     &       Q2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour Q.
       DOUBLE PRECISION  
-     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      						! Fonction source pour U.
+     &       U2(0:CTE_NT_ATM,-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)
+                                        ! Fonction source pour U.
 
-      DOUBLE PRECISION IND_SURF	! (E) Indice de réfraction de l'eau / air
-						
+      DOUBLE PRECISION IND_SURF! (E) Indice de réfraction de l'eau / air
+
       DOUBLE PRECISION F11sun   ! Elément de la matrice de Fresnel
-      			        ! avec pour incidence la direction
-			        ! d'éclairement solaire.
+                                ! avec pour incidence la direction
+                                ! d'éclairement solaire.
       DOUBLE PRECISION F12sun   ! Elément de la matrice de Fresnel.
 
       DOUBLE PRECISION XDEL(0:CTE_NT_ATM)  !Pourcentage d'aérosols par niveau.
       DOUBLE PRECISION YDEL(0:CTE_NT_ATM)  !Pourcentage de molécules par niveau.
 
       DOUBLE PRECISION MUS               ! Cosinus de l'angle zénithal solaire (mus>0)
-      DOUBLE PRECISION H(0:CTE_NT_ATM)	 !Epaisseur optique pour chaque niveau.
+      DOUBLE PRECISION H(0:CTE_NT_ATM)   !Epaisseur optique pour chaque niveau.
            
       DOUBLE PRECISION YR   ! Pourcentage de molécules au niveau K du profil.
       DOUBLE PRECISION YYR  ! Pourcentage de molécules au niveau K+1 du profil.
@@ -8599,26 +8706,25 @@ C*-----------------------------------------------------------------------
       DOUBLE PRECISION XXP  ! Pourcentage d'aérosols au niveau K+1 du profil.      
 
 
-      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction de Legendre PSL à l'ordre L=2 et S=IS
-      			! en fonction de l'angle mu.     		
-      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
-      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)	
-      			! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
+      DOUBLE PRECISION XPL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) 
+            ! Fonction de Legendre PSL à l'ordre L=2 et S=IS en fonction de l'angle mu. 
+      DOUBLE PRECISION XRL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) 
+            ! Fonction RSL à l'ordre L=2 et S=IS en fonction de mu.
+      DOUBLE PRECISION XTL(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) 
+            ! Fonction TSL à l'ordre L=2 et S=IS en fonction de mu.
 
       DOUBLE PRECISION SPL   ! Valeur de la fonction de XPL pour mu = mus
-           	
-      DOUBLE PRECISION BETA0	! Coefficients du développement de la matrice 
-      DOUBLE PRECISION BETA2	! de phase moléculaire en fonctions de Legendre
-      DOUBLE PRECISION GAMMA2	
-      DOUBLE PRECISION ALPHA2	
+          
+      DOUBLE PRECISION BETA0      ! Coefficients du développement de la matrice 
+      DOUBLE PRECISION BETA2      ! de phase moléculaire en fonctions de Legendre
+      DOUBLE PRECISION GAMMA2
+      DOUBLE PRECISION ALPHA2
 
-	! Eléments Pij de la matrice de phase des aérosols pour un ordre
-	! IS de la décomposition en séries de Fourier.
-	! Soit mup la direction d'incidence (-1 < mup < 1)
-	! et mu celle de diffusion (-1 < mu < 1),
-	! la diffusion est exprimée par Pij(mu,mup).	
+      ! Eléments Pij de la matrice de phase des aérosols pour un ordre
+      ! IS de la décomposition en séries de Fourier.
+      ! Soit mup la direction d'incidence (-1 < mup < 1)
+      ! et mu celle de diffusion (-1 < mu < 1),
+      ! la diffusion est exprimée par Pij(mu,mup).
       DOUBLE PRECISION 
      &    BP(-CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX,
      &       -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX)  ! Elément P11.
@@ -8636,9 +8742,9 @@ C*-----------------------------------------------------------------------
      &        -CTE_OS_NBMU_MAX:CTE_OS_NBMU_MAX) ! -P23 ou -P32.
      
            
-      DOUBLE PRECISION BP0MJ		!Coeff BP(0,-J) ==> devenu BP(JK,-J) 
-      DOUBLE PRECISION BP0J		!                   pour JK indice de table 
-      DOUBLE PRECISION GRJ0		!		    de l'angle solaire
+      DOUBLE PRECISION BP0MJ     !Coeff BP(0,-J) ==> devenu BP(JK,-J) 
+      DOUBLE PRECISION BP0J      !                   pour JK indice de table 
+      DOUBLE PRECISION GRJ0      !                   de l'angle solaire
       DOUBLE PRECISION GR0J
       DOUBLE PRECISION GR0MJ
       DOUBLE PRECISION GRMJ0
@@ -8654,7 +8760,6 @@ C*-----------------------------------------------------------------------
       DOUBLE PRECISION COEFK
       DOUBLE PRECISION COEFKP1 
 
-      DOUBLE PRECISION MU2  ! Carré de mus.
       DOUBLE PRECISION IND2 ! Carré de IND_SURF.
       DOUBLE PRECISION X    
       DOUBLE PRECISION RL   ! Coefficient de réflexion parallèle.
@@ -8662,11 +8767,11 @@ C*-----------------------------------------------------------------------
 
 
       
-      INTEGER IS	! Ordre de la décomposition en séries de Fourier.     
-      INTEGER K		! Indice de niveau du profil.
-      INTEGER J		! Indice d'angle d'incidence.
-      INTEGER JK	! Indice d'angle d'incidence solaire.
-      INTEGER*4 NBMU    ! Nombre d'angles effectifs des simulations
+      INTEGER IS      ! Ordre de la décomposition en séries de Fourier.     
+      INTEGER K       ! Indice de niveau du profil.
+      INTEGER J       ! Indice d'angle d'incidence.
+      INTEGER JK      ! Indice d'angle d'incidence solaire.
+      INTEGER*4 NBMU  ! Nombre d'angles effectifs des simulations
       
        
 C* Traitements    
@@ -8675,10 +8780,11 @@ C*------------
 C* Initialisation
 
       DO 10 J=-NBMU,NBMU
-         DO 10 K=0,CTE_NT_ATM
+         DO 11 K=0,CTE_NT_ATM
 	    I2(K,J)=0.
 	    Q2(K,J)=0.
 	    U2(K,J)=0.
+11       CONTINUE      
 10    CONTINUE      
 
 
@@ -8688,14 +8794,14 @@ C* Calcul des termes F11 et F12 de la réflexion de Fresnel pour l'incidence sola
       X = DSQRT(IND2-1.D+00+MUS*MUS)
       RL = (IND2*MUS-X)/(IND2*MUS+X)
       RR = (MUS-X)/(MUS+X)
-	 
+ 
       F11sun = (RL*RL+RR*RR)/2.
       F12sun = (RL*RL-RR*RR)/2.
 
 
       COEFNT  = DEXP(-2.*H(CTE_NT_ATM)/MUS) / 4.  
 
-      SPL=XPL(JK)	!incidence solaire
+      SPL=XPL(JK)      !incidence solaire
 
       
       DO 1500 K= 0 , CTE_NT_ATM-1
@@ -8705,67 +8811,67 @@ C* Calcul des termes F11 et F12 de la réflexion de Fresnel pour l'incidence sola
          
          YYR=YDEL(K+1)
          XXP=XDEL(K+1)
-	 
+
          DO 1502 J=1,NBMU
 
 C* Eléments de matrice de phase pour le mélange molécules + aérosols
-            IF (IS.LE.2) THEN	 
-	    
+            IF (IS.LE.2) THEN
+   
                 BP0MJ=BP(JK,-J)*XP+(BETA0+BETA2*XPL(-J)*SPL)*YR
                 BP0J=BP(JK,J)*XXP+(BETA0+BETA2*XPL(J)*SPL)*YYR
             
                 GRJ0=GR(J,JK)*XXP+YYR*XRL(JK)*XPL(J)*GAMMA2
-	        GR0J=GR(JK,J)*XXP+YYR*XRL(J)*XPL(JK)*GAMMA2
+                GR0J=GR(JK,J)*XXP+YYR*XRL(J)*XPL(JK)*GAMMA2
                 GR0MJ=GR(JK,-J)*XP+YR*XRL(-J)*SPL*GAMMA2
-	        GRMJ0 =GR(-J,JK)*XP+YR*GAMMA2*XRL(JK)*XPL(-J)	
-	    
+                GRMJ0 =GR(-J,JK)*XP+YR*GAMMA2*XRL(JK)*XPL(-J)
+            
                 GT0MJ=GT(JK,-J)*XP+YR*GAMMA2*SPL*XTL(-J)
                 GT0J=GT(JK,J)*XXP+YYR*GAMMA2*SPL*XTL(J)
-	                
+                        
                 ARR0MJ=ARR(JK,-J)*XP+ALPHA2*YR*XRL(JK)*XRL(-J)
                 ARR0J=ARR(JK,J)*XXP+ALPHA2*YYR*XRL(JK)*XRL(J)
             
                 ARTJ0=ART(J,JK)*XXP+YYR*ALPHA2*XTL(J)*XRL(JK)
-                ARTMJ0=ART(-J,JK)*XP+YR*ALPHA2*XTL(-J)*XRL(JK)	
-		
+                ARTMJ0=ART(-J,JK)*XP+YR*ALPHA2*XTL(-J)*XRL(JK)
+
             ELSE
-	    
+    
                 BP0MJ=BP(JK,-J)*XP
                 BP0J=BP(JK,J)*XXP
             
                 GRJ0=GR(J,JK)*XXP
-	        GR0J=GR(JK,J)*XXP
+                GR0J=GR(JK,J)*XXP
                 GR0MJ=GR(JK,-J)*XP
-	        GRMJ0 =GR(-J,JK)*XP
-	    
+                GRMJ0 =GR(-J,JK)*XP
+            
                 GT0MJ=GT(JK,-J)*XP
                 GT0J=GT(JK,J)*XXP
-	                
+                       
                 ARR0MJ=ARR(JK,-J)*XP
                 ARR0J=ARR(JK,J)*XXP          
             
                 ARTJ0=ART(J,JK)*XXP
-                ARTMJ0=ART(-J,JK)*XP	  
-		  
-	    ENDIF
+                ARTMJ0=ART(-J,JK)*XP  
+  
+            ENDIF
    
-	     
-	     
+     
+     
 C* Fonction source pour le champ montant
             COEFK   = COEFNT * DEXP(H(K)/MUS)
-	    
-            I2(K,J)= COEFK * ( F11sun*BP0MJ + F12sun*GRMJ0 )		
+            
+            I2(K,J)= COEFK * ( F11sun*BP0MJ + F12sun*GRMJ0 )
             Q2(K,J)= COEFK * ( F11sun*GR0MJ + F12sun*ARR0MJ )
-            U2(K,J)= COEFK * ( F11sun*GT0MJ + F12sun*ARTMJ0 )		
+            U2(K,J)= COEFK * ( F11sun*GT0MJ + F12sun*ARTMJ0 )
 
-	
+
 C* Fonction source pour le champ descendant
             COEFKP1 = COEFNT * DEXP(-H(K+1)/MUS) 
-	    
+            
             I2(K+1,-J)=  COEFKP1 * ( F11sun*BP0J + F12sun*GRJ0 )
             Q2(K+1,-J)=  COEFKP1 * ( F11sun*GR0J + F12sun*ARR0J )
             U2(K+1,-J)=  COEFKP1 * ( F11sun*GT0J + F12sun*ARTJ0 )
-	     
+             
  1502    CONTINUE
  1500 CONTINUE
       
@@ -8773,17 +8879,17 @@ C* Fonction source pour le champ descendant
       !Mode expert spécifique : annulation de la diffusion atmosphérique
       IF (EXPERT_MODE_FORCED_FATM_NULL) THEN 
          WRITE(6,*) 
-     &	 " \n WARNING : ATMOS SOURCE FUNCTION FORCED TO NULL \n"
+     &   " \n WARNING : ATMOS SOURCE FUNCTION FORCED TO NULL \n"
          DO J=1,NBMU
-	    DO K=0,CTE_NT_ATM
-	       I2(K,J)=0.
-	       I2(K,-J)=0.
-	       Q2(K,J)=0.
-	       Q2(K,-J)=0.
-	       U2(K,J)=0.
-	       U2(K,-J)=0.
-	    ENDDO
-	 ENDDO
+            DO K=0,CTE_NT_ATM
+               I2(K,J)=0.
+               I2(K,-J)=0.
+               Q2(K,J)=0.
+               Q2(K,-J)=0.
+               U2(K,J)=0.
+               U2(K,-J)=0.
+            ENDDO
+         ENDDO
       ENDIF
       
       END      !FIN DE LA PROCEDURE OSOAA_FSOURCE_DIFF_FRESNEL1

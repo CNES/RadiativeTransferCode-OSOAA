@@ -35,6 +35,9 @@ public interface IHydrogroundModel {
 
 	String getMLPResFile();
 
+	void setHYDResFileOP(String value);
+
+	String getHYDResFileOP();
 
 	void setHYDModel(Integer value_);
 
@@ -204,6 +207,10 @@ public interface IHydrogroundModel {
 	void setHYDExtData(String value_);
 
 	String getHYDExtData();
+
+	void setHYDUserProfile(String value_);
+
+	String getHYDUserProfile();
 
 	void unsetPhyto();
 

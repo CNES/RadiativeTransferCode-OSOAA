@@ -29,6 +29,11 @@ public interface IAerosolsModel {
 	String getAERLog();
 
 
+	void setAERResFileIOP(String value );
+
+	String getAERResFileIOP();
+
+
 	void setAERTronca(Boolean value_);
 
 	Boolean getAERTronca();

@@ -31,37 +31,32 @@ else
         fi
     fi
 fi
-
 if [ -z "$JAVA_HOME" ]
 then
     JAVA_CAND=`which java`
     if [ ! -e "$JAVA_CAND" ]
     then
         JAVA_CAND=`which java` | tail -1
-    fi
-    JAVA_VER=$($JAVA_CAND -version 2>&1 | sed 's/java version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
-    SUN_VM=$($JAVA_CAND -version 2>&1 | grep HotSpot)
-    if [ "$JAVA_VER" -lt 16 ];
+    fi 
+
+    JAVA_VER=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+    JAVA_VER_MAJOR=$(echo $JAVA_VER | cut -d "." -f 1)
+    echo "Java major version found : $JAVA_VER_MAJOR"
+    #End of change
+    if [ "$JAVA_VER_MAJOR" -lt 16 ];
     then
         echo "Error: Java version lesser than 1.6 !!"
         exit
     fi
-    if [ -z "$SUN_VM" ]
-    then
-        echo "Error: This is not an Oracle JVM !"
-        exit
-    fi
-else
-    JAVA_VER=$($JAVA_HOME/bin/java -version 2>&1 | sed 's/java version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
-    SUN_VM=$($JAVA_HOME/bin/java -version 2>&1 | grep HotSpot)
-    if [ "$JAVA_VER" -lt 16 ]
+else    
+    JAVA_VER=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+    JAVA_VER_MAJOR=$(echo $JAVA_VER | cut -d "." -f 1)
+    SUN_VM=$($JAVA_CAND -version 2>&1 | grep HotSpot)
+
+    echo "Java major version found : $JAVA_VER_MAJOR"
+    if [ "$JAVA_VER_MAJOR" -lt 16 ]
     then
         echo "Error : Java version lesser than 1.6 !!"
-        exit
-    fi
-    if [ -z "$SUN_VM" ]
-    then
-        echo "Error: This is not an Oracle JVM !"
         exit
     fi
 fi

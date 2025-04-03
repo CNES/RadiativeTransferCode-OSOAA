@@ -34,6 +34,9 @@
 # MOD:VERSION:1.0: 05/05/2011: Creation  
 # MOD:VERSION:1.1: 11/01/2019
 #    - Adding the creation of the directory obj
+# MOD:VERSION:1.2: 30/01/2025
+#    - Optimization -O3 -march=native introduced for faster calculations
+#    - Option -w introduced to avoid no critical warnings during compilation
 #
 ################################################################################
  
@@ -45,7 +48,7 @@ mkdir		=	mkdir -p
 rm		=	rm
 FF		=	g77
 ###DEBUG		=	-g 
-CCOPTS  =  -O
+CCOPTS  =  -O3 -march=native -w
 
 ########################################
 # Definition of includes and libraries

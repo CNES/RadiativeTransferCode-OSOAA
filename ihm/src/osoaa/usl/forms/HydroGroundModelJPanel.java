@@ -4,7 +4,11 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.File;
 import java.math.BigDecimal;
+
 
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
@@ -24,6 +28,7 @@ import javax.swing.event.CaretListener;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.text.MaskFormatter;
+import javax.swing.JFileChooser;
 
 import org.apache.log4j.Logger;
 
@@ -32,6 +37,7 @@ import osoaa.bll.preferences.IAtmosphericAndSeaProfiles;
 import osoaa.bll.preferences.IHydrogroundModel;
 import osoaa.bll.preferences.PreferencesFactory;
 import osoaa.bll.properties.PropertiesManager;
+import osoaa.usl.MainJFrame;
 import osoaa.usl.common.ui.forms.FormUtils;
 import osoaa.usl.common.ui.jspinner.JSpinnerOptionalValue;
 
@@ -98,6 +104,7 @@ public class HydroGroundModelJPanel extends AbstractForm {
 	private JTextField PHYTOResFile_textField;
 	private JLabel PHYTOResFile_desc;
 	private JLabel HYDModel_desc;
+	private JLabel HYDModel_accolade;
 	private JLabel HYDModel_title;
 	private JLabel HYDModel_choice1_title;
 	private JLabel PHYTOJDslope_title;
@@ -152,6 +159,12 @@ public class HydroGroundModelJPanel extends AbstractForm {
 	private JLabel HYDExtData_title;
 	private JTextField HYDExtData_textField;
 	private JLabel HYDExtData_desc;
+	private JLabel HYDExtData2_title;
+	private JTextField HYDExtData2_textField;
+	private JLabel HYDExtData2_desc;
+	private JLabel HYDUserProfile_desc;
+	private JLabel HYDUserProfile_title;
+	private JTextField HYDUserProfile_textField;
 	private JLabel HYDLog_title;
 	private JLabel SEDLNDSMSDradius_desc;
 	private JLabel PHYTOLNDTMrate_desc;
@@ -161,9 +174,13 @@ public class HydroGroundModelJPanel extends AbstractForm {
 	private JTextField MLPResFile_textField;
 	private JLabel MLPResFile_desc;
 	private JLabel MLPResFile_title;
+	private JTextField HYDResFileOP_textField;
+	private JLabel HYDResFileOP_desc;
+	private JLabel HYDResFileOP_title;
 	private JPanel HYDModel_checkboxJPanel;
 	private JRadioButton HYDModel_choice1_ckeckbox;
 	private JRadioButton HYDModel_choice2_ckeckbox;
+	private JRadioButton HYDModel_choice3_ckeckbox;
 	private JLabel HYDModel_choice11_title;
 	private JSpinner PHYTOJDMRwa_spinner;
 	private JSpinner PHYTOJDrmin_spinner;
@@ -197,8 +214,48 @@ public class HydroGroundModelJPanel extends AbstractForm {
 	private JLabel HYDMieLog_desc;
 	private JLabel HYDDirMie_desc;
 	private JLabel PHYTOJDMRwa_desc;
+	private JLabel HYDModel_choice3_title;
+	private JSeparator HYDModel_choice3_separator;
 	private JSeparator HYDModel_choice1_mainSeparator;
 	private JPanel hydroModelContentFormJp;
+
+	private Integer currentY = 1;
+
+	private String getStr(String mask) {
+		return String.format(mask,currentY);
+	}
+
+	protected void onExtDataClicked() {
+		final JFileChooser fc = new JFileChooser();
+		fc.setApproveButtonText("OK");
+		fc.setDialogTitle("Select your file");
+		fc.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		int returnVal = fc.showOpenDialog(this);
+
+        if (returnVal == JFileChooser.APPROVE_OPTION) {
+            File file = fc.getSelectedFile();
+            //This is where a real application would open the file.
+            HYDExtData_textField.setText(file.getAbsolutePath());
+            HYDExtData_textField.setToolTipText(file.getAbsolutePath());
+            HYDExtData2_textField.setText(file.getAbsolutePath());
+            HYDExtData2_textField.setToolTipText(file.getAbsolutePath());
+        }
+	}
+
+	protected void onUserProfileClicked() {
+		final JFileChooser fc = new JFileChooser();
+		fc.setApproveButtonText("OK");
+		fc.setDialogTitle("Select your file");
+		fc.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		int returnVal = fc.showOpenDialog(this);
+
+        if (returnVal == JFileChooser.APPROVE_OPTION) {
+            File file = fc.getSelectedFile();
+            //This is where a real application would open the file.
+            HYDUserProfile_textField.setText(file.getAbsolutePath());
+            HYDUserProfile_textField.setToolTipText(file.getAbsolutePath());
+        }
+	}
 
 	public void init() {
 		hydrogroundModel = PreferencesFactory.getInstance().getHydrogroundModel();
@@ -210,8 +267,11 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		HYDLog_textField.setText( hydrogroundModel.getHYDLog());
 		PHYTOResFile_textField.setText( hydrogroundModel.getPHYTOResFile());
 		MLPResFile_textField.setText( hydrogroundModel.getMLPResFile());
+		HYDResFileOP_textField.setText( hydrogroundModel.getHYDResFileOP());
+		System.out.println("======>"+hydrogroundModel.getHYDResFileOP());
 		HYDModel_choice1_ckeckbox.setSelected( hydrogroundModel.getHYDModel()==1 );
 		HYDModel_choice2_ckeckbox.setSelected( hydrogroundModel.getHYDModel()==2 );
+		HYDModel_choice3_ckeckbox.setSelected( hydrogroundModel.getHYDModel()==3 );
 		PHYTOJDMRwa_spinner.setValue( hydrogroundModel.getPHYTOJDMRwa());
 		PHYTOJDMIwa_spinner.setValue( hydrogroundModel.getPHYTOJDMIwa());
 		PHYTOJDslope_spinner.setValue( hydrogroundModel.getPHYTOJDslope());
@@ -244,7 +304,9 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		SEDLNDTMSDradius_spinner.setValue( hydrogroundModel.getSEDLNDTMSDradius());
 		SEDLNDTMSDvar_spinner.setValue( hydrogroundModel.getSEDLNDTMSDvar());
 		SEDLNDTMrate_spinner.setValue( hydrogroundModel.getSEDLNDTMrate());
-		HYDExtData_textField.setText( hydrogroundModel.getHYDExtData());
+		HYDExtData_textField.setText( hydrogroundModel.getHYDExtData() );
+		//HYDExtData2_textField.setText( extData );
+		HYDUserProfile_textField.setText( hydrogroundModel.getHYDUserProfile());
 		
 		validateForm();
 	}
@@ -301,7 +363,7 @@ public class HydroGroundModelJPanel extends AbstractForm {
 //		isValid &= FormUtils.setFieldState(getHYDLog() == null || getHYDLog().trim().length()<=0, HYDLog_title);
 		isValid &= FormUtils.setFieldState(getMLPResFile() == null || getMLPResFile().trim().length()<=0, MLPResFile_title);
 
-		isValid &= FormUtils.setFieldState(getHYDModel() != 1 &&  getHYDModel() != 2, HYDModel_title);
+		isValid &= FormUtils.setFieldState(getHYDModel() != 1 && getHYDModel() != 2 && getHYDModel() != 3, HYDModel_title);
 
 		if( getHYDModel() == 1){
 			if( atmosphericAndSeaProfiles.getPhytoChl().doubleValue() > 0 ){
@@ -351,6 +413,12 @@ public class HydroGroundModelJPanel extends AbstractForm {
 			
 		} else if( getHYDModel() == 2){
 			isValid &= FormUtils.setFieldState(getHYDExtData() == null || getHYDExtData().trim().length()<=0, HYDExtData_title);
+			// Force display to black
+			FormUtils.setFieldState(false, HYDExtData_title);
+		} else if( getHYDModel() == 3){
+			isValid &= FormUtils.setFieldState(getHYDUserProfile() == null || getHYDUserProfile().trim().length()<=0, HYDUserProfile_title);
+			// Force display to black
+			FormUtils.setFieldState(false, HYDUserProfile_title);
 		}
 		return isValid;
 	}
@@ -376,7 +444,7 @@ public class HydroGroundModelJPanel extends AbstractForm {
 	 * Create the panel.
 	 */
 	public HydroGroundModelJPanel() {
-		super("Hydrosol models : sediments and phytoplancton");
+		super("Hydrosol models : Mineral-like particles and phytoplankton");
 
         try
         {
@@ -404,6 +472,8 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				FormFactory.RELATED_GAP_ROWSPEC,
 				FormFactory.DEFAULT_ROWSPEC,
 				FormFactory.RELATED_GAP_ROWSPEC,
+				FormFactory.DEFAULT_ROWSPEC,
+				FormFactory.RELATED_GAP_ROWSPEC,
 				FormFactory.DEFAULT_ROWSPEC,});
 		
 
@@ -412,7 +482,7 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		
 		HYDDirMie_title = DefaultComponentFactory.getInstance().createLabel(
 				"HYD.DirMie *:");
-		northFormPanel.add(HYDDirMie_title, "2, 1, right, default");
+		northFormPanel.add(HYDDirMie_title, getStr("2, %d, right, default"));
 
 		HYDDirMie_textField = new JTextField();
 		HYDDirMie_textField.addCaretListener(new CaretListener() {
@@ -421,18 +491,19 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		northFormPanel.add(HYDDirMie_textField, "4, 1, fill, default");
+		northFormPanel.add(HYDDirMie_textField, getStr("4, %d, fill, default"));
 		HYDDirMie_textField.setColumns(10);
 
 		HYDDirMie_desc = DefaultComponentFactory.getInstance()
 				.createLabel("Mie files repository directory (full path)");
 		HYDDirMie_desc
 				.setToolTipText("Mie files repository directory (full path)");
-		northFormPanel.add(HYDDirMie_desc, "9, 1");
+		northFormPanel.add(HYDDirMie_desc, getStr("9, %d"));
 
+		currentY += 2;
 		HYDMieLog_title = new JLabel("HYD.MieLog :");
 		HYDMieLog_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		northFormPanel.add(HYDMieLog_title, "2, 3, right, default");
+		northFormPanel.add(HYDMieLog_title, getStr("2, %d, right, default"));
 
 		HYDMieLog_textField = new JTextField();
 		HYDMieLog_textField.addCaretListener(new CaretListener() {
@@ -442,17 +513,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 			}
 		});
 		HYDMieLog_textField.setColumns(10);
-		northFormPanel.add(HYDMieLog_textField, "4, 3, fill, default");
+		northFormPanel.add(HYDMieLog_textField, getStr("4, %d, fill, default"));
 
 		HYDMieLog_desc = DefaultComponentFactory.getInstance()
 				.createLabel("Log filename of Mie calculations for hydrosols");
 		HYDMieLog_desc
-				.setToolTipText("Log filename of Mie calculations for hydrosols");
-		northFormPanel.add(HYDMieLog_desc, "9, 3");
+				.setToolTipText("Name of log file for hydrosol Mie calculations");
+		northFormPanel.add(HYDMieLog_desc, getStr("9, %d"));
 
+		currentY += 2;
 		HYDLog_title = new JLabel("HYD.Log :");
 		HYDLog_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		northFormPanel.add(HYDLog_title, "2, 5, right, default");
+		northFormPanel.add(HYDLog_title, getStr("2, %d, right, default"));
 
 		HYDLog_textField = new JTextField();
 		HYDLog_textField.addCaretListener(new CaretListener() {
@@ -462,16 +534,17 @@ public class HydroGroundModelJPanel extends AbstractForm {
 			}
 		});
 		HYDLog_textField.setColumns(10);
-		northFormPanel.add(HYDLog_textField, "4, 5, fill, default");
+		northFormPanel.add(HYDLog_textField, getStr("4, %d, fill, default"));
 
-		HYDLog_desc = new JLabel("Log filename of the Hydrosols computations ");
+		HYDLog_desc = new JLabel("Name of log file for calculations of hydrosol radiative properties");
 		HYDLog_desc
-				.setToolTipText("Log filename of the Hydrosols computations ");
-		northFormPanel.add(HYDLog_desc, "9, 5");
+				.setToolTipText("Name of log file for calculations of hydrosol radiative properties");
+		northFormPanel.add(HYDLog_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOResFile_title = DefaultComponentFactory.getInstance().createLabel(
-				"PHYTO.ResFile *:");
-		northFormPanel.add(PHYTOResFile_title, "2, 7, right, default");
+				"PHYTO.ResFile :");
+		northFormPanel.add(PHYTOResFile_title, getStr("2, %d, right, default"));
 
 		PHYTOResFile_textField = new JTextField();
 		PHYTOResFile_textField.addCaretListener(new CaretListener() {
@@ -481,17 +554,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 			}
 		});
 		PHYTOResFile_textField.setColumns(10);
-		northFormPanel.add(PHYTOResFile_textField, "4, 7, fill, default");
+		northFormPanel.add(PHYTOResFile_textField, getStr("4, %d, fill, default"));
 
 		PHYTOResFile_desc = new JLabel(
-				"Filename for the radiative properties output for phytoplankton calculation ");
+				"Filename of radiative properties calculated for phytoplankton (result file)");
 		PHYTOResFile_desc
-				.setToolTipText("Filename for the radiative properties output for phytoplankton calculation ");
-		northFormPanel.add(PHYTOResFile_desc, "9, 7");
+				.setToolTipText("Filename of radiative properties calculated for phytoplankton (result file)");
+		northFormPanel.add(PHYTOResFile_desc, getStr("9, %d"));
 
-		MLPResFile_title = new JLabel("MLP.ResFile *:");
+		currentY += 2;
+		MLPResFile_title = new JLabel("MLP.ResFile :");
 		MLPResFile_title.setToolTipText("");
-		northFormPanel.add(MLPResFile_title, "2, 9, right, default");
+		northFormPanel.add(MLPResFile_title, getStr("2, %d, right, default"));
 
 		MLPResFile_textField = new JTextField();
 		MLPResFile_textField.addCaretListener(new CaretListener() {
@@ -501,21 +575,43 @@ public class HydroGroundModelJPanel extends AbstractForm {
 			}
 		});
 		MLPResFile_textField.setColumns(10);
-		northFormPanel.add(MLPResFile_textField, "4, 9, fill, default");
+		northFormPanel.add(MLPResFile_textField, getStr("4, %d, fill, default"));
 
 		MLPResFile_desc = new JLabel(
-				"Filename for the radiative properties output for mineral-like particles calculation ");
+				"Filename of radiative properties calculated for Mineral-Like particles (result file)");
 		MLPResFile_desc
-				.setToolTipText("Filename for the radiative properties output for mineral-like particles calculation ");
-		northFormPanel.add(MLPResFile_desc, "9, 9");
+				.setToolTipText("Filename of radiative properties calculated for Mineral-Like particles (result file)");
+		northFormPanel.add(MLPResFile_desc, getStr("9, %d"));
 
+		currentY += 2;
+		HYDResFileOP_title = new JLabel("HYD.ResFile.IOP :");
+		HYDResFileOP_title.setToolTipText("");
+		northFormPanel.add(HYDResFileOP_title, getStr("2, %d, right, default"));
+
+		HYDResFileOP_textField = new JTextField();
+		HYDResFileOP_textField.addCaretListener(new CaretListener() {
+			public void caretUpdate(CaretEvent e) {
+				saveHYDResFileOP();
+				validateForm();
+			}
+		});
+		HYDResFileOP_textField.setColumns(10);
+		northFormPanel.add(HYDResFileOP_textField, getStr("4, %d, fill, default"));
+
+		HYDResFileOP_desc = new JLabel(
+				"Filename for the IOPs of hydrosols (result file)");
+				HYDResFileOP_desc
+				.setToolTipText("Filename for the IOPs of hydrosols (result file)");
+		northFormPanel.add(HYDResFileOP_desc, getStr("9, %d"));
+
+		currentY += 2;
 		HYDModel_title = new JLabel("HYD.Model *:");
 		HYDModel_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		northFormPanel.add(HYDModel_title, "2, 11, right, default");
+		northFormPanel.add(HYDModel_title, getStr("2, %d, right, default"));
 
 		HYDModel_checkboxJPanel = new JPanel();
 		HYDModel_checkboxJPanel.setBackground(Color.WHITE);
-		northFormPanel.add(HYDModel_checkboxJPanel, "4, 11, fill, fill");
+		northFormPanel.add(HYDModel_checkboxJPanel, getStr("4, %d, fill, fill"));
 		HYDModel_checkboxJPanel.setLayout(new BoxLayout(HYDModel_checkboxJPanel, BoxLayout.Y_AXIS));
 
 		HYDModel_choice1_ckeckbox = new JRadioButton(
@@ -534,8 +630,9 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		HYDModel_checkboxJPanel.add(HYDModel_choice1_ckeckbox);
 
 		HYDModel_choice2_ckeckbox = new JRadioButton(
-				"By using an external phase function");
+				"By using a user-defined external Mueller matrix (phase function,…) and Mie theory for absorption/scattering coefficients");
 		buttonGroup.add(HYDModel_choice2_ckeckbox);
+
 		HYDModel_choice2_ckeckbox.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
 				saveHYDModel();
@@ -548,9 +645,32 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		HYDModel_choice2_ckeckbox.setBackground(Color.WHITE);
 		HYDModel_checkboxJPanel.add(HYDModel_choice2_ckeckbox);
 
+
+		HYDModel_choice3_ckeckbox = new JRadioButton(
+					"By using a user-defined external Mueller matrix and a user-profile of a and b coefficients");
+		buttonGroup.add(HYDModel_choice3_ckeckbox);
+
+		HYDModel_choice3_ckeckbox.addChangeListener(new ChangeListener() {
+			public void stateChanged(ChangeEvent e) {
+				saveHYDModel();
+				
+				onHYDModelChanged();
+				
+				validateForm();
+			}
+		});
+		HYDModel_choice3_ckeckbox.setBackground(Color.WHITE);
+		HYDModel_checkboxJPanel.add(HYDModel_choice3_ckeckbox);
+
+		HYDModel_accolade = new JLabel("}");
+		Font font = HYDModel_accolade.getFont();
+		HYDModel_accolade.setFont(new Font(font.getFontName(), Font.ROMAN_BASELINE, 80));
+		northFormPanel.add(HYDModel_accolade, getStr("8, %d"));
+
+
 		HYDModel_desc = new JLabel("Type of hydrosol characterization");
 		HYDModel_desc.setToolTipText("Type of hydrosol characterization");
-		northFormPanel.add(HYDModel_desc, "9, 11");
+		northFormPanel.add(HYDModel_desc, getStr("9, %d"));
 
 		getFormFieldsPanel().add(northFormPanel, BorderLayout.NORTH);
 		
@@ -662,33 +782,36 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		hydroModel1ContentFormJp.setBackground(Color.WHITE);
 		hydroModelContentFormJp.add(hydroModel1ContentFormJp, "1");
 
+		currentY = 2;
 		HYDModel_choice1_title = new JLabel(
 				"    |--> Hydrosols characterization by models");
 		HYDModel_choice1_title.setHorizontalAlignment(SwingConstants.LEFT);
 		HYDModel_choice1_title.setForeground(Color.BLUE);
 		HYDModel_choice1_title.setFont(new Font("Tahoma", Font.BOLD, 11));
-		hydroModel1ContentFormJp.add(HYDModel_choice1_title, "2, 2, 3, 1");
+		hydroModel1ContentFormJp.add(HYDModel_choice1_title, getStr("2, %d, 3, 1"));
 
+		currentY += 2;
 		HYDModel_choice111_separator = new JSeparator();
 		HYDModel_choice111_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice111_separator, "2, 4");
+		hydroModel1ContentFormJp.add(HYDModel_choice111_separator, getStr("2, %d"));
 
 		HYDModel_choice11_title = new JLabel(
 				"    |--> Main mode of phytoplankton : Junge distribution");
 		HYDModel_choice11_title.setHorizontalAlignment(SwingConstants.LEFT);
 		HYDModel_choice11_title.setForeground(Color.BLUE);
 		HYDModel_choice11_title.setFont(new Font("Tahoma", Font.PLAIN, 11));
-		hydroModel1ContentFormJp.add(HYDModel_choice11_title, "4, 4");
+		hydroModel1ContentFormJp.add(HYDModel_choice11_title, getStr("4, %d"));
 
 		HYDModel_choice112_separator = new JSeparator();
 		HYDModel_choice112_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice112_separator, "9, 4");
+		hydroModel1ContentFormJp.add(HYDModel_choice112_separator, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOJDMRwa_title = new JLabel("PHYTO.JD.MRwa *:");
 		PHYTOJDMRwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOJDMRwa_title, "2, 6, right, default");
+		hydroModel1ContentFormJp.add(PHYTOJDMRwa_title, getStr("2, %d, right, default"));
 
 		PHYTOJDMRwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal("0.000"), null, new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(PHYTOJDMRwa_title, PHYTOJDMRwa_spinner);
@@ -698,19 +821,20 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOJDMRwa_spinner, "4, 6");
+		hydroModel1ContentFormJp.add(PHYTOJDMRwa_spinner, getStr("4, %d"));
 
 		PHYTOJDMRwa_desc = new JLabel(
-				"Real part of the refractive index for the simulation wavelength ");
+				"Real part of the refractive index at the simulation wavelength ");
 		PHYTOJDMRwa_desc
-				.setToolTipText("Real part of the refractive index for the simulation wavelength ");
-		hydroModel1ContentFormJp.add(PHYTOJDMRwa_desc, "9, 6");
+				.setToolTipText("Real part of the refractive index at the simulation wavelength ");
+		hydroModel1ContentFormJp.add(PHYTOJDMRwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOJDMIwa_title = new JLabel("PHYTO.JD.MIwa *:");
-		hydroModel1ContentFormJp.add(PHYTOJDMIwa_title, "2, 8, right, default");
+		hydroModel1ContentFormJp.add(PHYTOJDMIwa_title, getStr("2, %d, right, default"));
 
 		PHYTOJDMIwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
-		hydroModel1ContentFormJp.add(PHYTOJDMIwa_spinner, "4, 8");
+		hydroModel1ContentFormJp.add(PHYTOJDMIwa_spinner, getStr("4, %d"));
         PropertiesManager.getInstance().register(PHYTOJDMIwa_title, PHYTOJDMIwa_spinner);
 		PHYTOJDMIwa_spinner.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
@@ -720,13 +844,14 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		});
 
 		PHYTOJDMIwa_desc = new JLabel(
-				"Imaginary part of the refractive index (negative value) for the simulation wavelength  ");
+				"Imaginary part of the refractive index (negative value) at the simulation wavelength  ");
 		PHYTOJDMIwa_desc
-				.setToolTipText("Imaginary part of the refractive index (negative value) for the simulation wavelength  ");
-		hydroModel1ContentFormJp.add(PHYTOJDMIwa_desc, "9, 8");
+				.setToolTipText("Imaginary part of the refractive index (negative value) at the simulation wavelength  ");
+		hydroModel1ContentFormJp.add(PHYTOJDMIwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOJDslope_title = new JLabel("PHYTO.JD.slope *:");
-		hydroModel1ContentFormJp.add(PHYTOJDslope_title, "2, 10, right, default");
+		hydroModel1ContentFormJp.add(PHYTOJDslope_title, getStr("2, %d, right, default"));
 
 		PHYTOJDslope_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("3.0"), new BigDecimal("3.0"), new BigDecimal("5.0"), new BigDecimal("0.1")));
         PropertiesManager.getInstance().register(PHYTOJDslope_title, PHYTOJDslope_spinner);
@@ -736,13 +861,14 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOJDslope_spinner, "4, 10");
+		hydroModel1ContentFormJp.add(PHYTOJDslope_spinner, getStr("4, %d"));
 
-		PHYTOJDslope_desc = new JLabel("Slope of Junge\u2019s law, a positive value in the range 3.0-5.0");
-		hydroModel1ContentFormJp.add(PHYTOJDslope_desc, "9, 10");
+		PHYTOJDslope_desc = new JLabel("Slope of Junge\u2019s law (positive value, Warning: 3 is sa singular value)");
+		hydroModel1ContentFormJp.add(PHYTOJDslope_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOJDrmin_title = new JLabel("PHYTO.JD.rmin *:");
-		hydroModel1ContentFormJp.add(PHYTOJDrmin_title, "2, 12, right, default");
+		hydroModel1ContentFormJp.add(PHYTOJDrmin_title, getStr("2, %d, right, default"));
 
 		PHYTOJDrmin_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(PHYTOJDrmin_title, PHYTOJDrmin_spinner);
@@ -752,17 +878,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOJDrmin_spinner, "4, 12");
+		hydroModel1ContentFormJp.add(PHYTOJDrmin_spinner, getStr("4, %d"));
 
 		PHYTOJDrmin_desc = new JLabel(
-				"Minimal radius of phytoplankton particles (\u00B5m)");
+				"Minimum radius of phytoplankton particles (\u00B5m)");
 		PHYTOJDrmin_desc
-				.setToolTipText("Minimal radius of phytoplankton particles (\u00B5m)");
-		hydroModel1ContentFormJp.add(PHYTOJDrmin_desc, "9, 12");
+				.setToolTipText("Minimum radius of phytoplankton particles (\u00B5m)");
+		hydroModel1ContentFormJp.add(PHYTOJDrmin_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOJDrmax_title = new JLabel("PHYTO.JD.rmax *:");
 		PHYTOJDrmax_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOJDrmax_title, "2, 14");
+		hydroModel1ContentFormJp.add(PHYTOJDrmax_title, getStr("2, %d"));
 
 		PHYTOJDrmax_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"), new BigDecimal("0.0"), null, new BigDecimal("1.0")));
         PropertiesManager.getInstance().register(PHYTOJDrmax_title, PHYTOJDrmax_spinner);
@@ -772,16 +899,17 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOJDrmax_spinner, "4, 14");
+		hydroModel1ContentFormJp.add(PHYTOJDrmax_spinner, getStr("4, %d"));
 
 		PHYTOJDrmax_desc = new JLabel(
-				"Maximal radius of phytoplankton particles (\u00B5m)");
+				"Maximum radius of phytoplankton particles (\u00B5m)");
 		PHYTOJDrmax_desc
-				.setToolTipText("Maximal radius of phytoplankton particles (\u00B5m)");
-		hydroModel1ContentFormJp.add(PHYTOJDrmax_desc, "9, 14");
+				.setToolTipText("Maximum radius of phytoplankton particles (\u00B5m)");
+		hydroModel1ContentFormJp.add(PHYTOJDrmax_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOJDrate_title = new JLabel("PHYTO.JD.rate *:");
-		hydroModel1ContentFormJp.add(PHYTOJDrate_title, "2, 16, right, default");
+		hydroModel1ContentFormJp.add(PHYTOJDrate_title, getStr("2, %d, right, default"));
 
 		PHYTOJDrate_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), new BigDecimal("1.00"), new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(PHYTOJDrate_title, PHYTOJDrate_spinner);
@@ -791,34 +919,36 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOJDrate_spinner, "4, 16");
+		hydroModel1ContentFormJp.add(PHYTOJDrate_spinner, getStr("4, %d"));
 
 		PHYTOJDrate_desc = new JLabel(
-				"Ratio of the main mode in the global distribution (as a proportion of the Junge distribution particles versus the global amount of particules)");
-		hydroModel1ContentFormJp.add(PHYTOJDrate_desc, "9, 16");
+				"Rate of the main mode relatively to the overall distribution (i.e. the proportion of phytoplankton particles following the Junge distribution relatively to the overall quantity of phytoplankton particles combining the Junge mode and the LND secondary and tertiary mode)");
+		hydroModel1ContentFormJp.add(PHYTOJDrate_desc, getStr("9, %d"));
 
+		currentY += 2;
 		HYDModel_choice121_separator = new JSeparator();
 		HYDModel_choice121_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice121_separator, "2, 18");
+		hydroModel1ContentFormJp.add(HYDModel_choice121_separator, getStr("2, %d"));
 
 		HYDModel_choice12_title = new JLabel(
 				"    |--> Secondary mode of phytoplankton :LND parameters");
 		HYDModel_choice12_title.setHorizontalAlignment(SwingConstants.LEFT);
 		HYDModel_choice12_title.setForeground(Color.BLUE);
 		HYDModel_choice12_title.setFont(new Font("Tahoma", Font.PLAIN, 11));
-		hydroModel1ContentFormJp.add(HYDModel_choice12_title, "4, 18");
+		hydroModel1ContentFormJp.add(HYDModel_choice12_title, getStr("4, %d"));
 
 		HYDModel_choice122_separator = new JSeparator();
 		HYDModel_choice122_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice122_separator, "9, 18");
+		hydroModel1ContentFormJp.add(HYDModel_choice122_separator, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOLNDSMMRwa_title = new JLabel("PHYTO.LND.SM.MRwa :");
-		hydroModel1ContentFormJp.add(PHYTOLNDSMMRwa_title, "2, 20, right, default");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMMRwa_title, getStr("2, %d, right, default"));
 
 		panel_2 = new JPanel();
-		hydroModel1ContentFormJp.add(panel_2, "4, 20, fill, fill");
+		hydroModel1ContentFormJp.add(panel_2, getStr("4, %d, fill, fill"));
 		panel_2.setLayout(new BorderLayout(0, 0));
 
 		PHYTOLNDSMMRwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"),
@@ -833,14 +963,15 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		});
 
 		PHYTOLNDSMMRwa_desc = new JLabel(
-				"Real part of the refractive index for the secondary LND mode particles at simulation wavelength ");
+				"Real part of the refractive index for the secondary LND mode particles at the simulation wavelength ");
 		PHYTOLNDSMMRwa_desc
-				.setToolTipText("Real part of the refractive index for the secondary LND mode particles at simulation wavelength ");
-		hydroModel1ContentFormJp.add(PHYTOLNDSMMRwa_desc, "9, 20");
+				.setToolTipText("Real part of the refractive index for the secondary LND mode particles at the simulation wavelength ");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMMRwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOLNDSMMIwa_title = new JLabel("PHYTO.LND.SM.MIwa :");
 		PHYTOLNDSMMIwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOLNDSMMIwa_title, "2, 22");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMMIwa_title, getStr("2, %d"));
 
 		PHYTOLNDSMMIwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"),
                 new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
@@ -851,17 +982,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOLNDSMMIwa_spinner, "4, 22");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMMIwa_spinner, getStr("4, %d"));
 
 		PHYTOLNDSMMIwa_desc = new JLabel(
-				"Imaginary part of the refractive index for the secondary LND mode particles at simulation wavelength");
+				"Imaginary part of the refractive index for the secondary LND mode particles at the simulation wavelength");
 		PHYTOLNDSMMIwa_desc
-				.setToolTipText("Imaginary part of the refractive index for the secondary LND mode particles at simulation wavelength");
-		hydroModel1ContentFormJp.add(PHYTOLNDSMMIwa_desc, "9, 22");
+				.setToolTipText("Imaginary part of the refractive index for the secondary LND mode particles at the simulation wavelength");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMMIwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOLNDSMSDradius_title = new JLabel("PHYTO.LND.SM.SDradius :");
 		PHYTOLNDSMSDradius_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOLNDSMSDradius_title, "2, 24, right, default");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMSDradius_title, getStr("2, %d, right, default"));
 
 		PHYTOLNDSMSDradius_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(
                 new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
@@ -872,17 +1004,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOLNDSMSDradius_spinner, "4, 24");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMSDradius_spinner, getStr("4, %d"));
 
 		PHYTOLNDSMSDradius_desc = new JLabel(
-				"Modal radius of LND size distribution for the secondary LND mode (\u00B5m)");
+				"Modal radius of particles for the secondary LND mode (\u00B5m)");
 		PHYTOLNDSMSDradius_desc
-				.setToolTipText("Modal radius of LND size distribution for the secondary LND mode (\u00B5m)");
-		hydroModel1ContentFormJp.add(PHYTOLNDSMSDradius_desc, "9, 24");
+				.setToolTipText("Modal radius of particles for the secondary LND mode (\u00B5m)");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMSDradius_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOLNDSMSDvar_title = new JLabel("PHYTO.LND.SM.SDvar :");
 		PHYTOLNDSMSDvar_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOLNDSMSDvar_title, "2, 26");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMSDvar_title, getStr("2, %d"));
 
 		PHYTOLNDSMSDvar_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), null, new BigDecimal("0.01")));
@@ -893,17 +1026,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOLNDSMSDvar_spinner, "4, 26");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMSDvar_spinner, getStr("4, %d"));
 
 		PHYTOLNDSMSDvar_desc = new JLabel(
-				"Standard deviation of LND size distribution for the secondary LND mode");
+				"Standard deviation of particles for the the secondary LND mode (\u00B5m)");
 		PHYTOLNDSMSDvar_desc
-				.setToolTipText("Standard deviation of LND size distribution for the secondary LND mode");
-		hydroModel1ContentFormJp.add(PHYTOLNDSMSDvar_desc, "9, 26");
+				.setToolTipText("Standard deviation of particles for the the secondary LND mode (\u00B5m)");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMSDvar_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOLNDSMrate_title = new JLabel("PHYTO.LND.SM.rate :");
 		PHYTOLNDSMrate_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOLNDSMrate_title, "2, 28, right, default");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMrate_title, getStr("2, %d, right, default"));
 
 		PHYTOLNDSMrate_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), new BigDecimal("1.00"), new BigDecimal("0.01")));
@@ -914,34 +1048,36 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOLNDSMrate_spinner, "4, 28");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMrate_spinner, getStr("4, %d"));
 
 		PHYTOLNDSMrate_desc = new JLabel(
-				"Ratio of the main mode in the global distribution (as a proportion of the secondary LND mode particles versus the global amount of particules)");
+				"Rate of the secondary mode relatively to the overall distribution (i.e. the proportion of phytoplankton particles of the secondary LND mode relatively to the overall quantity of phytoplankton particles)");
 		PHYTOLNDSMrate_desc
-				.setToolTipText("Ratio of the main mode in the global distribution (as a proportion of the secondary LND mode particles versus the global amount of particules)");
-		hydroModel1ContentFormJp.add(PHYTOLNDSMrate_desc, "9, 28");
+				.setToolTipText("Rate of the secondary mode relatively to the overall distribution (i.e. the proportion of phytoplankton particles of the secondary LND mode relatively to the overall quantity of phytoplankton particles)");
+		hydroModel1ContentFormJp.add(PHYTOLNDSMrate_desc, getStr("9, %d"));
 
+		currentY += 2;
 		HYDModel_choice131_separator = new JSeparator();
 		HYDModel_choice131_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice131_separator, "2, 30");
+		hydroModel1ContentFormJp.add(HYDModel_choice131_separator, getStr("2, %d"));
 
 		HYDModel_choice13_title = new JLabel(
 				"    |--> Tertiary mode of phytoplankton : LND parameters");
 		HYDModel_choice13_title.setHorizontalAlignment(SwingConstants.LEFT);
 		HYDModel_choice13_title.setForeground(Color.BLUE);
 		HYDModel_choice13_title.setFont(new Font("Tahoma", Font.PLAIN, 11));
-		hydroModel1ContentFormJp.add(HYDModel_choice13_title, "4, 30");
+		hydroModel1ContentFormJp.add(HYDModel_choice13_title, getStr("4, %d"));
 
 		HYDModel_choice132_separator = new JSeparator();
 		HYDModel_choice132_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice132_separator, "9, 30");
+		hydroModel1ContentFormJp.add(HYDModel_choice132_separator, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOLNDTMMRwa_title = new JLabel("PHYTO.LND.TM.MRwa :");
 		PHYTOLNDTMMRwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOLNDTMMRwa_title, "2, 32, default, top");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMMRwa_title, getStr("2, %d, default, top"));
 
 		PHYTOLNDTMMRwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"),
                 new BigDecimal("0.000"), null, new BigDecimal("0.001")));
@@ -952,17 +1088,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOLNDTMMRwa_spinner, "4, 32");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMMRwa_spinner, getStr("4, %d"));
 
 		PHYTOLNDTMMRwa_desc = new JLabel(
-				"Real part of the refractive index for the tertiary LND mode particles at simulation wavelength ");
+				"Real part of the refractive index for the tertiary LND mode particles at the simulation wavelength ");
 		PHYTOLNDTMMRwa_desc
-				.setToolTipText("Real part of the refractive index for the tertiary LND mode particles at simulation wavelength ");
-		hydroModel1ContentFormJp.add(PHYTOLNDTMMRwa_desc, "9, 32");
+				.setToolTipText("Real part of the refractive index for the tertiary LND mode particles at the simulation wavelength ");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMMRwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOLNDTMMIwa_title = new JLabel("PHYTO.LND.TM.MIwa :");
 		PHYTOLNDTMMIwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOLNDTMMIwa_title, "2, 34");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMMIwa_title, getStr("2, %d"));
 
 		PHYTOLNDTMMIwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"),
                 new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
@@ -973,17 +1110,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOLNDTMMIwa_spinner, "4, 34");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMMIwa_spinner, getStr("4, %d"));
 
 		PHYTOLNDTMMIwa_desc = new JLabel(
-				"Imaginary part of the refractive index for the tertiary LND mode particles at simulation wavelength");
+				"Imaginary part of the refractive index for the tertiary LND mode particles at the simulation wavelength");
 		PHYTOLNDTMMIwa_desc
-				.setToolTipText("Imaginary part of the refractive index for the tertiary LND mode particles at simulation wavelength");
-		hydroModel1ContentFormJp.add(PHYTOLNDTMMIwa_desc, "9, 34");
+				.setToolTipText("Imaginary part of the refractive index for the tertiary LND mode particles at the simulation wavelength");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMMIwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOLNDTMSDradius_title = new JLabel("PHYTO.LND.TM.SDradius :");
 		PHYTOLNDTMSDradius_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOLNDTMSDradius_title, "2, 36");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMSDradius_title, getStr("2, %d"));
 
 		PHYTOLNDTMSDradius_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(
                 new BigDecimal("0.00"), null, null, new BigDecimal("0.01")));
@@ -994,17 +1132,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOLNDTMSDradius_spinner, "4, 36");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMSDradius_spinner, getStr("4, %d"));
 
 		PHYTOLNDTMSDradius_desc = new JLabel(
-				"Modal radius of LND size distribution for the tertiary LND mode (\u00B5m)");
+				"Modal radius of particles for the tertiary LND mode (\u00B5m)");
 		PHYTOLNDTMSDradius_desc
-				.setToolTipText("Modal radius of LND size distribution for the tertiary LND mode (\u00B5m)");
-		hydroModel1ContentFormJp.add(PHYTOLNDTMSDradius_desc, "9, 36");
+				.setToolTipText("Modal radius of particles for the tertiary LND mode (\u00B5m)");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMSDradius_desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOLNDTMSDvar_title = new JLabel("PHYTO.LND.TM.SDvar :");
 		PHYTOLNDTMSDvar_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(PHYTOLNDTMSDvar_title, "2, 38");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMSDvar_title, getStr("2, %d"));
 
 		PHYTOLNDTMSDvar_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), null, new BigDecimal("0.01")));
@@ -1015,16 +1154,17 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(PHYTOLNDTMSDvar_spinner, "4, 38");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMSDvar_spinner, getStr("4, %d"));
 
 		PHYTOLNDTMSDvar_desc = new JLabel(
-				"Standard deviation of LND size distribution for the tertiary LND mode");
+				"Standard deviation of particles for the tertiary LND mode");
 		PHYTOLNDTMSDvar_desc
-				.setToolTipText("Standard deviation of LND size distribution for the tertiary LND mode");
-		hydroModel1ContentFormJp.add(PHYTOLNDTMSDvar_desc, "9, 38");
-
+				.setToolTipText("Standard deviation of particles for the tertiary LND mode");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMSDvar_desc, getStr("9, %d"));
+		
+		currentY += 2;
 		PHYTOLNDTMrate_title = new JLabel("PHYTO.LND.TM.rate :");
-		hydroModel1ContentFormJp.add(PHYTOLNDTMrate_title, "2, 40, right, default");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMrate_title, getStr("2, %d, right, default"));
 
 		PHYTOLNDTMrate_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), new BigDecimal("1.00"), new BigDecimal("0.01")));
@@ -1036,38 +1176,40 @@ public class HydroGroundModelJPanel extends AbstractForm {
 			}
 		});
 
-		hydroModel1ContentFormJp.add(PHYTOLNDTMrate_spinner, "4, 40");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMrate_spinner, getStr("4, %d"));
 
 		PHYTOLNDTMrate_desc = new JLabel(
-				"Ratio of the main mode in the global distribution (as a proportion of the secondary LND mode particles versus the global amount of particules)");
+				"Rate of the tertiary mode relatively to the overall distribution (i.e. the proportion of phytoplankton particles of the tertiary LND mode relatively to the overall quantity of phytoplankton particles)");
 		PHYTOLNDTMrate_desc
-				.setToolTipText("Ratio of the main mode in the global distribution (as a proportion of the secondary LND mode particles versus the global amount of particules)");
-		hydroModel1ContentFormJp.add(PHYTOLNDTMrate_desc, "9, 40");
+				.setToolTipText("Rate of the tertiary mode relatively to the overall distribution (i.e. the proportion of phytoplankton particles of the tertiary LND mode relatively to the overall quantity of phytoplankton particles)");
+		hydroModel1ContentFormJp.add(PHYTOLNDTMrate_desc, getStr("9, %d"));
 		
+		currentY += 2;
 		HYDModel_choice1_mainSeparator = new JSeparator();
 		HYDModel_choice1_mainSeparator.setForeground(new Color(230, 230, 250));
-		hydroModel1ContentFormJp.add(HYDModel_choice1_mainSeparator, "2, 42, 8, 1");
+		hydroModel1ContentFormJp.add(HYDModel_choice1_mainSeparator, getStr("2, %d, 8, 1"));
 
 		HYDModel_choice141_separator = new JSeparator();
 		HYDModel_choice141_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice141_separator, "2, 44");
+		hydroModel1ContentFormJp.add(HYDModel_choice141_separator, getStr("2, %d"));
 
 		HYDModel_choice14_title = new JLabel(
-				"    |--> Main mode of sediment  : Junge distribution");
+				"    |--> Main mode of mineral-like particles : Junge distribution");
 		HYDModel_choice14_title.setHorizontalAlignment(SwingConstants.LEFT);
 		HYDModel_choice14_title.setForeground(Color.BLUE);
 		HYDModel_choice14_title.setFont(new Font("Tahoma", Font.PLAIN, 11));
-		hydroModel1ContentFormJp.add(HYDModel_choice14_title, "4, 44");
+		hydroModel1ContentFormJp.add(HYDModel_choice14_title, getStr("4, %d"));
 
 		HYDModel_choice142_separator = new JSeparator();
 		HYDModel_choice142_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice142_separator, "9, 44");
+		hydroModel1ContentFormJp.add(HYDModel_choice142_separator, getStr("9, %d"));
 
+		currentY += 2;
 		SEDJDMRwa_title = new JLabel("SED.JD.MRwa *:");
 		SEDJDMRwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDJDMRwa_title, "2, 46");
+		hydroModel1ContentFormJp.add(SEDJDMRwa_title, getStr("2, %d"));
 
 		SEDJDMRwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal("0.000"), null, new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(SEDJDMRwa_title, SEDJDMRwa_spinner);
@@ -1077,17 +1219,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDJDMRwa_spinner, "4, 46");
+		hydroModel1ContentFormJp.add(SEDJDMRwa_spinner, getStr("4, %d"));
 
 		SEDJDMRwa_desc = new JLabel(
-				"Real part of the refractive index for the simulation wavelength ");
+				"Real part of the refractive index at the simulation wavelength ");
 		SEDJDMRwa_desc
-				.setToolTipText("Real part of the refractive index for the simulation wavelength ");
-		hydroModel1ContentFormJp.add(SEDJDMRwa_desc, "9, 46");
+				.setToolTipText("Real part of the refractive index at the simulation wavelength ");
+		hydroModel1ContentFormJp.add(SEDJDMRwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDJDMIwa_title = new JLabel("SED.JD.MIwa *:");
 		SEDJDMIwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDJDMIwa_title, "2, 48");
+		hydroModel1ContentFormJp.add(SEDJDMIwa_title, getStr("2, %d"));
 
 		SEDJDMIwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(SEDJDMIwa_title, SEDJDMIwa_spinner);
@@ -1097,16 +1240,17 @@ public class HydroGroundModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		hydroModel1ContentFormJp.add(SEDJDMIwa_spinner, "4, 48");
+		hydroModel1ContentFormJp.add(SEDJDMIwa_spinner, getStr("4, %d"));
 
 		SEDJDMIwa_desc = new JLabel(
 				"Imaginary part of the refractive index (negative value) for the simulation wavelength  ");
 		SEDJDMIwa_desc
 				.setToolTipText("Imaginary part of the refractive index (negative value) for the simulation wavelength  ");
-		hydroModel1ContentFormJp.add(SEDJDMIwa_desc, "9, 48");
+		hydroModel1ContentFormJp.add(SEDJDMIwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDJDslope_title = new JLabel("SED.JD.slope *:");
-		hydroModel1ContentFormJp.add(SEDJDslope_title, "2, 50, right, default");
+		hydroModel1ContentFormJp.add(SEDJDslope_title, getStr("2, %d, right, default"));
 
 		SEDJDslope_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("3.0"), new BigDecimal("3.0"), new BigDecimal("5.0"), new BigDecimal("0.1")));
         PropertiesManager.getInstance().register(SEDJDslope_title, SEDJDslope_spinner);
@@ -1116,14 +1260,15 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDJDslope_spinner, "4, 50");
+		hydroModel1ContentFormJp.add(SEDJDslope_spinner, getStr("4, %d"));
 
-		SEDJDslope_desc = new JLabel("Slope of Junge\u2019s law, a positive value in the range 3.0-5.0");
-		hydroModel1ContentFormJp.add(SEDJDslope_desc, "9, 50");
+		SEDJDslope_desc = new JLabel("Slope of Junge\u2019s law (positive value. Warning: 3 is a singular value)");
+		hydroModel1ContentFormJp.add(SEDJDslope_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDJDrmin_title = new JLabel("SED.JD.rmin *:");
 		SEDJDrmin_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDJDrmin_title, "2, 52");
+		hydroModel1ContentFormJp.add(SEDJDrmin_title, getStr("2, %d"));
 
 		SEDJDrmin_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(SEDJDrmin_title, SEDJDrmin_spinner);
@@ -1133,15 +1278,16 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDJDrmin_spinner, "4, 52");
+		hydroModel1ContentFormJp.add(SEDJDrmin_spinner, getStr("4, %d"));
 
 		SEDJDrmin_desc = new JLabel(
-				"Minimal radius of mineral-like particles (\u00B5m)");
-		hydroModel1ContentFormJp.add(SEDJDrmin_desc, "9, 52");
+				"Minimum radius of mineral-like particles (\u00B5m)");
+		hydroModel1ContentFormJp.add(SEDJDrmin_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDJDrmax_title = new JLabel("SED.JD.rmax *:");
 		SEDJDrmax_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDJDrmax_title, "2, 54");
+		hydroModel1ContentFormJp.add(SEDJDrmax_title, getStr("2, %d"));
 
 		SEDJDrmax_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"), new BigDecimal("0.0"), null, new BigDecimal("1.0")));
         PropertiesManager.getInstance().register(SEDJDrmax_title, SEDJDrmax_spinner);
@@ -1151,15 +1297,16 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDJDrmax_spinner, "4, 54");
+		hydroModel1ContentFormJp.add(SEDJDrmax_spinner, getStr("4, %d"));
 
 		SEDJDrmax_desc = new JLabel(
-				"Maximal radius of mineral-like particles (\u00B5m)");
-		hydroModel1ContentFormJp.add(SEDJDrmax_desc, "9, 54");
+				"Maximum radius of mineral-like particles (\u00B5m)");
+		hydroModel1ContentFormJp.add(SEDJDrmax_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDJDrate_title = new JLabel("SED.JD.rate *:");
 		SEDJDrate_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDJDrate_title, "2, 56");
+		hydroModel1ContentFormJp.add(SEDJDrate_title, getStr("2, %d"));
 
 		SEDJDrate_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), new BigDecimal("1.00"), new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(SEDJDrate_title, SEDJDrate_spinner);
@@ -1169,33 +1316,35 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDJDrate_spinner, "4, 56");
+		hydroModel1ContentFormJp.add(SEDJDrate_spinner, getStr("4, %d"));
 
 		SEDJDrate_desc = new JLabel(
-				"Ratio of the main mode in the global distribution (as a proportion of the Junge distribution particles versus the global amount of particules)");
+				"Rate of the main mode relatively to the overall distribution (i.e. the proportion of Mineral-Like particles following the Junge distribution relatively to the overall quantity of Mineral-Like particles combining the Junge mode and the LND secondary and tertiary modes)");
 		SEDJDrate_desc.setHorizontalAlignment(SwingConstants.LEFT);
-		hydroModel1ContentFormJp.add(SEDJDrate_desc, "9, 56");
+		hydroModel1ContentFormJp.add(SEDJDrate_desc, getStr("9, %d"));
 
+		currentY += 2;
 		HYDModel_choice151_separator = new JSeparator();
 		HYDModel_choice151_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice151_separator, "2, 58");
+		hydroModel1ContentFormJp.add(HYDModel_choice151_separator, getStr("2, %d"));
 
 		HYDModel_choice15_title = new JLabel(
-				"    |--> Secondary mode of sediment :LND parameters");
+				"    |--> Secondary mode of mineral-like particles :LND parameters");
 		HYDModel_choice15_title.setHorizontalAlignment(SwingConstants.LEFT);
 		HYDModel_choice15_title.setForeground(Color.BLUE);
 		HYDModel_choice15_title.setFont(new Font("Tahoma", Font.PLAIN, 11));
-		hydroModel1ContentFormJp.add(HYDModel_choice15_title, "4, 58");
+		hydroModel1ContentFormJp.add(HYDModel_choice15_title, getStr("4, %d"));
 
 		HYDModel_choice152_separator = new JSeparator();
 		HYDModel_choice152_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice152_separator, "9, 58");
+		hydroModel1ContentFormJp.add(HYDModel_choice152_separator, getStr("9, %d"));
 
+		currentY += 2;
 		SEDLNDSMMRwa_title = new JLabel("SED.LND.SM.MRwa :");
 		SEDLNDSMMRwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDLNDSMMRwa_title, "2, 60, right, default");
+		hydroModel1ContentFormJp.add(SEDLNDSMMRwa_title, getStr("2, %d, right, default"));
 
 		SEDLNDSMMRwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"),
                 new BigDecimal("0.000"), null, new BigDecimal("0.001")));
@@ -1206,16 +1355,17 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDSMMRwa_spinner, "4, 60");
+		hydroModel1ContentFormJp.add(SEDLNDSMMRwa_spinner, getStr("4, %d"));
 
 		SEDLNDSMMRwa_desc = new JLabel(
-				"Real part of the refractive index for the secondary LND mode particles at simulation wavelength ");
+				"Real part of the refractive index for the secondary LND mode particles at the simulation wavelength ");
 		SEDLNDSMMRwa_desc
-				.setToolTipText("Real part of the refractive index for the secondary LND mode particles at simulation wavelength ");
-		hydroModel1ContentFormJp.add(SEDLNDSMMRwa_desc, "9, 60");
+				.setToolTipText("Real part of the refractive index for the secondary LND mode particles at the simulation wavelength ");
+		hydroModel1ContentFormJp.add(SEDLNDSMMRwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDLNDSMMIwa_title = new JLabel("SED.LND.SM.MIwa :");
-		hydroModel1ContentFormJp.add(SEDLNDSMMIwa_title, "2, 62, right, default");
+		hydroModel1ContentFormJp.add(SEDLNDSMMIwa_title, getStr("2, %d, right, default"));
 
 		SEDLNDSMMIwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"),
                 new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
@@ -1226,17 +1376,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDSMMIwa_spinner, "4, 62");
+		hydroModel1ContentFormJp.add(SEDLNDSMMIwa_spinner, getStr("4, %d"));
 
 		SEDLNDSMMIwa_desc = new JLabel(
-				"Imaginary part of the refractive index for the secondary LND mode particles at simulation wavelength");
+				"Imaginary part of the refractive index for the secondary LND mode particles at the simulation wavelength");
 		SEDLNDSMMIwa_desc
-				.setToolTipText("Imaginary part of the refractive index for the secondary LND mode particles at simulation wavelength");
-		hydroModel1ContentFormJp.add(SEDLNDSMMIwa_desc, "9, 62");
+				.setToolTipText("Imaginary part of the refractive index for the secondary LND mode particles at the simulation wavelength");
+		hydroModel1ContentFormJp.add(SEDLNDSMMIwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDLNDSMSDradius_title = new JLabel("SED.LND.SM.SDradius :");
 		SEDLNDSMSDradius_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDLNDSMSDradius_title, "2, 64");
+		hydroModel1ContentFormJp.add(SEDLNDSMSDradius_title, getStr("2, %d"));
 
 		SEDLNDSMSDradius_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), null, new BigDecimal("0.01")));
@@ -1247,17 +1398,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDSMSDradius_spinner, "4, 64");
+		hydroModel1ContentFormJp.add(SEDLNDSMSDradius_spinner, getStr("4, %d"));
 
 		SEDLNDSMSDradius_desc = new JLabel(
-				"Modal radius of LND size distribution for the secondary LND mode (\u00B5m)");
+				"Modal radius of particles for the secondary LND mode (\u00B5m)");
 		SEDLNDSMSDradius_desc
-				.setToolTipText("Modal radius of LND size distribution for the secondary LND mode (\u00B5m)");
-		hydroModel1ContentFormJp.add(SEDLNDSMSDradius_desc, "9, 64");
+				.setToolTipText("Modal radius of particles for the secondary LND mode (\u00B5m)");
+		hydroModel1ContentFormJp.add(SEDLNDSMSDradius_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDLNDSMSDvar_title = new JLabel("SED.LND.SM.SDvar :");
 		SEDLNDSMSDvar_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDLNDSMSDvar_title, "2, 66");
+		hydroModel1ContentFormJp.add(SEDLNDSMSDvar_title, getStr("2, %d"));
 
 		SEDLNDSMSDvar_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), null, new BigDecimal("0.01")));
@@ -1268,19 +1420,20 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDSMSDvar_spinner, "4, 66");
+		hydroModel1ContentFormJp.add(SEDLNDSMSDvar_spinner, getStr("4, %d"));
 
 		SEDLNDSMSDvar_desc = new JLabel(
 				"Standard deviation of LND size distribution");
 		SEDLNDSMSDvar_desc
-				.setToolTipText("Standard deviation of LND size distribution for the secondary LND mode");
+				.setToolTipText("Standard deviation of particles for the secondary LND mode");
 		SEDLNDSMSDvar_desc
-			.setToolTipText("Standard deviation of LND size distribution for the secondary LND mode");
-		hydroModel1ContentFormJp.add(SEDLNDSMSDvar_desc, "9, 66");
+			.setToolTipText("Standard deviation of particles for the secondary LND mode");
+		hydroModel1ContentFormJp.add(SEDLNDSMSDvar_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDLNDSMrate_title = new JLabel("SED.LND.SM.rate :");
 		SEDLNDSMrate_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDLNDSMrate_title, "2, 68");
+		hydroModel1ContentFormJp.add(SEDLNDSMrate_title, getStr("2, %d"));
 
 		SEDLNDSMrate_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), new BigDecimal("1.00"), new BigDecimal("0.01")));
@@ -1291,34 +1444,36 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDSMrate_spinner, "4, 68");
+		hydroModel1ContentFormJp.add(SEDLNDSMrate_spinner, getStr("4, %d"));
 
 		SEDLNDSMrate_desc = new JLabel(
-				"Ratio of the main mode in the global distribution (as a proportion of the secondary LND mode particles versus the global amount of particules)");
+				"Rate of the secondary mode relatively to the overall distribution (i.e. the proportion of Mineral-Like particles of the secondary LND mode relatively to the overall quantity of Mineral-Like particles)");
 		SEDLNDSMrate_desc
-				.setToolTipText("Ratio of the main mode in the global distribution (as a proportion of the secondary LND mode particles versus the global amount of particules)");
-		hydroModel1ContentFormJp.add(SEDLNDSMrate_desc, "9, 68");
+				.setToolTipText("Rate of the secondary mode relatively to the overall distribution (i.e. the proportion of Mineral-Like particles of the secondary LND mode relatively to the overall quantity of Mineral-Like particles)");
+		hydroModel1ContentFormJp.add(SEDLNDSMrate_desc, getStr("9, %d"));
 		
+		currentY += 2;
 		HYDModel_choice161_separator = new JSeparator();
 		HYDModel_choice161_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice161_separator, "2, 70");
+		hydroModel1ContentFormJp.add(HYDModel_choice161_separator, getStr("2, %d"));
 
 		HYDModel_choice16_title = new JLabel(
-				"    |--> Tertiary mode of sediment : LND parameters");
+				"    |--> Tertiary mode of mineral-like particles : LND parameters");
 		HYDModel_choice16_title.setHorizontalAlignment(SwingConstants.LEFT);
 		HYDModel_choice16_title.setForeground(Color.BLUE);
 		HYDModel_choice16_title.setFont(new Font("Tahoma", Font.PLAIN, 11));
-		hydroModel1ContentFormJp.add(HYDModel_choice16_title, "4, 70");
+		hydroModel1ContentFormJp.add(HYDModel_choice16_title, getStr("4, %d"));
 
 		HYDModel_choice162_separator = new JSeparator();
 		HYDModel_choice162_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel1ContentFormJp.add(HYDModel_choice162_separator, "9, 70");
+		hydroModel1ContentFormJp.add(HYDModel_choice162_separator, getStr("9, %d"));
 		
+		currentY += 4;
 		SEDLNDTMMRwa_title = new JLabel("SED.LND.TM.MRwa :");
 		SEDLNDTMMRwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDLNDTMMRwa_title, "2, 74");
+		hydroModel1ContentFormJp.add(SEDLNDTMMRwa_title, getStr("2, %d"));
 
 		SEDLNDTMMRwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"),
                 new BigDecimal("0.000"), null, new BigDecimal("0.001")));
@@ -1329,17 +1484,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDTMMRwa_spinner, "4, 74");
+		hydroModel1ContentFormJp.add(SEDLNDTMMRwa_spinner, getStr("4, %d"));
 
 		SEDLNDTMMRwa_desc = new JLabel(
-				"Real part of the refractive index for the tertiary LND mode particles at simulation wavelength ");
+				"Real part of the refractive index for the tertiary LND mode particles at the simulation wavelength ");
 		SEDLNDTMMRwa_desc
-				.setToolTipText("Real part of the refractive index for the tertiary LND mode particles at simulation wavelength");
-		hydroModel1ContentFormJp.add(SEDLNDTMMRwa_desc, "9, 74");
+				.setToolTipText("Real part of the refractive index for the tertiary LND mode particles at the simulation wavelength");
+		hydroModel1ContentFormJp.add(SEDLNDTMMRwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDLNDTMMIwa_title = new JLabel("SED.LND.TM.MIwa :");
 		SEDLNDTMMIwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDLNDTMMIwa_title, "2, 76");
+		hydroModel1ContentFormJp.add(SEDLNDTMMIwa_title, getStr("2, %d"));
 
 		SEDLNDTMMIwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"),
                 new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
@@ -1350,17 +1506,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDTMMIwa_spinner, "4, 76");
+		hydroModel1ContentFormJp.add(SEDLNDTMMIwa_spinner, getStr("4, %d"));
 
 		SEDLNDTMMIwa_desc = new JLabel(
-				"Imaginary part of the refractive index for the tertiary LND mode particles at simulation wavelength");
+				"Imaginary part of the refractive index for the tertiary LND mode particles at the simulation wavelength");
 		SEDLNDTMMIwa_desc
-				.setToolTipText("Imaginary part of the refractive index for the tertiary LND mode particles at simulation wavelength");
-		hydroModel1ContentFormJp.add(SEDLNDTMMIwa_desc, "9, 76");
+				.setToolTipText("Imaginary part of the refractive index for the tertiary LND mode particles at the simulation wavelength");
+		hydroModel1ContentFormJp.add(SEDLNDTMMIwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDLNDTMSDradius_title = new JLabel("SED.LND.TM.SDradius :");
 		SEDLNDTMSDradius_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDLNDTMSDradius_title, "2, 78");
+		hydroModel1ContentFormJp.add(SEDLNDTMSDradius_title, getStr("2, %d"));
 
 		SEDLNDTMSDradius_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), null, new BigDecimal("0.01")));
@@ -1371,17 +1528,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDTMSDradius_spinner, "4, 78");
+		hydroModel1ContentFormJp.add(SEDLNDTMSDradius_spinner, getStr("4, %d"));
 
 		SEDLNDTMSDradius_desc = new JLabel(
-				"Modal radius of LND size distribution for the tertiary LND mode (\u00B5m)");
+				"Modal radius of particles for the tertiary LND mode (\u00B5m)");
 		SEDLNDTMSDradius_desc
-				.setToolTipText("Modal radius of LND size distribution for the tertiary LND mode (\u00B5m)");
-		hydroModel1ContentFormJp.add(SEDLNDTMSDradius_desc, "9, 78");
+				.setToolTipText("Modal radius of particles for the tertiary LND mode (\u00B5m)");
+		hydroModel1ContentFormJp.add(SEDLNDTMSDradius_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDLNDTMSDvar_title = new JLabel("SED.LND.TM.SDvar :");
 		SEDLNDTMSDvar_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDLNDTMSDvar_title, "2, 80");
+		hydroModel1ContentFormJp.add(SEDLNDTMSDvar_title, getStr("2, %d"));
 
 		SEDLNDTMSDvar_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), null, new BigDecimal("0.01")));
@@ -1392,17 +1550,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDTMSDvar_spinner, "4, 80");
+		hydroModel1ContentFormJp.add(SEDLNDTMSDvar_spinner, getStr("4, %d"));
 
 		SEDLNDTMSDvar_desc = new JLabel(
-				"Standard deviation of LND size distribution for the tertiary LND mode");
+				"Standard deviation of particles for the tertiary LND mode");
 		SEDLNDTMSDvar_desc
-				.setToolTipText("Standard deviation of LND size distribution for the tertiary LND mode");
-		hydroModel1ContentFormJp.add(SEDLNDTMSDvar_desc, "9, 80");
+				.setToolTipText("Standard deviation of particles for the tertiary LND mode");
+		hydroModel1ContentFormJp.add(SEDLNDTMSDvar_desc, getStr("9, %d"));
 
+		currentY += 2;
 		SEDLNDTMrate_title = new JLabel("SED.LND.TM.rate :");
 		SEDLNDTMrate_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel1ContentFormJp.add(SEDLNDTMrate_title, "2, 82");
+		hydroModel1ContentFormJp.add(SEDLNDTMrate_title, getStr("2, %d"));
 
 		SEDLNDTMrate_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
                 new BigDecimal("0.00"), new BigDecimal("1.00"), new BigDecimal("0.01")));
@@ -1413,13 +1572,13 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel1ContentFormJp.add(SEDLNDTMrate_spinner, "4, 82");
+		hydroModel1ContentFormJp.add(SEDLNDTMrate_spinner, getStr("4, %d"));
 
 		SEDLNDTMrate_desc = new JLabel(
-				"Ratio of the main mode in the global distribution (as a proportion of the secondary LND mode particles versus the global amount of particules)");
+				"Rate of the tertiary mode relatively to the overall distribution (i.e. the proportion of Mineral-Like particles of the teratiary LND mode relatively to the overall quantity of Mineral-Like particles)");
 		SEDLNDTMrate_desc
-				.setToolTipText("Ratio of the main mode in the global distribution (as a proportion of the secondary LND mode particles versus the global amount of particules)");
-		hydroModel1ContentFormJp.add(SEDLNDTMrate_desc, "9, 82");
+				.setToolTipText("Rate of the tertiary mode relatively to the overall distribution (i.e. the proportion of Mineral-Like particles of the teratiary LND mode relatively to the overall quantity of Mineral-Like particles)");
+		hydroModel1ContentFormJp.add(SEDLNDTMrate_desc, getStr("9, %d"));
 
 		//////////////////////////////////////
 		FormLayout hydroModel2ContentFormLayout = new FormLayout(new ColumnSpec[] {
@@ -1440,22 +1599,24 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		
 		JPanel hydroModel2ContentFormJp = new JPanel(hydroModel2ContentFormLayout);
 		hydroModel2ContentFormJp.setBackground(Color.WHITE);
-		
+
+		currentY = 1;
 		HYDModel_choice2_title = new JLabel(
 				"    |--> Hydrosols characterization by external data");
 		HYDModel_choice2_title.setHorizontalAlignment(SwingConstants.LEFT);
 		HYDModel_choice2_title.setForeground(Color.BLUE);
 		HYDModel_choice2_title.setFont(new Font("Tahoma", Font.BOLD, 11));
-		hydroModel2ContentFormJp.add(HYDModel_choice2_title, "2, 1, 3, 1");
+		hydroModel2ContentFormJp.add(HYDModel_choice2_title, getStr("2, %d, 3, 1"));
 		
 		HYDModel_choice2_separator = new JSeparator();
 		HYDModel_choice2_separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		hydroModel2ContentFormJp.add(HYDModel_choice2_separator, "9, 1");
+		hydroModel2ContentFormJp.add(HYDModel_choice2_separator, getStr("9, %d"));
 		
+		currentY += 2;
 		HYDExtData_title = new JLabel("HYD.ExtData *:");
 		HYDExtData_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		hydroModel2ContentFormJp.add(HYDExtData_title, "2, 3");
+		hydroModel2ContentFormJp.add(HYDExtData_title, getStr("2, %d"));
 
 		HYDExtData_textField = new JTextField();
 		HYDExtData_textField.addCaretListener(new CaretListener() {
@@ -1464,16 +1625,113 @@ public class HydroGroundModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		hydroModel2ContentFormJp.add(HYDExtData_textField, "4, 3");
+		HYDExtData_textField.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				onExtDataClicked();
+				validateForm();
+			}
+		});
+		hydroModel2ContentFormJp.add(HYDExtData_textField, getStr("4, %d"));
 
 		HYDExtData_desc = new JLabel(
 				"Userfile for sea particles phase function (full path)");
 		HYDExtData_desc
 				.setToolTipText("Userfile for sea particles phase function (full path)");
-		hydroModel2ContentFormJp.add(HYDExtData_desc, "9, 3");
+		hydroModel2ContentFormJp.add(HYDExtData_desc, getStr("9, %d"));
 		
 		hydroModelContentFormJp.add(hydroModel2ContentFormJp, "2");
+
+		//////////////////////////////////////
+		FormLayout hydroModel3ContentFormLayout = new FormLayout(new ColumnSpec[] {
+			FormFactory.RELATED_GAP_COLSPEC,
+			ColumnSpec.decode("max(67dlu;default)"),
+			FormFactory.RELATED_GAP_COLSPEC,
+			ColumnSpec.decode("max(145dlu;default)"),
+			FormFactory.RELATED_GAP_COLSPEC,
+			FormFactory.DEFAULT_COLSPEC,
+			FormFactory.RELATED_GAP_COLSPEC,
+			ColumnSpec.decode("max(4dlu;default)"),
+			ColumnSpec.decode("default:grow"),},
+		new RowSpec[] {
+			FormFactory.DEFAULT_ROWSPEC,
+			FormFactory.RELATED_GAP_ROWSPEC,
+			FormFactory.DEFAULT_ROWSPEC,
+			FormFactory.RELATED_GAP_ROWSPEC,
+			FormFactory.DEFAULT_ROWSPEC,
+			FormFactory.RELATED_GAP_ROWSPEC,});
+	
+		JPanel hydroModel3ContentFormJp = new JPanel(hydroModel3ContentFormLayout);
+		hydroModel3ContentFormJp.setBackground(Color.WHITE);
+
+		currentY = 1;
+		HYDModel_choice3_title = new JLabel(
+				"    |--> Hydrosols model & a and b coef.  : external data");
+		HYDModel_choice3_title.setHorizontalAlignment(SwingConstants.LEFT);
+		HYDModel_choice3_title.setForeground(Color.BLUE);
+		HYDModel_choice3_title.setFont(new Font("Tahoma", Font.BOLD, 11));
+		hydroModel3ContentFormJp.add(HYDModel_choice3_title, getStr("2, %d, 3, 1"));
 		
+		HYDModel_choice3_separator = new JSeparator();
+		HYDModel_choice3_separator.setForeground(UIManager
+				.getColor("InternalFrame.inactiveTitleGradient"));
+		hydroModel3ContentFormJp.add(HYDModel_choice3_separator, getStr("9, %d"));
+		
+		currentY += 2;
+		HYDExtData2_title = new JLabel("HYD.ExtData *:");
+		HYDExtData2_title.setHorizontalAlignment(SwingConstants.RIGHT);
+		hydroModel3ContentFormJp.add(HYDExtData2_title, getStr("2, %d"));
+
+		HYDExtData2_textField = new JTextField();
+		HYDExtData2_textField.addCaretListener(new CaretListener() {
+			public void caretUpdate(CaretEvent e) {
+				saveHYDExtData2();
+				validateForm();
+			}
+		});
+		HYDExtData2_textField.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				onExtDataClicked();
+				validateForm();
+			}
+		});
+		hydroModel3ContentFormJp.add(HYDExtData2_textField, getStr("4, %d"));
+
+		HYDExtData2_desc = new JLabel(
+				"Userfile for sea particles phase function (full path)");
+		HYDExtData2_desc
+				.setToolTipText("Userfile for sea particles phase function (full path)");
+		hydroModel3ContentFormJp.add(HYDExtData2_desc, getStr("9, %d"));
+
+		currentY += 2;
+		HYDUserProfile_title = new JLabel("HYD.UserProfile *:");
+		HYDUserProfile_title.setHorizontalAlignment(SwingConstants.RIGHT);
+		hydroModel3ContentFormJp.add(HYDUserProfile_title, getStr("2, %d"));
+
+		HYDUserProfile_textField = new JTextField();
+		HYDUserProfile_textField.addCaretListener(new CaretListener() {
+			public void caretUpdate(CaretEvent e) {
+				saveHYDUserProfile();
+				validateForm();
+			}
+		});
+
+		HYDUserProfile_textField.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				onUserProfileClicked();
+				validateForm();
+			}
+		});
+
+		hydroModel3ContentFormJp.add(HYDUserProfile_textField, getStr("4, %d"));
+
+		HYDUserProfile_desc = new JLabel(
+				"Filename (full path) of user's external profile of absorption and scattering coefficents (pure water coefficients have been subtracted before)");
+		HYDUserProfile_desc
+				.setToolTipText("Filename (full path) of user's external profile of absorption and scattering coefficents (pure water coefficients have been subtracted before)");
+		hydroModel3ContentFormJp.add(HYDUserProfile_desc, getStr("9, %d"));
+		
+		hydroModelContentFormJp.add(hydroModel3ContentFormJp, "3");
+
 		getFormFieldsPanel().add(hydroModelContentFormJp, BorderLayout.CENTER);
         }
         catch (Throwable ex)
@@ -1537,16 +1795,33 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		MLPResFile_textField.validate();
 		return MLPResFile_textField.getText();
 	}
-
+	
 	private void saveMLPResFile(){
 		if(getMLPResFile()!=null){
 			hydrogroundModel.setMLPResFile( getMLPResFile() );
 		}
 	}
 
+	public String getHYDResFileOP() {
+		HYDResFileOP_textField.validate();
+		return HYDResFileOP_textField.getText();
+	}
+
+	private void saveHYDResFileOP(){
+		if(getHYDResFileOP()!=null){
+			hydrogroundModel.setHYDResFileOP( getHYDResFileOP() );
+		}
+	}
+
+
 	public Integer getHYDModel() {
 		HYDModel_choice1_ckeckbox.validate();
-		return HYDModel_choice1_ckeckbox.isSelected() ? 1 : 2;
+		HYDModel_choice2_ckeckbox.validate();
+		HYDModel_choice3_ckeckbox.validate();
+		if (HYDModel_choice1_ckeckbox.isSelected()) {
+			return 1;
+		}
+		return HYDModel_choice2_ckeckbox.isSelected() ? 2 : 3;
 	}
 
 	private void saveHYDModel(){
@@ -1913,11 +2188,39 @@ public class HydroGroundModelJPanel extends AbstractForm {
 	}
 
 	private void saveHYDExtData(){
+		if (!getHYDExtData().equals(getHYDExtData2())) {
+			HYDExtData2_textField.setText(getHYDExtData());
+		}  
 		if(getHYDExtData()!=null){
 			hydrogroundModel.setHYDExtData( getHYDExtData() );
 		}
 	}
-	
+
+	public String getHYDExtData2() {
+		HYDExtData2_textField.validate();
+		return (String) HYDExtData2_textField.getText();
+	}
+
+	private void saveHYDExtData2(){
+		if (!getHYDExtData().equals(getHYDExtData2())) {
+			HYDExtData_textField.setText(getHYDExtData2());
+		}
+		if(getHYDExtData()!=null){
+			hydrogroundModel.setHYDExtData( getHYDExtData() );
+		}
+	}
+
+	public String getHYDUserProfile() {
+		HYDUserProfile_textField.validate();
+		return (String) HYDUserProfile_textField.getText();
+	}
+
+	private void saveHYDUserProfile(){
+		if(getHYDUserProfile()!=null){
+			hydrogroundModel.setHYDUserProfile( getHYDUserProfile() );
+		}
+	}
+
 	protected void setHYDDirMieVisible(boolean isVisible_) {
 		HYDDirMie_title.setVisible(isVisible_);
 		HYDDirMie_textField.setVisible(isVisible_);
@@ -2154,6 +2457,18 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		HYDExtData_desc.setVisible(isVisible_);
 	}
 
+	protected void setHYDExtData2Visible(boolean isVisible_) {
+		HYDExtData2_title.setVisible(isVisible_);
+		HYDExtData2_textField.setVisible(isVisible_);
+		HYDExtData2_desc.setVisible(isVisible_);
+	}
+
+	protected void setHYDUserProfileVisible(boolean isVisible_) {
+		HYDUserProfile_title.setVisible(isVisible_);
+		HYDUserProfile_textField.setVisible(isVisible_);
+		HYDUserProfile_desc.setVisible(isVisible_);
+	}
+
 	@Override
 	protected void onResetBtnAction() {
 		int n = JOptionPane
@@ -2251,7 +2566,12 @@ public class HydroGroundModelJPanel extends AbstractForm {
 		HYDModel_choice2_title.setVisible( getHYDModel() == 2 );
 		HYDModel_choice2_separator.setVisible( getHYDModel() == 2 );
 
+		HYDModel_choice3_title.setVisible( getHYDModel() == 3 );
+		HYDModel_choice3_separator.setVisible( getHYDModel() == 3 );
+
 		setHYDExtDataVisible( getHYDModel() == 2 );
+		setHYDExtData2Visible( getHYDModel() == 3 );
+		setHYDUserProfileVisible( getHYDModel() == 3 );
 	}
 
 }

@@ -163,6 +163,16 @@ public class AtmosphericAndSeaProfiles implements IAtmosphericAndSeaProfiles {
 	}
 
 	@Override
+	public BigDecimal getCteDefaultAPPressure() {
+		return (BigDecimal) dalPreferences.getProperty("CTE_DEFAULT_PRESSURE", BigDecimal.class, PropertiesManager.getInstance().getCteDefaultAPPressure().toString());
+	}
+
+	@Override
+	public void setCteDefaultAPPressure(BigDecimal value_) {
+		dalPreferences.putProperty("CTE_DEFAULT_PRESSURE", value_);
+	}
+
+	@Override
 	public BigDecimal getCteDefaultSpectralDet() {
 		return (BigDecimal) dalPreferences.getProperty("CTE_DEFAULT_SPECTRAL_DET", BigDecimal.class, PropertiesManager.getInstance().getCteDefaultSpectralDet().toString());
 	}
@@ -215,6 +225,8 @@ public class AtmosphericAndSeaProfiles implements IAtmosphericAndSeaProfiles {
 		setCteNbwaMax(getCteNbwaMax());
 
 		setCteDefaultSpectralYs(getCteDefaultSpectralYs());
+		
+		setCteDefaultAPPressure(getCteDefaultAPPressure());
 
 		setCteDefaultSpectralDet(getCteDefaultSpectralDet());
 
@@ -242,6 +254,7 @@ public class AtmosphericAndSeaProfiles implements IAtmosphericAndSeaProfiles {
 
 		setPhytoGPChlbg(getPhytoGPChlbg());
 
+		setPhytoGPChlzmax(getPhytoGPChlzmax());
 		
 		setProfileSeaResFile(getProfileSeaResFile() );
 		
@@ -271,6 +284,8 @@ public class AtmosphericAndSeaProfiles implements IAtmosphericAndSeaProfiles {
 		setSEDCsed(getSEDCsed());
 
 		setYSSwa( getYSSwa()  );
+
+		setAPPressure( getAPPressure());
 
 		setYSAbs440(getYSAbs440());
 
@@ -336,6 +351,12 @@ public class AtmosphericAndSeaProfiles implements IAtmosphericAndSeaProfiles {
 	@Override
 	public void setPhytoGPChlbg(BigDecimal phytoGPChlbg) {
 		dalPreferences.putProperty("PHYTO.GP.Chlbg", phytoGPChlbg);
+		
+	}
+
+	@Override
+	public void setPhytoGPChlzmax(BigDecimal phytoGPChlzmax) {
+		dalPreferences.putProperty("PHYTO.GP.Chlzmax", phytoGPChlzmax);
 		
 	}
 
@@ -497,12 +518,12 @@ public class AtmosphericAndSeaProfiles implements IAtmosphericAndSeaProfiles {
 
 	@Override
 	public BigDecimal getSeaDepth() {
-		return (BigDecimal)dalPreferences.getProperty("SEA.Depth", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("SEA.Depth", BigDecimal.class, "1000");
 	}
 
 	@Override
 	public BigDecimal getPhytoChl() {
-		return (BigDecimal)dalPreferences.getProperty("PHYTO.Chl", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("PHYTO.Chl", BigDecimal.class, "0.03");
 	}
 
 	@Override
@@ -513,6 +534,11 @@ public class AtmosphericAndSeaProfiles implements IAtmosphericAndSeaProfiles {
 	@Override
 	public BigDecimal getPhytoGPChlbg() {
 		return (BigDecimal)dalPreferences.getProperty("PHYTO.GP.Chlbg", BigDecimal.class, "0.0");
+	}
+
+	@Override
+	public BigDecimal getPhytoGPChlzmax() {
+		return (BigDecimal)dalPreferences.getProperty("PHYTO.GP.Chlzmax", BigDecimal.class, "0.0");
 	}
 
 	@Override
@@ -527,23 +553,23 @@ public class AtmosphericAndSeaProfiles implements IAtmosphericAndSeaProfiles {
 
 	@Override
 	public BigDecimal getAPHA() {
-		return (BigDecimal)dalPreferences.getProperty("AP.HA", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("AP.HA", BigDecimal.class, "2.0");
 		
 	}
 
 	@Override
 	public BigDecimal getAERWaref() {
-		return (BigDecimal)dalPreferences.getProperty("AER.Waref", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("AER.Waref", BigDecimal.class, "0.55");
 	}
 
 	@Override
 	public BigDecimal getAPPressure() {
-		return (BigDecimal)dalPreferences.getProperty("AP.Pressure", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("AP.Pressure", BigDecimal.class, "1013");
 	}
 
 	@Override
 	public BigDecimal getAPHR() {
-		return (BigDecimal)dalPreferences.getProperty("AP.HR", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("AP.HR", BigDecimal.class, "8.0");
 	}
 
 	@Override
@@ -603,12 +629,12 @@ public class AtmosphericAndSeaProfiles implements IAtmosphericAndSeaProfiles {
 	
 	@Override
 	public Boolean getAPMotSelected() {
-		return (Boolean)dalPreferences.getProperty("@AP.MOT", Boolean.class, "true");
+		return (Boolean)dalPreferences.getProperty("@AP.MOT", Boolean.class, "false");
 	}
 
     @Override
     public Boolean getAPPressureSelected() {
-        return (Boolean)dalPreferences.getProperty("@AP.Pressure", Boolean.class, "false");
+        return (Boolean)dalPreferences.getProperty("@AP.Pressure", Boolean.class, "true");
 	}
 
 	@Override

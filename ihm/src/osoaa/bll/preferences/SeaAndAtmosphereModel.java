@@ -57,7 +57,7 @@ public class SeaAndAtmosphereModel implements ISeaAndAtmosphereModel {
 
 	@Override
 	public BigDecimal getSEAInd() {
-		return (BigDecimal)dalPreferences.getProperty("SEA.Ind", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("SEA.Ind", BigDecimal.class, "1.34");
 	}
 
 
@@ -68,7 +68,7 @@ public class SeaAndAtmosphereModel implements ISeaAndAtmosphereModel {
 
 	@Override
 	public BigDecimal getSEAWind() {
-		return (BigDecimal)dalPreferences.getProperty("SEA.Wind", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("SEA.Wind", BigDecimal.class, "5");
 	}
 
 	@Override

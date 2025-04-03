@@ -4,6 +4,7 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
@@ -61,7 +62,10 @@ C*           (for gfortran compilation - linux system)
 C* MOD:VERSION:1.3: 03/11/2016:
 C*     Changes to be compliant with a f77 compilation
 C*         - CALL FLUSH() changed to CALL FLUSH(6)
-C*         - Change a variable type to read the file FICANGLES                                   
+C*         - Change a variable type to read the file FICANGLES                       
+C* MOD:VERSION:1.4: 09/01/2024:                   
+C*     - Deleting of a few commas after a READ function to avoid warnings during compilation.
+C*                   
 C*   
 C******************************************************************************
 
@@ -429,19 +433,19 @@ C  ----------------------------------------------------------
 	 WRITE(IDLOG,*,ERR=2010) " "
 	 WRITE(IDLOG,*,ERR=2010) "Solar zenith angle : ", TETAS
 	 IF (ADD_TETAS) THEN
-	     WRITE(IDLOG,*,ERR=2010) , 
+	     WRITE(IDLOG,*,ERR=2010) 
      &       "  --> Must be added to the filename"
 	 ELSE
-	     WRITE(IDLOG,*,ERR=2010) , 
+	     WRITE(IDLOG,*,ERR=2010)
      &       "  --> Gauss angle or null value"
 	 ENDIF
 	 WRITE(IDLOG,*,ERR=2010) "Solar zenith angle in the sea: ",
      &	   TETASW
 	 IF (ADD_TETASW) THEN
-	     WRITE(IDLOG,*,ERR=2010) , 
+	     WRITE(IDLOG,*,ERR=2010)
      &       "  --> Must be added to the filename"
 	 ELSE
-	     WRITE(IDLOG,*,ERR=2010) , 
+	     WRITE(IDLOG,*,ERR=2010)
      &       "  --> Gauss angle or null value"
 	 ENDIF
 	 WRITE (IDLOG,*,ERR=2010) " "
@@ -460,7 +464,7 @@ C  ----------------------------------------------------------
 	 WRITE (IDLOG,*,ERR=2010) "Ordre max NM ", OS_NM
 	 WRITE (IDLOG,*,ERR=2010) " " 
 	 WRITE (IDLOG,*,err=2010) "List of used angles :"
-	 WRITE (IDLOG,*,err=2010) , 
+	 WRITE (IDLOG,*,err=2010) 
      &   "   Index, mu, angle (degrees), weigth"
 	 DO 1000 J=-LUM_NBMU,LUM_NBMU
 	    IF (J.EQ.0) GOTO 1000

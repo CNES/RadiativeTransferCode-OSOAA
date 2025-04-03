@@ -39,6 +39,8 @@ public class AerosolsModel implements IAerosolsModel {
 
 		setAERLog(getAERLog());
 
+		setAERResFileIOP(getAERResFileIOP());
+
 		setAERTronca(getAERTronca());
 
 		setAERModel( getAERModel() );
@@ -155,7 +157,16 @@ public class AerosolsModel implements IAerosolsModel {
 	public String getAERLog() {
 		return StringUtils.asStringValue(dalPreferences.getProperty("AER.Log", String.class, ""));
 	}
+	
+	@Override
+	public void setAERResFileIOP(String value_) {
+	    dalPreferences.putProperty("AER.ResFile.IOP", value_);
+	}
 
+	@Override
+	public String getAERResFileIOP() {
+		return StringUtils.asStringValue(dalPreferences.getProperty("AER.ResFile.IOP", String.class, ""));
+	}
 
 	@Override
 	public void setAERTronca(Boolean value_) {
@@ -294,7 +305,7 @@ public class AerosolsModel implements IAerosolsModel {
 
 	@Override
 	public Integer getAERModel() {
-        Integer num = AerosolModelTypeEnum.MONO_MODAL.ordinal();
+        Integer num = AerosolModelTypeEnum.SHETTLE_AND_FENN_BI_MODAL.ordinal();
 		return (Integer)dalPreferences.getProperty("AER.Model", Integer.class, num.toString());
 	}
 
@@ -528,7 +539,7 @@ public class AerosolsModel implements IAerosolsModel {
 
 	@Override
 	public BigDecimal getAERSFRH() {
-		return (BigDecimal)dalPreferences.getProperty("AER.SF.RH", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("AER.SF.RH", BigDecimal.class, "70.0");
 	}
 
 

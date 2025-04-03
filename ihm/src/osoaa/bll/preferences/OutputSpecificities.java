@@ -115,7 +115,7 @@ public class OutputSpecificities implements IOutputSpecificities {
 
 	@Override
 	public BigDecimal getOSOAAViewVZA() {
-        Object value = dalPreferences.getProperty("OSOAA.View.VZA", BigDecimal.class, "");
+        Object value = dalPreferences.getProperty("OSOAA.View.VZA", BigDecimal.class, "0");
         if(value instanceof BigDecimal)
         {
             return (BigDecimal) value;
@@ -178,7 +178,7 @@ public class OutputSpecificities implements IOutputSpecificities {
 
 	@Override
 	public String getOSOAAResFilevsZ() {
-		return StringUtils.asStringValue(dalPreferences.getProperty("OSOAA.ResFile.vsZ", String.class, ""));
+		return StringUtils.asStringValue(dalPreferences.getProperty("OSOAA.ResFile.vsZ", String.class, "LUM_vsZ.txt"));
 	}
 
 
@@ -189,7 +189,7 @@ public class OutputSpecificities implements IOutputSpecificities {
 
 	@Override
 	public String getOSOAAResFileAdv() {
-		return StringUtils.asStringValue(dalPreferences.getProperty("OSOAA.ResFile.Adv.Up", String.class, ""));
+		return StringUtils.asStringValue(dalPreferences.getProperty("OSOAA.ResFile.Adv.Up", String.class, "LUM_Advanced_Up.txt"));
 	}
 
 	@Override
@@ -210,7 +210,7 @@ public class OutputSpecificities implements IOutputSpecificities {
 
 	@Override
 	public String getOSOAAResFileAdvDown() {
-		return StringUtils.asStringValue(dalPreferences.getProperty("OSOAA.ResFile.Adv.Down", String.class, ""));
+		return StringUtils.asStringValue(dalPreferences.getProperty("OSOAA.ResFile.Adv.Down", String.class, "LUM_Advanced_Down.txt"));
 	}
 
 }

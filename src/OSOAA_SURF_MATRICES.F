@@ -4,6 +4,7 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
@@ -58,6 +59,9 @@ C*
 C*
 C* MOD:VERSION:1.0: 02/04/2015: Initial version of the OSOAA code
 C* MOD:VERSION:1.1: 15/06/2015: All comments for log files are now in english
+C* MOD:VERSION:1.2: 20/01/2025
+C*  - Deleting of a comma after a WRITE function to avoid warnings during compilation.
+C*  - Change obsolete end of loops in OSOAA_MAT_INTERFACE and SOS_NOYAUX_FRESNEL
 C*                                   
 C*   
 C******************************************************************************
@@ -725,7 +729,7 @@ C-----------------
          WRITE(IDLOG,*,err=921)'Simulation parameters: '
          WRITE(IDLOG,*,err=921)'   * Type of interface : ',CINTER
 	 WRITE(IDLOG,*,err=921)'   * Ratio ind N1 / N2 :',N1SN2
-	 WRITE(IDLOG,*,err=921),
+	 WRITE(IDLOG,*,err=921)
      &	    'File of Fresnel matrix to be created : ',FICRES_FRESNEL
 	 WRITE(IDLOG,*,err=921) ' ' 	 	 
       END IF
@@ -1799,9 +1803,9 @@ C-------------------------------------------------------------------
 		
 C* Complement du tableau a 0.
 C---------------------------------
-            DO 246 IJ=LIM+1,OS_NM
-  246          G(IJ)=0.
-  
+            DO  IJ=LIM+1,OS_NM
+                G(IJ)=0.
+            ENDDO  
 C------------------------------------------------------------------------
 C* Décomposition en séries de Fourier de la matrice de Fresnel
 C* pour les directions Teta1 et Teta2
@@ -2075,10 +2079,10 @@ C-------------------------------------
 C* Initialisation pour l'ordre IS >= 2
 C----------------------------------------
   701    A=1
-         DO 27 I=1,IS
+         DO I=1,IS
             X=I
-   27       A=A*DSQRT((I+IS)/X)*0.5
-   
+             A=A*DSQRT((I+IS)/X)*0.5
+         ENDDO   
          B=A*DSQRT(IS/(IS+1.D+00))*DSQRT((IS-1.D+00)/(IS+2.)) 
          DO 28 J=1,2
              C=R(J)
@@ -2146,7 +2150,7 @@ C* Initialisation des tableaux
 C* Boucle de sommation sur L = IS a OS_NS
 C-----------------------------------------------
 	
-             DO 32 L=IS,OS_NS
+             DO 321 L=IS,OS_NS
                 BP(IS,K)=BP(IS,K)+BETA(L)*PSL(L,J)*PSL(L,K)
 	        GR(IS,K)=GR(IS,K)+GAMMA(L)*PSL(L,J)*RSL(L,K)
                 GT(IS,K)=GT(IS,K)+GAMMA(L)*PSL(L,J)*TSL(L,K)
@@ -2156,8 +2160,8 @@ C-----------------------------------------------
      &		          ALPHA(L)*RSL(L,J)*RSL(L,K)
                 ART(IS,K)=ART(IS,K)+ALPHA(L)*RSL(L,K)*TSL(L,J)+
      &                    ZETA(L)*RSL(L,J)*TSL(L,K)
-
-   32    CONTINUE  ! boucle sur K et L
+  321        CONTINUE !boucle sur L
+  32     CONTINUE  ! boucle sur K 
  
    1  CONTINUE
       RETURN

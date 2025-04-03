@@ -201,6 +201,21 @@ public class MainJFrame extends JFrame {
 		}
 	}
 
+	private void updateExpert(JCheckBox jche) {
+		expertMode = jche.isSelected();
+
+                {
+                    Map<String, Object> buttonz = PropertiesManager.getButtons();
+                    Collection col = buttonz.values();
+                    for (Object jsp: col)
+                    {
+                        JSpinner ajsp = (JSpinner) jsp;
+                        ajsp.setEnabled(expertMode);
+                    }
+                }
+
+                commonPref.setExpert((Boolean) expertMode);
+	}
 	/**
 	 * Create the frame.
 	 */
@@ -462,28 +477,16 @@ public class MainJFrame extends JFrame {
         jche.addChangeListener(new ChangeListener() {
             @Override
             public void stateChanged(ChangeEvent e) {
-                expertMode = jche.isSelected();
-
-                {
-                    Map<String, Object> buttonz = PropertiesManager.getButtons();
-                    Collection col = buttonz.values();
-                    for (Object jsp: col)
-                    {
-                        JSpinner ajsp = (JSpinner) jsp;
-                        ajsp.setEnabled(expertMode);
-                    }
-                }
-
-                commonPref.setExpert((Boolean) expertMode);
+                updateExpert(jche);
             }
         });
-
+		updateExpert(jche);
         jche.setSelected(commonPref.isExpert());
 		
 		JLabel label = new JLabel(" | ");
 		panel.add(label, "cell 0 0");
 		
-		lblWorkingPath = new JLabel("Working path :");
+		lblWorkingPath = new JLabel("Working directory :");
 		lblWorkingPath.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent arg0) {
@@ -588,7 +591,7 @@ public class MainJFrame extends JFrame {
 		lblNewLabel_2.setFont(new Font("Tahoma", Font.PLAIN, 18));
 		lblNewLabel_2.setForeground(Color.BLUE);
 
-		JLabel labelVersion = new JLabel("version " + "1.5.20180628102927" );
+		JLabel labelVersion = new JLabel("version " + "2.0" );
 		labelVersion.setBorder(new EmptyBorder(20, 0, 0, 0));
 		labelVersion.setAlignmentX(Component.CENTER_ALIGNMENT);
 		labelVersion.setForeground(Color.BLUE);
@@ -604,8 +607,10 @@ public class MainJFrame extends JFrame {
 		welcomimgPanels.setBorder(new EmptyBorder(0, 0, 50, 0));
 		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getCNRSImage() ) ) );
 		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getLogIUF2015Image() ) ) );
+		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getLogRepFrancaiseImage() ) ) );
 		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getLogoCNESNewImageH110() ) ) );
 		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getSorbonneImage() ) ) );
+		welcomimgPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getCSBigLogoImage() ) ) );
 		
 		jpCenter.add(welcomimgPanels, BorderLayout.SOUTH);
 		
@@ -616,9 +621,10 @@ public class MainJFrame extends JFrame {
 		csPanels.setBorder(new MatteBorder(1, 0, 0, 0, (Color) Color.LIGHT_GRAY));
 		csPanels.setBackground(Color.WHITE);
 		welcomePanel.add(csPanels, BorderLayout.SOUTH);
-		csPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getCSLogoImage() ) ) );
+		//csPanels.add( new ImageJLabel(ImageResources.getIconFromImage( ImageResources.getCSLogoImage() ) ) );
 		//csPanels.add( new JLabel( "<html><u>Scientific Manager :</u>&nbsp;&nbsp;&nbsp;Malik CHAMI (LOV)<BR/><u>Project Supervision :</u>&nbsp;&nbsp;&nbsp;Bertrand FOUGNIE (CNES)<BR/><u>Development Project Manager :</u>&nbsp;&nbsp;&nbsp;Bruno LAFRANCE (CSSI)</html>" ) );
-		csPanels.add( new JLabel( "<html><u>Scientific Principal Investigator :</u>&nbsp;&nbsp;&nbsp;Malik CHAMI (Sorbonne Universit&eacute)<BR/><u>Technical Principal Investigator :</u>&nbsp;&nbsp;&nbsp;Bruno LAFRANCE (CSSI company)<BR/><u>Project Officer :</u>&nbsp;&nbsp;&nbsp;Bertrand FOUGNIE (CNES)<BR/><u>Chief Project Officer :</u>&nbsp;&nbsp;&nbsp;Aim&eacute MEYGRET (CNES)</html>" ) );
+		//csPanels.add( new JLabel( "<html><u>Scientific Principal Investigator :</u>&nbsp;&nbsp;&nbsp;Malik CHAMI (Sorbonne Universit&eacute)<BR/><u>Technical Principal Investigator :</u>&nbsp;&nbsp;&nbsp;Bruno LAFRANCE (CSSI company)<BR/><u>Project Officer :</u>&nbsp;&nbsp;&nbsp;Bertrand FOUGNIE (CNES)<BR/><u>Chief Project Officer :</u>&nbsp;&nbsp;&nbsp;Aim&eacute MEYGRET (CNES)</html>" ) );
+		csPanels.add( new JLabel( "<html><u>Scientific Principal Investigator :</u>&nbsp;&nbsp;&nbsp;Malik CHAMI (Sorbonne Universit&eacute)<BR/><u>Technical Principal Investigator :</u>&nbsp;&nbsp;&nbsp;Bruno LAFRANCE (CS GROUP company)<BR/><u>Chief Project Officer :</u>&nbsp;&nbsp;&nbsp;Aim&eacute MEYGRET (CNES)</html>" ) );
 		
 		initFields();
 		itemsList.setSelectedIndex(0);

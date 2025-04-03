@@ -138,13 +138,13 @@ public abstract class AbstractPreferences {
 
 			if(klass.isAssignableFrom(Double.class))
 			{
-				Double d = new Double("0.0");
+				Double d = Double.valueOf("0.0");
 				return klass.cast(d);
 			}
 			
 			if(klass.isAssignableFrom(Integer.class))
 			{
-				Integer d = new Integer("0");
+				Integer d = Integer.valueOf("0");
 				return klass.cast(d);
 			}
 			

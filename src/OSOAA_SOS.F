@@ -4,9 +4,8 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
-C*   Copyright (c) 2016, Université Pierre et Marie Curie - Paris 6
-C*                       and Communications & Systemes (CS SI)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
 C*   it under the terms of the GNU General Public License as published by
@@ -56,6 +55,7 @@ C*
 C* ROUTINES COUVERTES PAR LE FICHIER : 
 C*   - OSOAA_SOS
 C*   - OSOAA_POLAR
+C*   - OSOAA_CALC_REFL
 C*
 C*
 C* MOD:VERSION:1.0: 02/04/2015: Initial version of the OSOAA code
@@ -69,7 +69,7 @@ C*         - Change of reading the string FICANGLES_USER in file FICANGLES
 C*           (for gfortran compilation - linux system)  
 C*         - New output file FIC_FLUX: Profile of downwelling and upwelling 
 C*                                     flux from TOA to the sea bottom 
-C*                                     normalised to the solar irradiance at TOA  
+C*                                     normalized to the solar irradiance at TOA  
 C*         - OSOAA_SOS_CORE has new arguments : PROFIL_Z and FIC_FLUX
 C*         - Change format 800 : F7.2 becomes F8.2 for TPOL in order to allow
 C*           the value -999.00 in case of the polarization rate is not defined
@@ -80,7 +80,22 @@ C*           to be compliant with a f77 compilation
 C* MOD:VERSION:1.4: 04/06/2018:
 C*         - Routine OSOAA_POLAR is changed in version VERSION:1.1    
 C*         - The unit for I, Q and U is added in output files (steradian-1)
-C*   
+C* 
+C* MOD:VERSION:1.5: 13/08/2024:
+C*         - Routine OSOAA_SOS : Change the syntax of the text information
+C*           "180°" --> "180 degrees" and "0°" --> "0 degree" in result files
+C*           to avoid non utf-8 decoding anomalies with Python       
+C*         - The content of the FIC_FLUX file corresponds to flux calculated
+C*           for normalized radiance with a solar irradiance equals to PI.
+C*           --> This change the values of flux by a factor PI.   
+C*
+C* MOD:VERSION:1.6: 27/01/2025:    
+C*         - Change of the format of flux data (600 FORMAT line)   
+C*         - Adding a test in the subroutine to avoid DoLP > 100% due to machine rounding issues
+C*           The given value is then the undefined value = -999
+C*         - New subroutine OSOAA_CALC_REFL to calculate the reflectance and polarized reflectance.
+C*              If the downward flux is zero, the results are "undefined value"
+C*              If the reflectance is less than 1D-100, it is converted to zero.
 C******************************************************************************
 
 C----------------------------------------------------------------------------
@@ -103,15 +118,15 @@ C Constantes spécifiques :
 C    INCTE_IDLOG_SOS : ID du ficher Trace de la routine
 C    INCTE_PI : Valeur de PI (calculé par la machine)
 C    LENLINE  : Longueur maximale d'une ligne de données lue dans un fichier
-C    VALEUR_INDEFINIE : Valeur par défaut pour les grandeurs indéfinies
-C                       (angle de polarisation si polarisation nulle,
-C                        taux de polarisation si intensité nulle).
+C    UNDEFINED_VALUE : Valeur par défaut pour les grandeurs indéfinies
+C                      (angle de polarisation si polarisation nulle,
+C                       taux de polarisation si intensité nulle ou si taux > 100%).
 C----------------------------------------------------------------------------
 #include "OSOAA.h"
 #define INCTE_IDLOG_SOS 99
 #define INCTE_PI DACOS(-1.D+00)
 #define LENLINE 1000
-#define VALEUR_INDEFINIE -999.
+#define UNDEFINED_VALUE -999.
 
 
 
@@ -221,7 +236,7 @@ C                                            (chemin complet)
 C
 C     FIC_FLUX (CHAR*CTE_LENFIC2)    
 C                     		       (S) : Nom du fichier de profil du flux descendant et montant,
-C                                            normalisé par l'éclairement solaire au TOA (chemin complet).
+C			                     pour un éclairement solaire au TOA valant PI (chemin complet).
 C
 C     FICSOS_LOG (CHAR*CTE_LENFIC2)    (S) : Nom du fichier de log (chemin complet)
 C
@@ -582,14 +597,10 @@ C*-----------------------------------------------------------------
 					
 	!Profils marins      
       DOUBLE PRECISION SEA_Z(0:CTE_NT_SEA)	! Profil de profondeur dans la mer (m).     
-      DOUBLE PRECISION SEA_TAUEXT(0:CTE_NT_SEA)	! Profil d'épaisseur optique d'extinction 
-      						! de la mer.     
-      DOUBLE PRECISION SEA_PCRAY(0:CTE_NT_SEA)  ! Proportion de molécules pour la diffusion 
-      						! dans chaque couche marine.
-      DOUBLE PRECISION SEA_PC_CHL(0:CTE_NT_SEA) ! Proportion de phytoplancton pour la 
-      						! diffusion dans chaque couche marine.
-      DOUBLE PRECISION SEA_PC_MLP(0:CTE_NT_SEA) ! Proportion de sédiments pour la diffusion 
-      						! dans chaque couche marine.
+      DOUBLE PRECISION SEA_TAUEXT(0:CTE_NT_SEA)	! Profil d'épaisseur optique d'extinction de la mer.     
+      DOUBLE PRECISION SEA_PCRAY(0:CTE_NT_SEA)  ! Proportion de molécules pour la diffusion dans chaque couche marine.
+      DOUBLE PRECISION SEA_PC_CHL(0:CTE_NT_SEA) ! Proportion de phytoplancton pour la diffusion dans chaque couche marine.
+      DOUBLE PRECISION SEA_PC_MLP(0:CTE_NT_SEA) ! Proportion de sédiments pour la diffusion dans chaque couche marine.
 	
       DOUBLE PRECISION Z_I	!Altitude ou profondeur du niveau I
       					
@@ -624,11 +635,9 @@ C*-----------------------------------------------------------------
 					
       DOUBLE PRECISION PROFIL_Z(0:NT_TOT) ! Profil global d'altitudes et de profondeurs (m).
 					     
-	!Profil de flux descendant, normalisé par rapport à l'éclairement incident 
-	!au TOA Es (avec Es = PI).
+	!Profil de flux descendant, pour un éclairement solaire au TOA valant PI
       DOUBLE PRECISION PROFIL_FLUX_DOWN_TOT(0:NT_TOT)   ! Profil du flux descendant total 
-      							! (direct + diffus), normalisé par 
-							! rapport à Es 
+      							! (direct + diffus), pour Es = PI 
 				     
 	!Champ de luminance pour l'azimut phi
 	!en fonction du niveau z et de l'angle mu
@@ -738,8 +747,7 @@ C   des fichiers résultats
       				! (altitude ou profondeur)
       DOUBLE PRECISION REFL_POL	! Reflectance polarisée pour le niveau de sortie sollicité 
       DOUBLE PRECISION FLUX_DOWN_NORMA	! Flux descendant total (direct + diffus)
-      				        ! normalisé par l'éclairement solaire incident 
-					! au TOA (avec Es = PI). 
+      				        ! pour un éclairement solaire au TOA valant PI.
 					! Ce flux intègre les diffusions vers le bas
 					! du rayonnement réfléchi sur la surface ou le fond.
       
@@ -1757,7 +1765,8 @@ C-----------------------------------------------------------
       DO I=0,NT_TOT
 	 READ(11,600,ERR=1301) VALUE_INT,VALUE_DBLE,VALUE_DBLE,
      &                         VALUE_DBLE,PROFIL_FLUX_DOWN_TOT(I),
-     &                         VALUE_DBLE,VALUE_DBLE,VALUE_DBLE
+     &                         VALUE_DBLE,VALUE_DBLE,VALUE_DBLE,
+     &                         VALUE_DBLE
       ENDDO
       CLOSE(11)
 
@@ -1840,10 +1849,11 @@ C **************************************************************
          WRITE(10,*) ' '
          WRITE(10,*) '   Relative azimuth convention : '
          WRITE(10,*) 
-     &     '       180° <-> Satellite and Sun in the same half-plane'
+     &     '       180 degrees <-> Satellite and Sun in the same'//
+     &     ' half-plane'
          WRITE(10,*) 
-     &     '         0° <-> Satellite and Sun in opposite half-planes'//
-     &     ' with respect to the zenith direction'
+     &     '         0 degree  <-> Satellite and Sun in opposite'//
+     &     ' half-planes with respect to the zenith direction'
          WRITE(10,*) ' '
          WRITE(10,*) '   Simulated relative azimuth (degrees) :'
          WRITE(10,*) '       for VZA < 0 (sign convention):',
@@ -1865,18 +1875,18 @@ C **************************************************************
 	  WRITE(10,*)  
      &	    '  I, Q, U :  Stokes parameters at level Z (in sr-1)'
          WRITE(10,*) 
-     &	    '             normalised to the extraterrestrial solar'// 
+     &	    '             normalized to the extraterrestrial solar'// 
      &     ' irradiance (PI * L(z) / Esun)'
 	  WRITE(10,*) '  POL_ANG :  Polarization angle (deg)'
 	  WRITE(10,*) '  POL_RATE:  Degree of polarization (%)'
 	  WRITE(10,*) 
      &	    '  LPOL    :  Polarized intensity at level Z (in sr-1)'
          WRITE(10,*) 
-     &	    '             normalised to the extraterrestrial solar'// 
+     &	    '             normalized to the extraterrestrial solar'// 
      &      ' irradiance (PI * Lpol(z) / Esun)'
-	  WRITE(10,*) '---------------------------------------------' //
-     &    '---------------------------------------------------------' //
-     &    '----------'		   
+	  WRITE(10,*) '--------------------------------------------' //
+     &    '--------------------------------------------------------' //
+     &    '------------'		   
 	  
 	  
 	  WRITE(10,*) ' LEVEL    Z         VZA     SCA_ANG'//
@@ -1953,18 +1963,19 @@ C     pour toutes les directions de propagation descendantes.
      &    '----------'	 
 	  	  
 	  WRITE(10,*) 'Relative azimuth (degrees) :'
-         WRITE(10,*) ' '
-         WRITE(10,*) '   Relative azimuth convention : '
-         WRITE(10,*) 
-     &     '       180° <-> Satellite and Sun in the same half-plane'
-         WRITE(10,*) 
-     &     '         0° <-> Satellite and Sun in opposite half-planes'//
-     &     ' with respect to the zenith direction'
-         WRITE(10,*) ' '
-         WRITE(10,*) '   Simulated relative azimuth (degrees) :'
-         WRITE(10,*) '       for VZA < 0 (sign convention):',
+          WRITE(10,*) ' '
+          WRITE(10,*) '   Relative azimuth convention : '
+          WRITE(10,*) 
+     &     '       180 degrees <-> Satellite and Sun in the same'//
+     &     ' half-plane'
+          WRITE(10,*) 
+     &     '         0 degree  <-> Satellite and Sun in opposite'//
+     &     ' half-planes with respect to the zenith direction'
+          WRITE(10,*) ' '
+          WRITE(10,*) '   Simulated relative azimuth (degrees) :'
+          WRITE(10,*) '       for VZA < 0 (sign convention):',
      &	                  PHI2*180./INCTE_PI
-         WRITE(10,*) '       for VZA > 0 (sign convention):',
+          WRITE(10,*) '       for VZA > 0 (sign convention):',
      &	                  PHI1*180./INCTE_PI
      
 	  WRITE(10,*) ' '	  
@@ -1981,16 +1992,16 @@ C     pour toutes les directions de propagation descendantes.
 	  WRITE(10,*) 
      &	     '  I, Q, U :  Stokes parameters at level Z (in sr-1)'
          WRITE(10,*) 
-     &	    '             normalised to the extraterrestrial solar'// 
+     &	    '             normalized to the extraterrestrial solar'// 
      &     ' irradiance (PI * L(z) / Esun)'
 	  WRITE(10,*) '  POL_ANG :  Polarization angle (deg)'
 	  WRITE(10,*) '  POL_RATE:  Degree of polarization (%)'
 	  WRITE(10,*)  
      &	    '  LPOL    :  Polarized intensity at level Z (in sr-1)'
          WRITE(10,*) 
-     &	    '             normalised to the extraterrestrial solar'// 
+     &	    '             normalized to the extraterrestrial solar'// 
      &      ' irradiance (PI * Lpol(z) / Esun)'
-	  WRITE(10,*) '---------------------------------------------' //
+	  WRITE(10,*) '---------------------------------------------'//
      &   '---------------------------------------------------------' //
      &   '----------'	    
 	  
@@ -2218,10 +2229,11 @@ C ************************************************************
       WRITE(10,*) ' '
       WRITE(10,*) '   Relative azimuth convention : '
       WRITE(10,*) 
-     &   '       180° <-> Satellite and Sun in the same half-plane'
-      WRITE(10,*) 
-     &   '         0° <-> Satellite and Sun in opposite half-planes'//
-     &   ' with respect to the zenith direction'
+     &     '       180 degrees <-> Satellite and Sun in the same'//
+     &     ' half-plane'
+       WRITE(10,*) 
+     &     '         0 degree  <-> Satellite and Sun in opposite'//
+     &     ' half-planes with respect to the zenith direction'
       WRITE(10,*) ' '
       WRITE(10,*) '   Simulated relative azimuth (degrees) :'
       WRITE(10,*) '       for VZA < 0 (sign convention):',
@@ -2291,22 +2303,22 @@ C ************************************************************
       WRITE(10,*) '  VZA     :  Viewing Zenith Angle (deg)'
       WRITE(10,*) '  SCA_ANG :  Scattering angle (deg)'
       WRITE(10,*) 
-     &	 '  I       :  Stokes parameter at output level Z (in sr-1)'
+     & '  I       :  Stokes parameter at output level Z (in sr-1)'
       WRITE(10,*) 
-     &	 '             normalised to the extraterrestrial solar'//
-     &   ' irradiance (PI * L(z) / Esun)'
+     & '             normalized to the extraterrestrial solar'//
+     & ' irradiance (PI * L(z) / Esun)'
       WRITE(10,*) 
-     &  '  REFL    :  Reflectance at output level Z (PI * L(z) / Ed(z))'
+     & '  REFL    :  Reflectance at output level Z (PI * L(z) / Ed(z))'
       WRITE(10,*) '  POL_RATE:  Degree of polarization (%)'
       WRITE(10,*) 
-     &	 '  LPOL    :  Polarized intensity at output level Z (in sr-1)'
+     &	'  LPOL    :  Polarized intensity at output level Z (in sr-1)'
       WRITE(10,*) 
-     &	 '             normalised to the extraterrestrial solar'//
-     &   ' irradiance (PI * Lpol(z) / Esun)'
+     &	'             normalized to the extraterrestrial solar'//
+     &  ' irradiance (PI * Lpol(z) / Esun)'
       
       WRITE(10,*) 
-     &   '  REFL_POL:  Polarized reflectance at output level Z'//
-     &   ' (PI * Lpol(z) / Ed(z))'
+     &  '  REFL_POL:  Polarized reflectance at output level Z'//
+     &  ' (PI * Lpol(z) / Ed(z))'
 
       WRITE(10,*) '----------------------------------------------'//
      &'------------------------------------------------'   
@@ -2326,7 +2338,7 @@ C ************************************************************
 	  COEF_B = COEF_B -Z1*PROFIL_FLUX_DOWN_TOT(I2)
 	  COEF_B = COEF_B / DZ	
  	  FLUX_DOWN_NORMA = COEF_A*Z_OUT+COEF_B  ! Flux descendant total (direct + diffus) 
-	  					 ! normalisé par Es = PI
+	  					 ! pour Es = PI
 			
 					
          ! Demi plan PHIos + 180 degrés : Angles de visée négatifs par convention
@@ -2357,8 +2369,8 @@ C ************************************************************
 	       CALL OSOAA_POLAR(XI,XQ,XU,XAN,TPOL,LPOL)
      
                !Calcul de la réflectance et réflectance polarisée
-	       REFL = XI/FLUX_DOWN_NORMA
-	       REFL_POL = LPOL/FLUX_DOWN_NORMA
+               CALL OSOAA_CALC_REFL(XI,LPOL,FLUX_DOWN_NORMA,
+     &	                            REFL,REFL_POL)
 
 	       !Enregistrement du champ montant
                WRITE(10,800,ERR=1201) -TETA,ANGDIFF,XI,REFL,TPOL,LPOL,
@@ -2394,9 +2406,9 @@ C ************************************************************
 		
 	       CALL OSOAA_POLAR(XI,XQ,XU,XAN,TPOL,LPOL)
 
-               !Calcul de la réflectance et réflectance polarisée	
- 	       REFL = XI/FLUX_DOWN_NORMA
-	       REFL_POL = LPOL/FLUX_DOWN_NORMA
+               !Calcul de la réflectance et réflectance polarisée
+               CALL OSOAA_CALC_REFL(XI,LPOL,FLUX_DOWN_NORMA,
+     &	                            REFL,REFL_POL)
  
 	       !Enregistrement du champ montant
                WRITE(10,800,ERR=1201) TETA,ANGDIFF,XI,REFL,TPOL,LPOL,
@@ -2412,7 +2424,7 @@ C ************************************************************
 	   ! ==> Dans ce cas, le niveau est I1 = CTE_NT_ATM + 1
 
 
-         !Flux descendant total (normalisé par Es = PI) pour le niveau Z
+         !Flux descendant total (pour Es = PI) pour le niveau Z
 	 FLUX_DOWN_NORMA = PROFIL_FLUX_DOWN_TOT(I1)
 				       
          ! Demi plan PHIos + 180 degrés : Angles de visée négatifs par convention
@@ -2431,8 +2443,8 @@ C ************************************************************
 	       CALL OSOAA_POLAR(XI,XQ,XU,XAN,TPOL,LPOL)
 
                !Calcul de la réflectance et réflectance polarisée
-	       REFL = XI/FLUX_DOWN_NORMA
-	       REFL_POL = LPOL/FLUX_DOWN_NORMA
+               CALL OSOAA_CALC_REFL(XI,LPOL,FLUX_DOWN_NORMA,
+     &	                            REFL,REFL_POL)
 	    
 	       !Enregistrement du champ montant
                WRITE(10,800,ERR=1201) -TETA,ANGDIFF,XI,REFL,TPOL,LPOL,
@@ -2459,8 +2471,8 @@ C ************************************************************
 	       CALL OSOAA_POLAR(XI,XQ,XU,XAN,TPOL,LPOL)
  
                !Calcul de la réflectance et réflectance polarisée
- 	       REFL = XI/FLUX_DOWN_NORMA
-	       REFL_POL = LPOL/FLUX_DOWN_NORMA
+               CALL OSOAA_CALC_REFL(XI,LPOL,FLUX_DOWN_NORMA,
+     &	                            REFL,REFL_POL)
      
 	       !Enregistrement du champ montant
                WRITE(10,800,ERR=1201) TETA,ANGDIFF,XI,REFL,TPOL,LPOL,
@@ -2614,10 +2626,11 @@ C ********************************************************
          WRITE(10,*) ' '
          WRITE(10,*) '   Relative azimuth convention : '
          WRITE(10,*) 
-     &     '       180° <-> Satellite and Sun in the same half-plane'
+     &     '       180 degrees <-> Satellite and Sun in the same'//
+     &     ' half-plane'
          WRITE(10,*) 
-     &     '         0° <-> Satellite and Sun in opposite half-planes'//
-     &     ' with respect to the zenith direction'
+     &     '         0 degree  <-> Satellite and Sun in opposite'//
+     &     ' half-planes with respect to the zenith direction'
          WRITE(10,*) ' '
          WRITE(10,*) '   Simulated relative azimuth (degrees) :',
      &	              PHI1*180./INCTE_PI
@@ -2639,7 +2652,7 @@ C ********************************************************
          WRITE(10,*) 
      &	    '  I       :  Stokes parameter at level Z (in sr-1)'
          WRITE(10,*) 
-     &	    '             normalised to the extraterrestrial solar'//
+     &	    '             normalized to the extraterrestrial solar'//
      &      ' irradiance (PI * L(z) / Esun)'
 	 WRITE(10,*) '  REFL    :  Reflectance at level Z'//
      &   ' (PI * L(z) / Ed(z))'
@@ -2647,7 +2660,7 @@ C ********************************************************
          WRITE(10,*) 
      &	 '  LPOL    :  Polarized intensity at level Z (in sr-1)'
           WRITE(10,*) 
-     &	    '             normalised to the extraterrestrial solar '//
+     &	    '             normalized to the extraterrestrial solar '//
      &      ' irradiance (PI * Lpol(z) / Esun)'
 	 WRITE(10,*) '  REFL_POL:  Polarized reflectance at level Z'//
      &   ' (PI * Lpol(z) / Ed(z))'
@@ -2691,11 +2704,8 @@ C ********************************************************
 
 
             !Calcul de la réflectance et réflectance polarisée
-            FLUX_DOWN_NORMA=PROFIL_FLUX_DOWN_TOT(IPROF) ! Flux descendant total (direct 
-	    						! + diffus) normalisé par Es = PI
-
- 	    REFL = XI/FLUX_DOWN_NORMA
-	    REFL_POL = LPOL/FLUX_DOWN_NORMA
+            FLUX_DOWN_NORMA=PROFIL_FLUX_DOWN_TOT(IPROF) ! Flux descendant total (direct + diffus) pour Es = PI
+            CALL OSOAA_CALC_REFL(XI,LPOL,FLUX_DOWN_NORMA,REFL,REFL_POL)
 	         
 	    !Enregistrement du champ pour profondeur Z
             WRITE(10,900,ERR=1211) -SEA_Z(I),ANGDIFF,XI,REFL,TPOL,
@@ -2741,8 +2751,7 @@ C----------------------------------------------
  1031 WRITE(6,*) '  OSOAA_SOS ERROR_1031 on -ANG.Thetas value :'
       WRITE(6,*) '  --> out of available range'
       GOTO 9998      
-
-            
+         
  1040 WRITE(6,*) '  OSOAA_SOS ERROR_1040 on AEROSOLS file opening'
       GOTO 9998      
 
@@ -2857,7 +2866,8 @@ C---------
   800 FORMAT(2(F7.2,2X),2(E13.6,1X),2X,F7.2,2X,2(E13.6,1X))
   900 FORMAT(F10.5,2X,F7.2,2X,2(E13.6,1X),1X,F7.2,2X,2(E13.6,1X))
 
-  600 FORMAT(2X,I4,1X,F12.5,2X,6(2X,E12.6))    		!Format fichier Flux.txt	
+C  600 FORMAT(2X,I4,1X,F12.5,2X,6(2X,E12.6))    		!Format fichier Flux.txt	
+  600 FORMAT(2X,I4,1X,F12.5,2X,7(2X,E14.6E3))    		!Format fichier Flux.txt	
       END      !FIN DE LA PROCEDURE OSOAA_SOS
       
       
@@ -2960,7 +2970,7 @@ C*------------
              IF (XU.LT.0) THEN
                 XAN= -45.
              ELSE !Cas XQ=XU indéfinie
-                XAN= VALEUR_INDEFINIE
+                XAN= UNDEFINED_VALUE
              ENDIF
           ENDIF
 
@@ -2970,8 +2980,14 @@ C*------------
       
       IF (XI.NE.0.D+00) THEN
          TPOL = 100.*LPOL/XI
+
+         !Test to avoid DoLP > 100% due to machine rounding issues
+         IF (TPOL.GT.100.) THEN
+             TPOL = UNDEFINED_VALUE
+         ENDIF
+         
       ELSE
-         TPOL = VALEUR_INDEFINIE
+         TPOL = UNDEFINED_VALUE
       ENDIF
             
 9999  RETURN   
@@ -2979,5 +2995,85 @@ C*------------
       END      !FIN DE LA PROCEDURE OSOAA_POLAR   
       
       
+  
+
+
+C==============================================================================
+C PROCEDURE: OSOAA_CALC_REFL
+C ==========
+C      Routine calculant la réflectance et réflectance polarisée 
+C      en fonction du paramètre de Sotckes I (intensité normalisée à l'éclairement solaire)
+C      et du flux descendant (nomalisé à l'éclairement solaire)
+C
+C      Si le flux est nul (ou aberrant car négatif) les réflectances sont fixées à la valeur "indéterminée".
+C
+C Description des paramètres 			
+C ------------------------------
+C
+C     XI (double)     (E) : Valeur du paramètre de Stokes I
+C     LPOL (double)     (E) : Valeur de la luminace polarisée
+C     FLUX_DOWN_NORMA (double)     (E) : Valeur du flux descendant, normalisé à l'éclairemenre solaire
+C     REFL (double)    (S) : Valeur de la réflectance = PI * XI(z) / FLux_normalisée(z)
+C     REFL (double)    (S) : Valeur de la réflectance polarisée = PI * Lpol(z) / FLux_normalisée(z)	       
+C
+C Common utilisé:
+C --------------
+C  Aucun
+C
+C Cas d'erreur :
+C --------------
+C  Aucun
+C
+C  Sous programmes utilisés:
+C -------------------------
+C  Aucun
+C
+C
+C MOD:VERSION:1.0: 27/01/2025: Initial version of the routine
+C
+C==============================================================================
+
+      SUBROUTINE OSOAA_CALC_REFL(XI,LPOL,FLUX_DOWN_NORMA,
+     &	                         REFL,REFL_POL)
+
+      IMPLICIT NONE     
+                       	    
+C* Définition des variables                         
+C*-----------------------------------------------------------------
+      
+      DOUBLE PRECISION XI 	! (E) Paramètre de Stokes I 
+      DOUBLE PRECISION LPOL	! (E) Intensité polarisée normalisée à l'éclairement solaire au TOA 	
+      DOUBLE PRECISION FLUX_DOWN_NORMA	! (E)  Flux descendant total (direct + diffus) pour un éclairement solaire au TOA valant PI.    					     
+      DOUBLE PRECISION REFL 	! (S) Réflectance
+      DOUBLE PRECISION REFL_POL ! (S) Réflectance polarisée
+	
+
+C* Traitements                       
+C*------------      
+      
+      IF (FLUX_DOWN_NORMA.GT.0.D+00) THEN
+
+	  REFL = INCTE_PI*XI/FLUX_DOWN_NORMA
+	  REFL_POL = INCTE_PI*LPOL/FLUX_DOWN_NORMA
+
+          IF (REFL.LE.1D-100) THEN
+              REFL = 0.D+00
+          ENDIF 
+
+          IF (REFL_POL.LE.1D-100) THEN
+              REFL_POL = 0.D+00
+          ENDIF 
+
+      ELSE
+	  REFL = UNDEFINED_VALUE
+	  REFL_POL = UNDEFINED_VALUE
+      ENDIF
+
+9999  RETURN   
+            
+      END      !FIN DE LA PROCEDURE OSOAA_CALC_REFL 
+      
+      
        
+            
        

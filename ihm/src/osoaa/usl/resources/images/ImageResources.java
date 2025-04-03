@@ -39,6 +39,10 @@ public class ImageResources {
 	public static Image getLogIUF2015Image(){
 		return getImage("logo_iuf_2015_h70.png");
 	}
+
+	public static Image getLogRepFrancaiseImage(){
+		return getImage("logo_rf_h130.png");
+	}
 	
 	public static Image getUPMImage(){
 		return getImage("UPMC_3_h70.png");
@@ -58,6 +62,10 @@ public class ImageResources {
 
 	public static Image getCSLogoImage() {
 		return getImage("csLogo_h50.png");
+	}
+
+	public static Image getCSBigLogoImage() {
+		return getImage("csLogo_hbig.png");
 	}
 	
 	public static Image getOceanImg() {

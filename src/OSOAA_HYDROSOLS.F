@@ -4,9 +4,8 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
-C*   Copyright (c) 2016, Université Pierre et Marie Curie - Paris 6
-C*                       and Communications & Systemes (CS SI)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
 C*   it under the terms of the GNU General Public License as published by
@@ -73,6 +72,14 @@ C* MOD:VERSION:1.3: 03/11/2016:
 C*     Changes to be compliant with a f77 compilation
 C*         - CALL FLUSH() changed to CALL FLUSH(6)
 C*         - Change a variable type to read the file FICANGLES
+C* MOD:VERSION:1.4: 20/01/2025:
+C*    - Introduction of the new parameter FICHYD_IOP to provide information on
+C*      the hydrosol phase function, the scattering coefficient (b) profile, 
+C*      the backscattering coefficient (bb) profile and ratio bb/b.
+C*    - Introduction of Z1_NOTR which is the value of BETA11(0) without truncation of the phase function
+C*      and before normalization
+C*    - New output parameter : INT_90_180 which gives the integration of the phase function from 90 to 180°.
+C*    - The list of used angles in the logfile is now given as scattering angles.
 C*  
 C******************************************************************************
 
@@ -301,6 +308,21 @@ C			ALPHA(K)        BETA11(K)       GAMMA12(K)      ZETA(K)
 C			==> lignes de K=0 à OS_NB
 C
 C  
+C    Fichier résultat optionnel FICHYD_IOP:
+C      ==>   contient les informations suivantes
+C            Fonction de phase en fonction de l'angle de diffusion:
+C                   En intensité : P11
+C                   En polarisation : P12
+C                   En polarisation : P22
+C                   En polarisation : P33
+C            Profils en fonction de la profondeur:
+C                   Profil du coefficient de diffusion b (/m), 
+C                   Profil coefficient de rétrodiffusion bb (/m), 
+C                   Profil du rapport bb/b
+C
+C            Résultats fournis pour le phytoplancton, les sédiments et le mélange global des hydrosols.
+C
+C
 C    Fichier trace global de la routine : FICHYD_LOG
 C      ==>   contient des informations sur les étapes de traitements
 C
@@ -346,7 +368,8 @@ C==============================================================================
      &  		         LND_TM_RADIUS,LND_TM_VAR, 
      &			         LND_TM_MR, LND_TM_MI, LND_TM_RATE,
      & 		  	         FICEXTDATA,
-     &			         FICGRANU, FICHYD_LOG, 
+     &			         FICGRANU, FICHYD_IOP, INT_90_180, 
+     &			         FICHYD_LOG, 
      &                           DIRMIE, FICMIE_LOG, IER)
 
 
@@ -443,6 +466,8 @@ C*-----------------------------------------------------------------
                        !Copie de la fonction de phase (P11) avant troncature.
      
       DOUBLE PRECISION Z1	!Valeur de BETA11(0) avant normalisation.
+      DOUBLE PRECISION Z1_NOTR  !Valeur de BETA11(0) sans troncature et avant normalisation.
+
       DOUBLE PRECISION TETA     !Angle de diffusion.
       
                   
@@ -475,8 +500,8 @@ C*-----------------------------------------------------------------
       DOUBLE PRECISION Z_MOY	! Profondeur correspondant aux particules (m).
   
     
-      DOUBLE PRECISION INT_0_180  ! Valeur de la fonction de phase intégrée de 0 à 180°
-      DOUBLE PRECISION INT_90_180 ! Valeur de la fonction de phase intégrée de 90 à 180°
+      DOUBLE PRECISION INT_0_180  ! Valeur de la fonction de phase intégrée de 0 à 180° / 2*PI
+      DOUBLE PRECISION INT_90_180 ! Valeur de la fonction de phase intégrée de 90 à 180° / 2*PI
 
 
  	!   Paramètres pour différents modes 
@@ -560,12 +585,12 @@ C---- Les fichiers utilisés
       CHARACTER*CTE_LENFIC2 FICMIE	        ! Chemin et nom du fichier MIE
       CHARACTER*CTE_LENFIC2 FICMIE_LOG          ! Nom du fichier TRACE de MIE 
  
-      CHARACTER*CTE_LENFIC2 FICGRANU_PHYTO  ! Nom du fichier résultat des calculs de phase 
-      					    ! pour le phytoplancton
-      CHARACTER*CTE_LENFIC2 FICGRANU_MLP    ! Nom du fichier résultat des calculs de phase 
-      					    ! pour les sédiments
-      CHARACTER*CTE_LENFIC2 FICGRANU        ! Nom du fichier résultat d'un traitement 
-      					    ! (PHYTO ou MLP)      
+      CHARACTER*CTE_LENFIC2 FICGRANU_PHYTO  ! Nom du fichier résultat des calculs de phase pour le phytoplancton
+      CHARACTER*CTE_LENFIC2 FICGRANU_MLP    ! Nom du fichier résultat des calculs de phase pour les sédiments
+      CHARACTER*CTE_LENFIC2 FICGRANU        ! Nom du fichier résultat d'un traitement (PHYTO ou MLP)      
+      CHARACTER*CTE_LENFIC2 FICHYD_IOP      ! Nom du fichier résultat fournissant les IOP des hydrosols     
+
+
       CHARACTER*CTE_LENFIC2 FICEXTDATA  ! Chemin et nom du fichier de données externes 
       					! de fonctions de phase et paramètres radiatifs 
 					! (coefficients extinction et diffusion)  
@@ -683,12 +708,12 @@ C* -----------------------------------------------------------------
 	 WRITE (IDLOG,*,ERR=921) " " 
 	 WRITE (IDLOG,*,ERR=921) " " 
 	 WRITE (IDLOG,*,err=921) "List of used angles :"
-	 WRITE (IDLOG,*,err=921) "   Index, mu, angle (degrees), weigth"
+	 WRITE (IDLOG,*,err=921) "  Index, mu, angle (degrees), weigth"
 	 DO 1000 J=-MIE_NBMU,MIE_NBMU
 	    IF (J.EQ.0) GOTO 1000
 	    IF (J.LT.0) THEN 
 	        WRITE(IDLOG,222,ERR=921) J, XMU(J),
-     &	              -DACOS(-XMU(J))*180./INCTE_PI, XHR(J)
+     &	              (180. - DACOS(-XMU(J))*180./INCTE_PI), XHR(J)
             ELSE
 	        WRITE(IDLOG,222,ERR=921) J, XMU(J),
      &	               DACOS(XMU(J))*180./INCTE_PI, XHR(J)
@@ -697,7 +722,6 @@ C* -----------------------------------------------------------------
 	 WRITE (IDLOG,*,ERR=921) " " 
 	 WRITE (IDLOG,*,ERR=921) " "  	
       ENDIF !Fichier Trace
-
 
 
 
@@ -721,6 +745,8 @@ C------------------------------------------------------------
          IF (CONC.EQ.0.D+00) THEN !Pas de calcul 
 
 	    PIZTR = 0.D+00
+	    INT_0_180 = 0.D+00
+	    INT_90_180 = 0.D+00
 	    	    
 	    GOTO 1111	!Enregistrement du fichier résultat FICGRANU
       
@@ -958,30 +984,7 @@ C  -----------------------------------------------
 
 
 		
-C* Intégration de la fonction de phase (non tronquée)
-C* sur toutes les directions ou en rétro-diffusion uniquement 
-C  ----------------------------------------------------------
-      INT_0_180 = 0.
-      INT_90_180 = 0.
-      DO J=-MIE_NBMU,MIE_NBMU
-         INT_0_180 = INT_0_180 + P11(J)*XHR(J)
-      ENDDO
 
-      DO J=-MIE_NBMU,-1
-         INT_90_180 = INT_90_180 + P11(J)*XHR(J)
-      ENDDO
-
-
-      IF (TRACE) THEN
-         WRITE (IDLOG,*,ERR=921) ' '
-         WRITE (IDLOG,*,ERR=921)
-     &	    'Phase function integration (no truncation)'
-	 WRITE (IDLOG,*,ERR=921)
-     &	 '  Phase function integration from 0 to 180 deg:',INT_0_180
-         WRITE (IDLOG,*,ERR=921)
-     &	 '  Phase function integration from 90 to 180 deg:',INT_90_180
-	 WRITE (IDLOG,*,err=921) ' '
-      ENDIF
 
 
 C* Cas de particules sphériques : P22(J) = P11(J)
@@ -995,7 +998,8 @@ C  avec application ou non de la troncature
 C  ----------------------------------------------------- 
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,MU1_TRONCA,MU2_TRONCA,
      &			 	   TRACE,MIE_NBMU,XMU,XHR,OS_NB,
-     &				   P11,TTT,P12,P22,P33,A_TRONCA,Z1,
+     &				   P11,TTT,P12,P22,P33,A_TRONCA,
+     &				   Z1,Z1_NOTR,
      &				   ALP,BETA11,BETA22,
      &                             GAMMA12,DELTA33,ZETA,IER)     
      
@@ -1135,7 +1139,8 @@ C  avec application ou non de la troncature
 C  -----------------------------------------------------
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,MU1_TRONCA,MU2_TRONCA,
      &			 	   TRACE,MIE_NBMU,XMU,XHR,OS_NB,
-     &				   P11,TTT,P12,P22,P33,A_TRONCA,Z1,
+     &				   P11,TTT,P12,P22,P33,A_TRONCA,
+     &				   Z1,Z1_NOTR,
      &				   ALP,BETA11,BETA22,
      &                             GAMMA12,DELTA33,ZETA,IER)  
          IF (IER.NE.0) GOTO 996   ! cas d'erreur
@@ -1164,7 +1169,28 @@ C-------------------------------------------
 
 C* Troncature de l'albédo de simple diffusion
 C--------------------------------------------
-      PIZTR = PIZ*(1.-A_TRONCA/2.)/(1.-PIZ*A_TRONCA/2.)      
+      PIZTR = PIZ*(1.-A_TRONCA/2.)/(1.-PIZ*A_TRONCA/2.)   
+
+C* Intégration de la fonction de phase (non tronquée)
+C* sur toutes les directions ou en rétro-diffusion uniquement 
+C  ----------------------------------------------------------
+      INT_0_180 = 0.
+      INT_90_180 = 0.
+      DO J=-MIE_NBMU,MIE_NBMU
+         INT_0_180 = INT_0_180 + TTT(J)*XHR(J)
+      ENDDO
+
+      DO J=-MIE_NBMU,-1
+         INT_90_180 = INT_90_180 + TTT(J)*XHR(J)
+      ENDDO
+
+      INT_0_180 = INT_0_180 / Z1_NOTR
+      INT_90_180 = INT_90_180 / Z1_NOTR
+
+
+      IF (TRACE) THEN
+
+      ENDIF   
     
 C* Ecriture du fichier trace
 C-------------------------------------------
@@ -1204,11 +1230,13 @@ C-------------------------------------------
      &	       '  Single scattering albedo - adjusted to the trunca. :',
      &         PIZTR 
 	       WRITE(IDLOG,*,err=921) 
-     &		 '  Single scattering albedo - no trunca. applied :',
-     &             PIZTR / (1.-A_TRONCA/2.+PIZTR*A_TRONCA/2.)      
+     &	      '   Single scattering albedo - no trunca. applied :',
+     &         PIZTR / (1.-A_TRONCA/2.+PIZTR*A_TRONCA/2.)      
 	       WRITE(IDLOG,*,err=921)
-     &	       '  Beta11(0) non-normalized - adjusted to the trunca. :',
+     &	       '  Beta11(0) non-normalized - adjusted to the trunca.:',
      &	       Z1  
+	       WRITE(IDLOG,*,err=921)
+     &	       '  Beta11(0) non-normalized - no truncation: ', Z1_NOTR
                WRITE(IDLOG,*,err=921) 
      &	         '  Asymmetry factor - adjusted to the truncation: ',
      &           BETA11(1)/3.
@@ -1227,7 +1255,8 @@ C-------------------------------------------
      &           BETA11(1)/3.
      	    ENDIF !Fin test si troncature   
             WRITE(IDLOG,*,err=921) ' '
-	    WRITE(IDLOG,*,err=921) '  1st column : Scattering angle'
+	    WRITE(IDLOG,*,err=921)  
+     &	      '  1st column : Scattering angle  (in degree)'
 	    WRITE(IDLOG,*,err=921) 
      &	      '  2nd column : Truncated phase function P11' 	 
 	    WRITE(IDLOG,*,err=921)
@@ -1246,12 +1275,22 @@ C-------------------------------------------
             WRITE(IDLOG,*,err=921) '                 P33(mu) '
 	    WRITE(IDLOG,*,err=921) ' '	    
             DO 44 J=-MIE_NBMU,MIE_NBMU
+               IF (J.EQ.0) GOTO 44
 	       TETA=DACOS(XMU(J))*180./INCTE_PI
 	       WRITE(IDLOG,10,err=921) TETA,P11(J),TTT(J),
      &                              P12(J)*P11(J)/TTT(J),P12(J),
      &                              P33(J)*P11(J)/TTT(J),P33(J)
    44       CONTINUE
-         END IF
+         ENDIF
+
+         WRITE (IDLOG,*,ERR=921) ' '
+         WRITE (IDLOG,*,ERR=921)
+     &	 'Phase function integration (no truncation)'
+	 WRITE (IDLOG,*,ERR=921)
+     &	 '  Phase function integration from 0 to 180 deg:',INT_0_180
+         WRITE (IDLOG,*,ERR=921)
+     &	 '  Phase function integration from 90 to 180 deg:',INT_90_180
+	 WRITE (IDLOG,*,err=921) ' '
     
          WRITE(IDLOG,*,err=921) ' '  
 	 WRITE(IDLOG,35,err=921)'I','ALP(I)','BETA11(I)','GAMMA12(I)',
@@ -1275,7 +1314,40 @@ C  -----------------------------------------------------------------------
      
       IF (IER.NE.0) GOTO 998   ! cas d'erreur
 	   
-	   
+
+
+C* Information pour le fichier FICHYD_IOP donnant les informations d'IOP
+C  -----------------------------------------------------------------------
+ 	
+      IF (FICHYD_IOP.NE."NO_IOP_FILE") THEN   
+	 WRITE(65,*,ERR=961)  'Phase matrix:'    
+	 WRITE(65,*,ERR=961)
+     &        '   1st column : Scattering angle'
+	 WRITE(65,*,ERR=961) 
+     &	      '   2nd column : Phase function P11'
+	 WRITE(65,*,ERR=961)  
+     &        '   3rd column : Polarized phase function P12'
+	 WRITE(65,*,ERR=961) 
+     &        '   4th column : Polarized phase function P22' 
+	 WRITE(65,*,ERR=961) 
+     &        '   5th column : Polarized phase function P33' 
+	 WRITE(65,*,ERR=961)  ' '    
+         DO 100 J=-MIE_NBMU,MIE_NBMU
+            IF (J.EQ.0) GOTO 100
+	    TETA=DACOS(XMU(J))*180./INCTE_PI
+	    WRITE(65,40,ERR=961) TETA,TTT(J),P12(J),P22(J),P33(J)
+100      CONTINUE      
+
+         WRITE (65,*,ERR=961) ' '
+         WRITE (65,*,ERR=961)
+     &	    'Phase function integration (no truncation)'
+	 WRITE (65,*,ERR=961)
+     &	 '  Phase function integration from 0 to 180 deg:',INT_0_180
+         WRITE (65,*,ERR=961)
+     &	 '  Phase function integration from 90 to 180 deg:',INT_90_180
+	 WRITE (65,*,err=961) ' '
+	 WRITE (65,*,err=961) ' '
+      ENDIF	   
 	    
 C* Fermeture fichiers
 C-------------------
@@ -1293,8 +1365,8 @@ C* Cas d'erreur et retour du status -1 au programme appelant
 C----------------------------------------------
 
  850  WRITE(6,*) '  OSOAA_HYDROSOLS : ERROR_850' 
-      WRITE(6,*) '    Inconsistante values for mode concentrations'
-      WRITE(6,*) '    for hydrosol'
+      WRITE(6,*) '    Inconsistante values for mode concentrations',
+     & ' for hydrosol (phytoplankton or Mineral-Like particles)'
       WRITE(6,*) '  	  Junge law mode     : ', C(1)
       WRITE(6,*) '  	+ LND secondary mode : ', C(2)
       WRITE(6,*) '  	+ LND tertiary mode  : ', C(3)
@@ -1364,6 +1436,9 @@ C----------------------------------------------
       WRITE(6,*) '  	   do not use twice same values'
       GOTO 9998            
 
+  961 WRITE(6,*)
+     &'  OSOAA_HYDROSOLS : ERROR_961 on IOP results file writing'
+      GOTO 9998
 
   993 WRITE(6,*) '  OSOAA_HYDROSOLS : ERROR_993 on subroutine SOS_MIE'
       GOTO 9998
@@ -1396,10 +1471,10 @@ C---------
    10 FORMAT(1X,F6.2,6(2X,E12.4))
    25 FORMAT(1X,I3,5(2X,E13.5))
    35 FORMAT(3X,A1,5X,A6,9X,A9,6X,A10,5X,A10,5X,A7)
-   
+   40 FORMAT(4X,F6.2,4(2X,E12.4))   
   402 FORMAT(F7.2,4E14.5)
        
-  222 FORMAT(I4,1X,D21.14,2X,F7.3,2X,D21.14,2X)
+  222 FORMAT(I4,1X,D21.14,2X,F8.3,2X,D21.14,2X)
   
       END      !FIN DE LA PROCEDURE OSOAA_HYDROSOLS
       

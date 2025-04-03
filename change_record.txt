@@ -175,3 +175,96 @@ OSOAA V1.6 : 2019, January 11th
 - Changes of the User Manual : V1.2 --> V1.3
     * See the Change Record on page i.3
 
+
+
+OSOAA V2.0 : 2025, January 30th
+----------
+- Changes of the gen/Makefile_OSOAA.gfortran file : V1.1 --> V1.2
+    * Change of the option of optimization CCOPTS  =  -O CCOPTS  =  -O3 -march=native -w
+      for faster calculations and to avoid no critical warnings during compilation
+
+- Changes of the src/OSOAA_MAIN.F file : V1.5 --> V1.6
+    * Conversion of the wavelength from air (WA_SIMU) to sea water (WA_SIMU_SEA) 
+      The latest is now used as input of the OSOAA_HYDROSOLS routine.
+    * Change to avoid many warnings during the compilation.
+    * Introduction of the use case (-HYD.Model 3) to ingest a user-defined external 
+      Mueller matrix and a user measured profile (from the new parameter -HYD.UserProfile)
+    * Global change of consistency controls of parameter values to consider the new use case -HYD.Model 3.
+    * Correction of a syntax error when calling OSOAA_COMPA_SIMU_FILENAME for the case FICGRANU_MLP,'-MLP.ResFile:'
+    * Adding a consistency test in case of using a user-defined external Mueller matrix 
+    * Initialization of the coefficients for spectral variation of the yellow substance absorption and detritus absorption by their default values 
+    * Adding optional parameters -AER.ResFile.IOP and -HYD.ResFile.IOP to provide IOP about aerosols or hydrosols 
+    * Adding new parameter -PHYTO.GP.Chlzmax to provide the maximum value of chlorophyll concentration
+      for a Gaussian profile (multiplicative factor of the exponential) to replace the previous use 
+      of Phyto.Chl (now only devoted to define the concentration of an homogeneous profile)  
+    * Change in subroutine OSOAA_COMPA_SIMU_VALUE (comparing simulation parameters with the previous run)
+      to prevent rounding problems due to some constant values read in the OSOAA.h file, 
+      and introduction of a new specific test in case the previous parameter was zero.
+    * Adjustements of outputs values of the OSOAA_PROFILE function to generate IOP files.
+    * Correction of column overflows (cwithout impact on the simulations)
+    * Change to write copy_ListParam.txt into the result folder rather than into the current exe folder,
+      so that multiple OSOAA runs concurrently do not cause conflicts.
+
+- Changes of the src/OSOAA_ANGLES.F file : V1.2 --> V1.3
+    * Change of location of the max order OS_NM calculation (applied for Fourier expansions of BRDF matrices)
+      to allow using a number of Mie Gauss angles (to calculate aerosol phase functions) higher than the default value.
+
+- Changes of the src/OSOAA_SURFACE.F file : V1.3 --> V1.4
+    * Deleting of a few commas after a READ function to avoid warnings during compilation.
+
+- Changes of the src/OSOAA_SURF_MATRICES.F file : V1.1 --> V1.2
+    * Deleting of a comma after a WRITE function to avoid warnings during compilation.
+    * Change obsolete end of loops in OSOAA_MAT_INTERFACE and SOS_NOYAUX_FRESNEL
+
+- Changes of the src/OSOAA_HYDROSOLS.F file : V1.3 --> V1.4
+    * Introduction of the new parameter FICHYD_IOP to provide information on the hydrosol phase function, scattering coefficient (b) profile, 
+      backscattering coefficient (bb) profile and ratio bb/b.
+    * Introduction of new output parameter : INT_90_180 which gives the integration of the phase function from 90 to 180°.
+    * The list of used angles in the logfile is now given as scattering angles.
+
+- Changes of the src/OSOAA_MIE.F file : V1.1 --> V1.2
+    * Change obsolete end of loop in SOS_XERO
+
+- Changes of the src/OSOAA_PARTICLES_RAD.F file : V1.2 --> V2.0
+    * Correction of a column overflow (without impact on the simulations)
+    * Addition of zero initialisation for Greek coefficient arrays in SOS_DECOMPO_LEGENDRE subroutine.
+    * Correction of typo in logfile.
+    * Calculation of Z1_NOTR which is the value of BETA11(0) without truncation of the phase function
+      and before normalization ==> new output of SOS_DECOMPO_LEGENDRE       
+
+- Changes of the src/OSOAA_PROFILE.F file : V1.3 --> V2.0
+    * Deleting of a few commas after the READ function to avoid warnings during compilation.                            
+    * Changes to introduce the possibility of using a user profile of absorption and scattering coefficients.
+    * The default values are no longer assigned to the parameter YS_SWA and DET_SWA in this subroutine, but in the OSOAA_MAIN routine.
+    * Constante CTE_STD_PRESSURE is renamed CTE_DEFAULT_PRESSURE to ensure consistency with the GUI code.
+    * New output paramaters 
+    * The scattering coefficient of pure seawater is now calculated by the Morel's model 1974, 
+      rather than extracted from tabulated values ==> Adjustement of routine OSOAA_SEA_MOL_COEFFS
+    * The minimum number of sea layers is controlled : If NZ = 0, then its value is forced to 1            
+
+- Changes of the src/OSOAA_SOS.F file : V1.4 --> V1.6
+    * Routine OSOAA_SOS : Change the syntax of the text information "180°" --> "180 degrees" and "0°" --> "0 degree" in result files.
+    * The content of the FIC_FLUX file corresponds to flux calculated for normalized radiance with a solar irradiance equals to PI.
+      --> This change the values of flux by a factor PI.      
+    * Change of the format of flux data (600 FORMAT line)   
+    * Adding a test in the subroutine to avoid DoLP > 100% due to machine rounding issues (value set undefined value = -999)
+    * New subroutine OSOAA_CALC_REFL to calculate the reflectance and polarized reflectance.
+
+- Changes of the src/OSOAA_SOS_CORE.F file : V1.3 --> V1.5
+    *  Deleting of a few commas after the READ function to avoid warnings during compilation.
+    *  Adding the possibility to switch off the polarisation.
+    *  Modification of information on fluxes.
+    *  Change obsolete end of loops .
+    *  Change of the format of flux data (600 FORMAT line)
+
+- Changes of the src/OSOAA_TRPHI.F file : V1.1 --> V1.2   
+    *  Adding the possibilty to switch off the polarisation effects
+
+- Changes of the inc/OSOAA.h file : V1.2 --> V1.3   
+    * Adding the new constant parameter CTE_POLAR_SWITCHED_OFF to switch off the polarisation effects.
+    * Adding the new constant parameter CTE_NZ_MAX_USER_PROFILE to define the maximal number of depth values in the user profile of absorption and scattering coefficients.
+    * CTE_STD_PRESSURE is renamed CTE_DEFAULT_PRESSURE to ensure consistency with the GUI code.
+
+- Changes of the User Manual : V1.3 --> V2.0
+    * See the Change Record in the User Manual
+

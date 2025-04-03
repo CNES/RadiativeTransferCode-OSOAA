@@ -1,5 +1,7 @@
 package osoaa.usl.common.ui.jspinner;
 
+import java.io.Serializable;
+
 import javax.swing.*;
 
 public class OptionalSpinnerNumberModel extends AbstractSpinnerModel {
@@ -10,9 +12,9 @@ public class OptionalSpinnerNumberModel extends AbstractSpinnerModel {
 	public SpinnerNumberModel getSpinnerNumberModel(){
 		return snm;
 	}
-	public OptionalSpinnerNumberModel(SpinnerNumberModel snm_) {
+	public OptionalSpinnerNumberModel(SpinnerNumberModel pSnm) {
         super();
-        snm = snm_;
+        snm = pSnm;
     }
 
 	@Override
@@ -21,7 +23,7 @@ public class OptionalSpinnerNumberModel extends AbstractSpinnerModel {
     		currentValue = snm.getValue();
         } else {
         	currentValue = snm.getNextValue();
-        	if( snm.getMaximum() != null && (currentValue == null  || snm.getMaximum().compareTo(currentValue)<0) ){
+        	if( snm.getMaximum() != null && (currentValue == null  || ( (Comparable<Object>) snm.getMaximum()).compareTo(currentValue)<0) ){
         		currentValue = snm.getMaximum();
         	}
         }
@@ -35,7 +37,7 @@ public class OptionalSpinnerNumberModel extends AbstractSpinnerModel {
         	currentValue = snm.getValue();
         } else {
         	currentValue = snm.getPreviousValue();
-        	if( snm.getMinimum() != null && (currentValue == null  ||  snm.getMinimum().compareTo(currentValue)>0) ){
+        	if( snm.getMinimum() != null && (currentValue == null  ||  ( (Comparable<Object>) snm.getMinimum()).compareTo(currentValue)>0) ){
         		currentValue = snm.getMinimum();
         	}
         }
@@ -50,7 +52,7 @@ public class OptionalSpinnerNumberModel extends AbstractSpinnerModel {
     		if(currentValue == null){
     			fireChanges = true;
     		}
-    		currentValue = (Number)value;
+    		currentValue = value;
     		snm.setValue(currentValue);
     	} else {
     		if(currentValue != null){

@@ -2,11 +2,10 @@ C******************************************************************************
 C* FICHIER: OSOAA_MAIN.F
 C*
 C*------------------------------------------------------------------------ 
-C* OSOAA Licence
+C* OSOAA LicenceF
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
-C*   Copyright (c) 2016, Université Pierre et Marie Curie - Paris 6
-C*                       and Communications & Systemes (CS SI)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
 C*   it under the terms of the GNU General Public License as published by
@@ -73,7 +72,7 @@ C*       functions are calculated.
 C*
 C*       Introduction of a new file, FIC_FLUX = "Flux.txt"
 C*       --> Profile of downwelling and upwelling flux from TOA 
-C*           to the sea bottom normalised to the solar irradiance at TOA.
+C*           to the seabed normalised to the solar irradiance at TOA.
 C* MOD:VERSION:1.3: 03/11/2016:
 C*     Changes to be compliant with a f77 compilation
 C*         - CALL FLUSH() changed to CALL FLUSH(6)
@@ -84,7 +83,7 @@ C*       listing the process parameters (label 1917)
 C*       Format F8.5 becomes F12.5 to avoid "****" in case of this parameter 
 C*       is not defined and the associated value is CTE_NOT_DEFINED_VALUE_DBLE value.
 C*
-C*     - Introduction of the calculation of the sea bottom reflectance in case of 
+C*     - Introduction of the calculation of the seabed reflectance in case of 
 C*       use of tabulated data in CTE_FIC_BOT_SPECTRAL_DATA.
 C*       --> Estimate the RHO_BOT reflectance for light sand (IBOT_TYPE=2), 
 C*           Green algae (IBOT_TYPE=3), Brown algae (IBOT_TYPE=3), Red algae (IBOT_TYPE=4)
@@ -93,6 +92,57 @@ C* MOD:VERSION:1.5: 11/01/2019:
 C*     - In case of a null wind velocity, the directory to compute Glitter files is 
 C*       no more required in the list of parameters.
 C*
+C* MOD:VERSION:1.6: 16/01/2025:
+C*     - Conversion of the wavelength from air (WA_SIMU) to sea water (WA_SIMU_SEA) 
+C*       The latest is now used as input of the OSOAA_HYDROSOLS routine.
+C*
+C*       Indeed, bio-optical empirical relationships in the OSOAA model depend on the wavelength in the air 
+C*       (because they are deduced from measurements at sea surface) : 
+C*             sea molecular scattering coefficient, 
+C*             scattering and absorption coefficients for the phytoplankton, 
+C*             density of Mineral-Like particles, 
+C*             absorption coefficient of yellow substance and detritus.
+C*       But, the calculations of radiative properties of hydrosols from the Mie theory (accouting for
+C*       the size distributions and refractive indexes of hydrosols) must use the wavelength in the sea water.
+C*
+C*     - Change of the declaration of the dimension for NOM_PARAM
+C*       "CHARACTER*CTE_LENFIC2 NOM_PARAM" becomes "CHARACTER(LEN=*) NOM_PARAM"
+C*       to avoid many warnings during the compilation.
+C*     - Introduction of the use case (-HYD.Model 3) to ingest a user-defined external 
+C*       Mueller matrix and a user measured profile (from the new parameter -HYD.UserProfile)
+C*     - Global change of consistency controls of parameter values to consider the new use case -HYD.Model 3.
+C*     - Correction of a syntax error when calling OSOAA_COMPA_SIMU_FILENAME 
+C*       for the case FICGRANU_MLP,'-MLP.ResFile:'
+C*     - Adding a consistency test in case of using a user-defined external Mueller matrix 
+C*       but a profile defined from phytoplankton parameters (-HYD.Model 2): stop computations
+C*       if the concentration of mineral-like particles is not null (-SED.Csed).
+C*       Introduction of a label 2701.
+C*     - Initialization of the coefficients for spectral variation of the yellow substance absorption
+C*       and detritus absorption by their default values : 
+C*       CTE_DEFAULT_SPECTRAL_YS and CTE_DEFAULT_SPECTRAL_DET defined in the inc/OSOAA.h file.
+C*     - Adding optional parameters -AER.ResFile.IOP and -HYD.ResFile.IOP to provide IOP about aerosols or hydrosols 
+C*       (phase functions, absorption and scattering coefficients, backscattering coefficient)
+C*       ==> New variables FICAER_IOP and FICHYD_IOP.
+C*       ==> Comparison with parameters of the previous simulation.
+C*       ==> Adjusting the list of parameters for calling OSOAA_AEROSOLS and OSOAA_HYDROSOLS routines
+C*     - Adding new parameter -PHYTO.GP.Chlzmax to provide the maximum value of chlorophyll concentration
+C*       for a Gaussian profile (multiplicative factor of the exponential) to replace the previous use 
+C*       of Phyto.Chl (now only devoted to define the concentration of an homogeneous profile) 
+C*       ==> New variables CHL_GP_MAX and DEF_CHL_GP_MAX.
+C*       ==> Comparison with parameters of the previous simulation.
+C*       ==> Adjusting the list of parameters for calling OSOAA_PROFILE routine
+C*     - Change in subroutine OSOAA_COMPA_SIMU_VALUE (comparing simulation parameters with the previous run)
+C*       to prevent rounding problems due to some constant values read in the OSOAA.h file, 
+C*       And introduction of a new specific test in case the previous parameter was zero.
+C*     - Adjustements to get SED_DIF, PROF_Z, PROF_PHY_DIF, PROF_Z_COEF_SCA 
+C*       and also PROF_Z_MEL_PHY(0:CTE_NZ_MAX) and PROF_Z_MEL_SED as outputs of the OSOAA_PROFILE function
+C*       and write the file FICHYD_IOP including IOP about hydrosols.
+C*     - Correction of column overflows (column 73 was used, obviously without impact on the simulations), 
+C*       identified by the compilation option -Wline-truncation
+C*     - Change to write copy_ListParam.txt into the result folder rather than into the current exe folder,
+C*       so that multiple OSOAA runs concurrently do not cause conflicts.
+C*     
+C* 
 C******************************************************************************
 
 C----------------------------------------------------------------------------
@@ -126,26 +176,31 @@ C                                    en fonction de l'angle zénithal.
 C    CTE_NB_WMO : Nombre de modèles WMO possibles.
 C    CTE_NB_SF  : Nombre de modèles Shettle & Fenn possibles.
 C    CTE_DEFAULT_IGMAX : Nombre d'interactions maximal par défaut 
-C    CTE_DEFAULT_AER_JUNGE_RMAX : Valeur par défaut du rayon max d'un modèle de Junge 
-C				  pour les aérosols.
-C    CTE_DEFAULT_HYD_JUNGE_RMIN: Valeur par défaut du rayon min d'un modèle de Junge 
-C				 pour les hydrosols.
-C    CTE_DEFAULT_HYD_JUNGE_RMAX: Valeur par défaut du rayon max d'un modèle de Junge 
-C 				 pour les hydrosols. 
+C    CTE_DEFAULT_AER_JUNGE_RMAX : Valeur par défaut du rayon max d'un modèle de Junge pour les aérosols.
+C    CTE_DEFAULT_HYD_JUNGE_RMIN: Valeur par défaut du rayon min d'un modèle de Junge pour les hydrosols.
+C    CTE_DEFAULT_HYD_JUNGE_RMAX: Valeur par défaut du rayon max d'un modèle de Junge pour les hydrosols. 
+C    CTE_DEFAULT_SPECTRAL_YS : valeur par défaut du coefficient de variation spectrale
+C                              de l'absorption de la substance jaune (m-1).  
+C    CTE_DEFAULT_SPECTRAL_DET : valeur par défaut du coefficient de variation spectrale
+C                               de l'absorption des détritus (m-1).  
 C    CTE_WAMIN : Longueur d'onde minimale de simulation.    
 C    CTE_FIC_BOT_SPECTRAL_DATA : Nom du fichier contenant les données spectrales de fond.  
-C    CTE_NB_WA_FIC_BOT : Nombre de longueurs d'onde dans le fichier des données spectrales 
-C                        de fond.
+C    CTE_NB_WA_FIC_BOT : Nombre de longueurs d'onde dans le fichier des données spectrales de fond.C    
+C    CTE_NZ_MAX : nombre maximal de couches dans les profils en fonction de la profondeur
       
 C Constantes spécifiques :
 C    INCTE_IDLOG_MAIN : ID du ficher Trace principal
 C    INCTE_PI : Valeur de PI (calculé par la machine)
 C    INCTE_LENLINE  : Longueur maximale d'une ligne de données lue dans un fichier
+C    THRESHOLD_ABS_COMPA : Valeur seuil pour l'écart absolu des paramètres de traitement 
+C                          par rapport à ceux du lancement précédent.
 C----------------------------------------------------------------------------
 #include "OSOAA.h"
 #define INCTE_IDLOG_MAIN 77
 #define INCTE_PI DACOS(-1.D+00)
 #define INCTE_LENLINE 1000
+#define THRESHOLD_ABS_COMPA 1.D-6
+
 
 C==============================================================================
 C PROGRAMME: OSOAA_MAIN
@@ -493,7 +548,7 @@ C         -AER.MieLog ==> Optionnel
 C            FICAER_LOG_MIE (CHARACTER*CTE_LENFIC2) : Fichier trace des calculs de MIE 
 C                 				     (nom fichier + extension)
 C                                                     ==> Pas de trace si non défini.
-C	
+C
 C         -AER.ResFile ==> Définition par l'utilisateur optionnelle 
 C                                 -->  si non défini, on utilise par défaut 
 C                                      la valeur CTE_DEFAULT_FICGRANU_AER
@@ -501,7 +556,13 @@ C            FICGRANU_AER  (CHARACTER*CTE_LENFIC2) :
 C                     Nom du fichier résultat des calculs Aérosols
 C                     --> coef de fonctions de phase et paramètres radiatifs
 C                        (coefficients d'extinction et de diffusion)
-C  			 (nom fichier + extension)                        
+C                        (nom fichier + extension)                        
+C
+C         -AER.ResFile.IOP ==> Optionnel
+C            FICAER_IOP  (CHARACTER*CTE_LENFIC2) :
+C                     Nom du fichier donnant les valeurs IOP Aérosols
+C                     --> Fonction de phase et coefficients d'extinction et de diffusion.
+C                        (nom fichier + extension)    
 C
 C         -AER.Log ==> Optionnel
 C             FICAER_LOG (CHARACTER*CTE_LENFIC2): Nom du fichier trace des calculs 
@@ -537,7 +598,14 @@ C                        (coefficients extinction et diffusion)
 C                    (répertoire + nom fichier + extension)  
 C				NB : mise à zéro des paramètres radiatifs
 C                                    si on utilise une mesure de fonction de phase 
-C				     (donnée utilisateur globale)                
+C				     (donnée utilisateur globale)     
+C
+C         -HYD.ResFile.IOP ==> Optionnel
+C            FICHYD_IOP  (CHARACTER*CTE_LENFIC2) :
+C                     Nom du fichier donnant les valeurs IOP des hydrosols
+C                     --> Fonction de phase, coefficients d'absorption (a) et de diffusion (b), coefficient de rétrodiffusion (bb)
+C                        (nom fichier + extension)    
+C           
 C         -HYD.Log ==> Optionnel
 C             FICHYD_LOG (CHARACTER*CTE_LENFIC2): Nom du fichier trace des calculs 
 C					          de matrice de phase des hydrosols
@@ -555,7 +623,12 @@ C         -HYD.Model ==> Obligatoire  (pour cas général PHYTO.Chl ou SED.Csed > 
 C	     PROG_ARG (CHARACTER*10)  : Type de caractérisation des hydrosols.
 C                                (format de décodage : libre --> Integer)
 C			1 : Par modélisation de granulométries
-C			2 : Utilisation de fonctions de phase externes
+C			2 : Utilisation de fonctions de phase externes 
+C                           avec un profil de concentration de chlorophylle calculée par OSOAA 
+C                           à partir des relations bio-optiques.
+C			3 : Utilisation de fonctions de phase externes et profil utilisateur des 
+C                           coefficients d'absorption et de diffusion des constituants autre que l'eau.
+C                           (nouvelle option à partir de la version V2.0)
 C     		       
 C         -PHYTO.JD.slope ==> Obligatoire  (pour cas général PHYTO.Chl > 0)
 C	     PROG_ARG (CHARACTER*10)  : Pente de la distribution de Junge pour le 
@@ -772,12 +845,18 @@ C			En proportion des particules du mode de la distribution de Junge
 C			par rapport au nombre total de particules incluant tous les modes
 C			des particules de sédiments.                            
 C  	  
-C         -HYD.ExtData ==> Associé à -HYD.Model 2 
+C         -HYD.ExtData ==> Associé à -HYD.Model 2 et 3
 C            FICEXTDATA_HYD  (CHARACTER*CTE_LENFIC2) : 
 C                     Nom du fichier de données externes de fonctions de phase
 C                     et paramètres radiatifs (coefficients extinction et diffusion) 
 C 		      pour la diffusion hydrosols globale dans la mer : phyto + sédiments.
 C                     Données applicables à la longueur d'onde de simulation.
+C                    (répertoire + nom fichier + extension) 
+CC  	  
+C         -HYD.UserProfile ==> Associé à -HYD.Model 3
+C            FICUSER_PROFILE_HYD  (CHARACTER*CTE_LENFIC2) : 
+C                     Nom du fichier de données externes de  profil utilisateur des
+C                     coefficients d'absorption et de diffusion des constituants autre que l'eau
 C                    (répertoire + nom fichier + extension) 
 C
 C
@@ -822,6 +901,11 @@ C				3 : Profil de l'utilisateur
 C	       	       
 C         -PHYTO.GP.Chlbg ==> Optionnel : Associé à -PHYTO.ProfilType = 2. 
 C      	     PROG_ARG   (CHARACTER*10)  : Constante de biomasse (mg/m3)
+C 					  du profil gaussien de chlorophylle
+C                                	 (format de décodage : libre --> Float)
+C	       	       
+C         -PHYTO.GP.Chlzmax ==> Optionnel : Associé à -PHYTO.ProfilType = 2. 
+C      	     PROG_ARG   (CHARACTER*10)  : Concentration de chorophylle maximale (mg/m3)
 C 					  du profil gaussien de chlorophylle
 C                                	 (format de décodage : libre --> Float)
 C	       	       
@@ -894,7 +978,7 @@ C
 C 	 ------- Arguments propres à la définition de l'interface air / mer		
 C 	 ------------------------------------------------------------------	
 C
-C         -SEA.Dir ==> Obligatoire
+C         -SEA.Dir ==> Obligatoire si vent non nul
 C             DIRSEA   (CHARACTER*CTE_LENDIR)  : Répertoire de stockage des fichiers SURFACE
 C
 C         -SEA.Log  ==> Optionnel :  
@@ -943,7 +1027,7 @@ C         -OSOAA.View.Level ==> Obligatoire
 C      	     PROG_ARG   (CHARACTER*10)  : Choix du niveau de sortie des luminances
 C                             		 (format de décodage : libre --> Integer)
 C			1 : Top of Atmosphere
-C			2 : Sea Bottom
+C			2 : Seabed
 C			3 : Sea Surface 0+
 C			4 : Sea Surface 0-
 C			5 : User's definition of altitude or depth 
@@ -968,9 +1052,8 @@ C                               (nom fichier + extension)
 C
 C         -OSOAA.View.VZA ==> Optionnel (si défini demande à définir aussi -OSOAA.ResFile.vsZ)
 C      	     PROG_ARG   (CHARACTER*10)  : Angle zénithal de visée (degrés)
-C					  pour la représentation du champ de 
-C                                         luminance en fonction de la profondeur  
-C					  (ou altitude) pour l'azimut Phi fixé.
+C					  pour la représentation du champ de luminance 
+C                                         en fonction de la profondeur pour l'azimut Phi fixé.
 C                             		  (format de décodage : libre --> Float)
 C
 C         -OSOAA.ResFile.vsZ  ==> Optionnel  (si défini demande à définir aussi -OSOAA.View.VZA)
@@ -1119,6 +1202,19 @@ C          de phase et coefficients de la matrice de phase décomposée en fonctio
 C          Legendre (coefficients ajustés à la troncature).
 C
 C
+C             - Fichier optionnel des IOP des aérosols: FICAER_IOP (-AER.ResFile.IOP)
+C               ==> Fournit les sections efficaces d'extinction et de diffusion (en micron^2),
+C                   l'albédo de simple diffusion et les fonctions de la matrice de Mueller :
+C                   P11 (fonction de phase en intensité), P12, P22 et P33 (termes de polarisation)
+C
+C             - Fichier optionnel des IOP des hydrosols: FICHYD_IOP (-HYD.ResFile.IOP)
+C               ==> Fournit les fonctions de la matrice de Mueller :
+C                   P11 (fonction de phase en intensité), P12, P22 et P33 (termes de polarisation)
+C                   et les profils du coefficient de diffusion b (/m), du coefficient de rétrodiffusion bb (/m)
+C                   du rapport bb/b, en fonction de la profondeur.
+C               Résultats fournis pour le phytoplancton, les sédiments et le mélange global des hydrosols.
+C                     
+C
 C         Fichiers des profils atmosphérique et marin :
 C         -------------------------------------------       
 C             - Fichier de définition du profil d'épaisseur optique dans l'atmosphère
@@ -1148,7 +1244,7 @@ C		 -OSOAA.ResFile.Adv.Down ==>  FICSOS_RES_ADV_DOWN)
 C
 C
 C         Fichier de flux (Flux.txt) : Donne le profil de flux descendant du TOA 
-C         ---------------------------  au fond marin normalisé par l'éclairement solaire au TOA.       
+C         ---------------------------  au fond marin pour un éclairement solaire au TOA valant PI    
 C				       (nom imposé par le code)
 C
 C
@@ -1258,8 +1354,7 @@ C		 Format  : Pas de format imposé
 C
 C           Pas de lecture des lignes suivantes.	
 C  
-C	
-C  
+C	 
 C  
 C    Fichier utilisateur FICEXTDATA_HYD	(-HYD.ExtData)
 C       ==> contient les données externes (utilisateur) de fonctions de phase
@@ -1306,6 +1401,18 @@ C
 C           Pas de lecture des lignes suivantes.	
 C  
 C
+C  
+C    Fichier utilisateur FICUSER_PROFILE_HYD	(-HYD.UserProfile)
+C       ==> contient le profil de coefficients d'absorption et de diffusion 
+C
+C               format : 5 lignes d'entête 
+C                        puis 1 ligne par profondeur (3 colonnes / ligne)
+C               chaque ligne contient:
+C                       - la profondeur (en m)
+C                       - le coefficient d'absorption globale - le coefficient d'absorption de l'eau de mer pure (en m-1)
+C                       - le coefficient de diffusion globale - le coefficient de diffusion de l'eau de mer pure (en m-1)
+C
+C               NB: Le premier niveau doit correspondre au niveau 0- (depth = 0)
 C
 C
 C Common utilisé:
@@ -1354,6 +1461,10 @@ C -----------------
       INTEGER*2 IDLOG			! Numéro identifiant du fichier Trace	    
       PARAMETER(IDLOG=INCTE_IDLOG_MAIN)
     
+
+      CHARACTER*CTE_LENFIC2 TXT_CAS_NO_IOP    ! Texte du cas de non génération de fichier d'IOP    
+      PARAMETER(TXT_CAS_NO_IOP="NO_IOP_FILE")
+
       	            
 C* Définition des variables                         
 C*-----------------------------------------------------------------
@@ -1390,8 +1501,9 @@ C-- Variables liées à l'arborescence de travail
       					! de fichier
 
 C-- Variables globales      
-      DOUBLE PRECISION WA_SIMU	! Longueur d'onde de simulation des luminances (en microns)
+      DOUBLE PRECISION WA_SIMU		! Longueur d'onde de simulation des luminances (en microns)
       DOUBLE PRECISION WA_SIMU_NM	! Longueur d'onde de simulation des luminances (en nanometres)
+      DOUBLE PRECISION WA_SIMU_SEA	! Longueur d'onde de simulation des luminances dans le milieu marin (en microns)
       
       INTEGER*2 DEF_FICMAIN_LOG	! Indicateur d'affectation d'une valeur à FICMAIN_LOG 
       INTEGER*2 DEF_WA_SIMU	! Indicateur d'affectation d'une valeur à DEF_WA_SIMU
@@ -1594,6 +1706,7 @@ C---- Variables liées à la définition des modèles d'aérosols
       
       CHARACTER*CTE_LENFIC2 FICGRANU_AER    ! (S) Fichier résultat des calculs de phase aérosols
       CHARACTER*CTE_LENFIC2 FICAER_LOG      ! (S) Fichier trace des calculs de phase aérosols
+      CHARACTER*CTE_LENFIC2 FICAER_IOP      ! (S) Fichier des IOP aérosols
    	
       CHARACTER*CTE_LENFIC2 FICEXTDATA_AER  ! (E) Chemin et nom du fichier de données  
       				  	    ! externes de fonctions de phase et paramètres  
@@ -1633,7 +1746,8 @@ C---- Variables liées à la définition des modèles de hydrosols
       INTEGER*2 DEF_SED_LND_TM_MR	! Indicateur d'affectation pour SED_LND_TM_MR
       INTEGER*2 DEF_SED_LND_TM_MI	! Indicateur d'affectation pour SED_LND_TM_MI
       INTEGER*2 DEF_SED_LND_TM_RATE	! Indicateur d'affectation pour SED_LND_TM_RATE  
-      INTEGER*2 DEF_FICEXTDATA_HYD	! Indicateur d'affectation pour FICEXTDATA_HYD
+      INTEGER*2 DEF_FICEXTDATA_HYD	! Indicateur d'affectation pour FICEXTDATA_HYD 
+      INTEGER*2 DEF_FICUSER_PROFILE_HYD	! Indicateur d'affectation pour FICUSER_PROFILE_HYD
 
       INTEGER*4 IMOD_HYD	   	! Type de caractérisation des hydrosols.   
 
@@ -1645,23 +1759,21 @@ C---- Variables liées à la définition des modèles de hydrosols
       DOUBLE PRECISION PHYTO_JD_RMAX     ! (E) Rayon max de la distribution de Junge (microns)
       DOUBLE PRECISION PHYTO_JD_MR    	 ! (E) Partie réelle de l'indice de réfraction
       DOUBLE PRECISION PHYTO_JD_MI    	 ! (E) Partie imaginaire de l'indice de réfraction
-      DOUBLE PRECISION PHYTO_JD_RATE     ! (E) Proportion de la distribution de Junge 
-      					 !     devant les autres modes.
+      DOUBLE PRECISION PHYTO_JD_RATE     ! (E) Proportion de la distribution de Junge devant les autres modes.
+
 	!Modèle Phytoplancton : Distribution secondaire selon le modèle LND
       DOUBLE PRECISION PHYTO_LND_SM_RADIUS ! (E) Rayon modal  (microns)
       DOUBLE PRECISION PHYTO_LND_SM_VAR    ! (E) Variance 
       DOUBLE PRECISION PHYTO_LND_SM_MR     ! (E) Partie réelle de l'indice de réfraction
       DOUBLE PRECISION PHYTO_LND_SM_MI     ! (E) Partie imaginaire de l'indice de réfraction
-      DOUBLE PRECISION PHYTO_LND_SM_RATE   ! (E) Proportion de la distribution LND 
-      					   !     secondaire devant les autres modes.
+      DOUBLE PRECISION PHYTO_LND_SM_RATE   ! (E) Proportion de la distribution LND secondaire devant les autres modes.
+
 	!Modèle Phytoplancton : Distribution tertiaire selon le modèle LND
       DOUBLE PRECISION PHYTO_LND_TM_RADIUS ! (E) Rayon modal (microns)
       DOUBLE PRECISION PHYTO_LND_TM_VAR    ! (E) Variance 
       DOUBLE PRECISION PHYTO_LND_TM_MR     ! (E) Partie réelle de l'indice de réfraction
       DOUBLE PRECISION PHYTO_LND_TM_MI     ! (E) Partie imaginaire de l'indice de réfraction
-      DOUBLE PRECISION PHYTO_LND_TM_RATE   ! (E) Proportion de la distribution LND 
-      					   !     tertiaire devant les autres modes.
-	 
+      DOUBLE PRECISION PHYTO_LND_TM_RATE   ! (E) Proportion de la distribution LND tertiaire devant les autres modes.	 
 
 	!Modèle Sédiments : Distribution principale selon le modèle de Junge
       DOUBLE PRECISION SED_JD_SLOPE    	 ! (E) Pente de la distribution de Junge
@@ -1669,23 +1781,37 @@ C---- Variables liées à la définition des modèles de hydrosols
       DOUBLE PRECISION SED_JD_RMAX    	 ! (E) Rayon max de la distribution de Junge (microns)
       DOUBLE PRECISION SED_JD_MR    	 ! (E) Partie réelle de l'indice de réfraction
       DOUBLE PRECISION SED_JD_MI    	 ! (E) Partie imaginaire de l'indice de réfraction
-      DOUBLE PRECISION SED_JD_RATE    	 ! (E) Proportion de la distribution de Junge 
-      					 !     devant les autres modes
+      DOUBLE PRECISION SED_JD_RATE    	 ! (E) Proportion de la distribution de Junge devant les autres modes
+
 	!Modèle Sédiments : Distribution secondaire selon le modèle LND
       DOUBLE PRECISION SED_LND_SM_RADIUS ! (E) Rayon modal (microns)
       DOUBLE PRECISION SED_LND_SM_VAR    ! (E) Variance 
       DOUBLE PRECISION SED_LND_SM_MR     ! (E) Partie réelle de l'indice de réfraction
       DOUBLE PRECISION SED_LND_SM_MI     ! (E) Partie imaginaire de l'indice de réfraction
-      DOUBLE PRECISION SED_LND_SM_RATE   ! (E) Proportion de la distribution LND secondaire
-      					 !     devant les autres modes
+      DOUBLE PRECISION SED_LND_SM_RATE   ! (E) Proportion de la distribution LND secondaire devant les autres modes
+
 	!Modèle Sédiments : Distribution tertiaire selon le modèle LND
       DOUBLE PRECISION SED_LND_TM_RADIUS ! (E) Rayon modal (microns)
       DOUBLE PRECISION SED_LND_TM_VAR    ! (E) Variance 
       DOUBLE PRECISION SED_LND_TM_MR     ! (E) Partie réelle de l'indice de réfraction
       DOUBLE PRECISION SED_LND_TM_MI     ! (E) Partie imaginaire de l'indice de réfraction
-      DOUBLE PRECISION SED_LND_TM_RATE   ! (E) Proportion de la distribution LND tertiaire
-      					 !     devant les autres modes
-	 	 
+      DOUBLE PRECISION SED_LND_TM_RATE   ! (E) Proportion de la distribution LND tertiaire devant les autres modes
+
+      DOUBLE PRECISION INT_90_180_CHL 	   ! Intégration spatiale en rétrodiffusion de la fonction de phase du phytoplancton / 2*PI
+      DOUBLE PRECISION INT_90_180_MLP 	   ! Intégration spatiale en rétrodiffusion de la fonction de phase des sédiments / 2*PI
+      DOUBLE PRECISION INT_90_180_EXTDATA  ! Intégration spatiale en rétrodiffusion de la fonction de phase fournie par l'utilisateur / 2*PI
+
+
+      DOUBLE PRECISION BB_SED	         ! Coefficient de rétro-diffusion bb des sédiments
+      DOUBLE PRECISION BBsurB_SED        ! Rapport bb/b des sédiments
+      DOUBLE PRECISION B_CHL	         ! Coefficient de diffusion b du phytoplancton
+      DOUBLE PRECISION BB_CHL	         ! Coefficient de rétro-diffusion bb du phytoplancton
+      DOUBLE PRECISION BBsurB_CHL        ! Rapport bb/b du phytoplancton
+      DOUBLE PRECISION B_MEL	         ! Coefficient de diffusion b global du milieu
+      DOUBLE PRECISION BB_MEL	         ! Coefficient de rétro-diffusion bb global du milieu 
+      DOUBLE PRECISION BBsurB_MEL        ! Rapport bb/b global du milieu 
+
+
       CHARACTER*CTE_LENDIR  DIRMIE_HYD        ! (E) Chemin d'accès au fichier MIE hydrosols
       CHARACTER*CTE_LENFIC2 FICHYD_LOG_MIE    ! (S) Nom du fichier TRACE de MIE 
 
@@ -1695,13 +1821,17 @@ C---- Variables liées à la définition des modèles de hydrosols
       					      !     de phase pour les sédiments
       
          
-      CHARACTER*CTE_LENFIC2 FICHYD_LOG        ! (S) Nom du fichier trace des calculs 
-      					      !     de phase hydrosols   
+      CHARACTER*CTE_LENFIC2 FICHYD_LOG        ! (S) Nom du fichier trace des calculs de phase hydrosols   
+
+      CHARACTER*CTE_LENFIC2 FICHYD_IOP        ! (S) Fichier des IOP hydrosols
 
       CHARACTER*CTE_LENFIC2 FICEXTDATA_HYD    ! (E) Chemin et nom du fichier de données
       				!  externes de fonctions de phase et paramètres radiatifs 
 				!  (coefficients d'extinction et de diffusion)  
 
+      CHARACTER*CTE_LENFIC2 FICUSER_PROFILE_HYD    ! (E) Chemin et nom du fichier de données
+      				!  externes de profil utilisateur des coefficients d'absorption
+				!  et de diffusion des constituants autre que l'eau
 
       CHARACTER*INCTE_LENLINE LIGNE_TEXTE   !Ligne de caractères pour décodage de paramètres
       					    !d'un fichier produit
@@ -1709,6 +1839,8 @@ C---- Variables liées à la définition des modèles de hydrosols
 
 C       
 C---- Variables liées à la définition des profils atmosphérique et marin  
+
+      INTEGER*4 I		! Indice de profil
 
 C*   Atmosphere :
       DOUBLE PRECISION TR    	! (E) Epaisseur optique rayleigh.
@@ -1722,9 +1854,9 @@ C*   Atmosphere :
       
 C*   Mer
       DOUBLE PRECISION SEA_DEPTH    ! (E) Profondeur de la mer (m)      
-      DOUBLE PRECISION CHL	    ! (E) Concentration de chlorophylle en surface (mg/m3)
-      DOUBLE PRECISION CHL_GP_BG    ! (E) Constante de biomasse du profil gaussien 
-      				    !     de chlorophylle (mg/m3)
+      DOUBLE PRECISION CHL          ! (E) Concentration de chlorophylle en surface (mg/m3)
+      DOUBLE PRECISION CHL_GP_BG    ! (E) Constante de biomasse du profil gaussien de chlorophylle (mg/m3)
+      DOUBLE PRECISION CHL_GP_MAX   ! (E) Concentration maximale du profil gaussien de chlorophylle (mg/m3)
       DOUBLE PRECISION CHL_GP_DEEP  ! (E) Profondeur max du profil gaussien de chl. (m)
       DOUBLE PRECISION CHL_GP_WIDTH ! (E) Largeur du pic du profil gaussien de chl. (m)
       DOUBLE PRECISION SED_CSED     ! (E) Concentration des sédiments en surface (mg/litre)
@@ -1750,7 +1882,17 @@ C*   Mer
       				   !      de l'absorption des détritus  
 	
       DOUBLE PRECISION VAL      ! Valeur lue dans fichier				
-   	      
+
+      ! Profils fins en profondeurs (pas en profondeurs : CTE_SEA_DEPTH_STEP):
+      DOUBLE PRECISION SED_DIF                       ! Coefficient de diffusion des sédiments (pour une profondeur donnée)
+      DOUBLE PRECISION PROF_Z(0:CTE_NZ_MAX)          !  Profondeurs du profil océanique (en m)
+      DOUBLE PRECISION PROF_PHY_DIF(0:CTE_NZ_MAX)    ! Profil des coeffs de diffusion du phytoplancton (en m-1) 
+      DOUBLE PRECISION PROF_Z_COEF_SCA(0:CTE_NZ_MAX) ! Profil des coeffs de diffusion du mélange global (en m-1)  
+      DOUBLE PRECISION PROF_Z_MEL_MOL(0:CTE_NZ_MAX)   ! (S) Taux de mélange en diffusion des molécules d'eau
+      DOUBLE PRECISION PROF_Z_MEL_PHY(0:CTE_NZ_MAX)   ! (S) Taux de mélange en diffusion du phytoplancton, sans ajustement à la troncature
+      DOUBLE PRECISION PROF_Z_MEL_SED(0:CTE_NZ_MAX)   ! (S) Taux de mélange en diffusion des sédiments, sans ajustement à la troncature
+
+
       INTEGER*2 DEF_TR 		      ! Indicateur d'affectation d'une valeur à TR
       INTEGER*2 DEF_PRESSION	      ! Indicateur d'affectation pour PRESSION
       INTEGER*2 DEF_HR 		      ! Indicateur d'affectation pour HR
@@ -1758,6 +1900,7 @@ C*   Mer
       INTEGER*2 DEF_CHL 	      ! Indicateur d'affectation pour CHL
       INTEGER*2 DEF_IPHYTO_PROFIL     ! Indicateur d'affectation pour IPHYTO_PROFIL
       INTEGER*2 DEF_CHL_GP_BG         ! Indicateur d'affectation pour CHL_GP_BG
+      INTEGER*2 DEF_CHL_GP_MAX        ! Indicateur d'affectation pour CHL_GP_MAX
       INTEGER*2 DEF_CHL_GP_DEEP       ! Indicateur d'affectation pour CHL_GP_DEEP
       INTEGER*2 DEF_CHL_GP_WIDTH      ! Indicateur d'affectation pour CHL_GP_WIDTH
       INTEGER*2 DEF_FICPHYTO_USER     ! Indicateur d'affectation pour FICPHYTO_USER
@@ -1766,9 +1909,11 @@ C*   Mer
       INTEGER*2 DEF_DET_A440	      ! Indicateur d'affectation pour DET_A440
       INTEGER*2 DEF_FICPROFIL_ATM_RES ! Indicateur d'affectation pour FICPROFIL_ATM_RES
       INTEGER*2 DEF_FICPROFIL_SEA_RES ! Indicateur d'affectation pour FICPROFIL_SEA_RES
-
     	
       INTEGER*2 IPHYTO_PROFIL   ! (E) Indice de type de profil de phytoplancton
+
+      INTEGER*4 NZ              ! Nombre de couches effectives du profil océanique en profondeurs
+      INTEGER*4 INTVAL          ! Valeur type Integer lue dans fichier
     
       CHARACTER*CTE_LENFIC2 FICPHYTO_USER     ! Nom du fichier utilisateur (chemin complet)
 	     				      ! donnant le profil de chlorophylle
@@ -1796,8 +1941,7 @@ C---- Variables liées à la définition de l'interface air - mer
       CHARACTER*CTE_LENFIC2 FICSURF_LOG   ! Nom du fichier trace des calculs de matrices
       					  ! d'interface air / mer      
        
-C-- Variables liées aux calculs de la réflectance de fond si usage d'un fichier de valeurs
-C   tabulées        
+C-- Variables liées aux calculs de la réflectance de fond si usage d'un fichier de valeurs tabulées        
       DOUBLE PRECISION TAB_WA(CTE_NB_WA_FIC_BOT)	   ! Table des longueurs d'onde du fichier (en nm)
       DOUBLE PRECISION TAB_RSAND(CTE_NB_WA_FIC_BOT) ! Table des réflectances pour "clean coral sand"
       DOUBLE PRECISION TAB_RGREEN(CTE_NB_WA_FIC_BOT)! Table des réflectances pour "green algae"
@@ -1807,10 +1951,9 @@ C   tabulées
       DOUBLE PRECISION WA_INF, WA_SUP	! Valeurs de longueurs d'onde tabulées encadrant WA_SIMU
       DOUBLE PRECISION R_INF, R_SUP	! Valeurs de réflectance de fond correspondant aux longueurs 
                                           ! d'onde WA_INF et WA_SUP
-      INTEGER*4 I
+
 	 
-C-- Variables liées aux calculs d'Ordres Successifs et à la production
-C   des fichiers résultats
+C-- Variables liées aux calculs d'Ordres Successifs et à la production des fichiers résultats
       INTEGER*2 DEF_RHO_SURF		! Indicateur d'affectation pour DEF_RHO_SURF
       INTEGER*2 DEF_IBOT_TYPE		! Indicateur d'affectation pour DEF_IBOT_TYPE
       INTEGER*2 DEF_RHO_BOT		! Indicateur d'affectation pour DEF_RHO_BOT
@@ -1868,8 +2011,6 @@ C   des fichiers résultats
       CHARACTER*CTE_LENFIC2 FICSOS_LOG  	! Nom du fichier trace des calculs d'OS
 
 
-
-
 C =========================================
 C --- Initialisations 
 C =========================================
@@ -1910,7 +2051,10 @@ C     Nom par défaut du fichier des propriétés radiatives des aérosols
 C     Pas de fichier trace de la définition des matrices de phase aérosols
       FICAER_LOG     = "NO_LOG_FILE"
       FICAER_LOG_MIE = "NO_LOG_FILE"
- 
+
+C     Pas de fichier des IOP aérosols
+      FICAER_IOP    = "NO_IOP_FILE"
+
 C     Troncature de la pointe avant de la fonction de phase aérosols
       ITRONC_AER = 1
  
@@ -1923,15 +2067,18 @@ C     Nom par défaut du fichier des propriétés radiatives des "Mineral-Like Part
 C     Pas de fichier trace de la définition des matrices de phase hydrosols
       FICHYD_LOG = "NO_LOG_FILE"  
       FICHYD_LOG_MIE = "NO_LOG_FILE" 
+
+C     Pas de fichier des IOP hydrosols
+      FICHYD_IOP = "NO_IOP_FILE"
            
 C     Profondeur de la mer : non définie
       SEA_DEPTH = CTE_NOT_DEFINED_VALUE_DBLE      
 
-C     Coeff de conversion spectrale de la matière jaune : non défini 
-      YS_SWA = CTE_NOT_DEFINED_VALUE_DBLE
+C     Valeur par défaut du coeff de conversion spectrale de la matière jaune 
+      YS_SWA = CTE_DEFAULT_SPECTRAL_YS
       
-C     Coeff de conversion spectrale des détritus : non défini 
-      DET_SWA = CTE_NOT_DEFINED_VALUE_DBLE
+C     Valeur par défaut du coeff de conversion spectrale des détritus 
+      DET_SWA = CTE_DEFAULT_SPECTRAL_DET
 
 C     Nom par défaut du fichier de profil atmosphérique
       FICPROFIL_ATM_RES = CTE_DEFAULT_FICPROFIL_ATM_RES
@@ -2023,6 +2170,7 @@ C     Paramètres aérosols
       
 C     Paramètres hydrosols
       IMOD_HYD 			= CTE_NOT_DEFINED_VALUE_INT  
+
       PHYTO_JD_SLOPE 		= CTE_NOT_DEFINED_VALUE_DBLE 	
       PHYTO_JD_RMIN  		= CTE_DEFAULT_HYD_JUNGE_RMIN		!Rmin par défaut
       PHYTO_JD_RMAX 		= CTE_DEFAULT_HYD_JUNGE_RMAX		!Rmax par défaut    
@@ -2040,7 +2188,7 @@ C     Paramètres hydrosols
       PHYTO_LND_TM_MI 		= CTE_NOT_DEFINED_VALUE_DBLE 
       PHYTO_LND_TM_RATE 	= CTE_NOT_DEFINED_VALUE_DBLE 
 	 
-      SED_JD_SLOPE 		= CTE_NOT_DEFINED_VALUE_DBLE 	
+      SED_JD_SLOPE 		= CTE_NOT_DEFINED_VALUE_DBLE 
       SED_JD_RMIN  		= CTE_DEFAULT_HYD_JUNGE_RMIN		!Rmin par défaut
       SED_JD_RMAX  		= CTE_DEFAULT_HYD_JUNGE_RMAX		!Rmax par défaut     
       SED_JD_MR 		= CTE_NOT_DEFINED_VALUE_DBLE
@@ -2058,11 +2206,23 @@ C     Paramètres hydrosols
       SED_LND_TM_RATE 		= CTE_NOT_DEFINED_VALUE_DBLE 
       
       FICEXTDATA_HYD 		= "NO_USER_HYDROSOLS_PHAZE_FCT" 
+      FICUSER_PROFILE_HYD	= "NO_USER_HYDROSOLS_PROFILE" 
       FICPHYTO_USER 		= "NO_USER_PHYTO_PROFILE"
       
       DIRMIE_HYD		= "UNDEFINED MIE REPOSITORY"
-      
-      
+ 
+      CHL                       = CTE_NOT_DEFINED_VALUE_DBLE
+      CHL_GP_BG                 = CTE_NOT_DEFINED_VALUE_DBLE
+      CHL_GP_MAX                = CTE_NOT_DEFINED_VALUE_DBLE
+      CHL_GP_DEEP               = CTE_NOT_DEFINED_VALUE_DBLE
+      CHL_GP_WIDTH              = CTE_NOT_DEFINED_VALUE_DBLE     
+    
+      IPHYTO_PROFIL             = CTE_NOT_DEFINED_VALUE_INT   
+            
+      SED_CSED                  = CTE_NOT_DEFINED_VALUE_DBLE      
+      YS_A440                   = CTE_NOT_DEFINED_VALUE_DBLE      
+      DET_A440                  = CTE_NOT_DEFINED_VALUE_DBLE   
+
 C --- Initialisation des indicateurs de définition des paramètres obligatoires 
 C     (0 pour indéfini)
 C-----------------------------------------------------------------------------
@@ -2148,6 +2308,7 @@ C-----------------------------------------------------------------------------
       DEF_SED_LND_TM_MI=0
       DEF_SED_LND_TM_RATE=0
       DEF_FICEXTDATA_HYD=0
+      DEF_FICUSER_PROFILE_HYD=0
           
       DEF_TR=0
       DEF_PRESSION=0
@@ -2156,6 +2317,7 @@ C-----------------------------------------------------------------------------
       DEF_CHL=0
       DEF_IPHYTO_PROFIL=0
       DEF_CHL_GP_BG=0
+      DEF_CHL_GP_MAX=0
       DEF_CHL_GP_DEEP=0
       DEF_CHL_GP_WIDTH=0
       DEF_FICPHYTO_USER=0
@@ -2502,6 +2664,10 @@ C ------- Arguments propres à la définition des modèles d'aérosols
 	     CALL GETARG (NPARAM+1,FICGRANU_AER)	!Nom du fichier FICGRANU_AER 
 	     DEF_FICGRANU_AER=1				!de matrice de phase des aérosols.
          ENDIF
+
+	 IF (KEYWORD.EQ."-AER.ResFile.IOP") THEN
+	     CALL GETARG (NPARAM+1,FICAER_IOP)          !Nom du fichier FICAER_IOP des résultats d'IOP aérosols.
+         ENDIF
 	 
 	 IF (KEYWORD.EQ."-AER.Log") THEN
 	     CALL GETARG (NPARAM+1,FICAER_LOG)		!Nom du fichier Trace des calculs 
@@ -2518,6 +2684,10 @@ C ------- Arguments propres à la définition des modèles de hydrosols
 	     CALL GETARG (NPARAM+1,FICGRANU_MLP)	!Nom du fichier FICGRANU_MLP
 	     DEF_FICGRANU_MLP=1				!de matrice de phase des 
          ENDIF						!"Mineral Like Particles".    
+
+	 IF (KEYWORD.EQ."-HYD.ResFile.IOP") THEN
+	     CALL GETARG (NPARAM+1,FICHYD_IOP)          !Nom du fichier FICHYD_IOP des résultats d'IOP hydrosols.
+         ENDIF
 
 	 IF (KEYWORD.EQ."-HYD.Log") THEN
 	     CALL GETARG (NPARAM+1,FICHYD_LOG)		!Nom du fichier Trace des calculs 
@@ -2729,6 +2899,11 @@ C ------- Arguments propres à la définition des modèles de hydrosols
 	 IF (KEYWORD.EQ."-HYD.ExtData") THEN		!Fichier de fonctions de phase 
 	     CALL GETARG (NPARAM+1,FICEXTDATA_HYD)	!de source externe (utilisateur) 
 	     DEF_FICEXTDATA_HYD=1
+	 ENDIF 	 	 
+	 	 
+	 IF (KEYWORD.EQ."-HYD.UserProfile") THEN	!Fichier de profil des coefficients d'absortion 
+	     CALL GETARG (NPARAM+1,FICUSER_PROFILE_HYD)	!et diffusion de source externe (utilisateur) 
+	     DEF_FICUSER_PROFILE_HYD=1
 	 ENDIF 	 
 	 	 
 	 
@@ -2778,13 +2953,19 @@ C ------- Arguments propres à la définition des profils atmosphérique et marin
 	     CALL GETARG (NPARAM+1,PROG_ARG) 		!Constante de biomasse du profil 
 	     READ(PROG_ARG,*,ERR=1570) CHL_GP_BG	!gaussien de chlorophylle (mg/m3)
 	     DEF_CHL_GP_BG=1
-	 ENDIF	
+	 ENDIF
+
+	 IF (KEYWORD.EQ."-PHYTO.GP.Chlzmax") THEN
+	     CALL GETARG (NPARAM+1,PROG_ARG)            !Concentration de chorophylle maximale   
+	     READ(PROG_ARG,*,ERR=15701) CHL_GP_MAX      !du profil gaussien de chlorophylle (mg/m3)
+	     DEF_CHL_GP_MAX=1
+	 ENDIF
 
 	 IF (KEYWORD.EQ."-PHYTO.GP.Deep") THEN
 	     CALL GETARG (NPARAM+1,PROG_ARG) 		!Profondeur max du profil   
 	     READ(PROG_ARG,*,ERR=1571) CHL_GP_DEEP	!gaussien de chlorophylle 
 	     DEF_CHL_GP_DEEP=1				!(m)
-	 ENDIF	
+	 ENDIF
    
 	 IF (KEYWORD.EQ."-PHYTO.GP.Width") THEN
 	     CALL GETARG (NPARAM+1,PROG_ARG) 		!Largeur du pic du profil 
@@ -2890,8 +3071,8 @@ C         des fichiers résultats
 	 ENDIF
 
 	 IF (KEYWORD.EQ."-OSOAA.View.Level") THEN	
-	     CALL GETARG (NPARAM+1,PROG_ARG)		!Indice du type de niveau de
-	     READ(PROG_ARG,*,ERR=1710) LEVEL_OUT	!sortie 
+	     CALL GETARG (NPARAM+1,PROG_ARG)		!Indice du type de niveau de sortie 
+	     READ(PROG_ARG,*,ERR=1705) LEVEL_OUT	
 	     DEF_LEVEL_OUT=1				
 	 ENDIF						
 
@@ -2910,13 +3091,13 @@ C         des fichiers résultats
 	 IF (KEYWORD.EQ."-OSOAA.View.VZA") THEN		!Angle zénithal de visée (degrés)
 	     CALL GETARG (NPARAM+1,PROG_ARG)   		!pour la représentation de sortie
 	     READ(PROG_ARG,*,ERR=1720) VZA_OUT		!de la luminance en fct de la
-	     DEF_VZA_OUT=1		 		!profondeur (ou altitude) 
-	 ENDIF						!(pour Phi et VZA fixés)
+	     DEF_VZA_OUT=1		 		!profondeur (pour Phi et VZA fixés)
+	 ENDIF						
 
 	 IF (KEYWORD.EQ."-OSOAA.ResFile.vsZ") THEN	!Nom du fichier résultat pour la
 	     CALL GETARG (NPARAM+1,FICSOS_RES_VS_Z)	!représentation de sortie de la 
 	      					        !luminance en fct de la profondeur
-	 ENDIF						!(ou altitude) (Phi et VZA fixés)
+	 ENDIF						!(Phi et VZA fixés)
 
 	 IF (KEYWORD.EQ."-OSOAA.ResFile.Adv.Up") THEN	!Nom du fichier résultats avancés 
 	     CALL GETARG (NPARAM+1,FICSOS_RES_ADV_UP)	!pour la représentation de la   
@@ -3021,6 +3202,13 @@ C ---- Position de l'arborescence complète des différents fichiers
        LFIC = INDEX(FICGRANU_AER,' ') - 1
        IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC2)) GOTO 1996
        FICGRANU_AER = RESROOT_ADV(1:LDIRADV)//'/'//FICGRANU_AER(1:LFIC)
+        
+       !Fichier IOP des aérosols
+       IF (FICAER_IOP.NE."NO_IOP_FILE") THEN
+          LFIC = INDEX(FICAER_IOP,' ') - 1
+          IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC2)) GOTO 1996
+          FICAER_IOP = RESROOT_ADV(1:LDIRADV)//'/'//FICAER_IOP(1:LFIC)
+       ENDIF
 
        !Fichier Trace des calculs de Mie des aérosols
        IF (FICAER_LOG_MIE.NE."NO_LOG_FILE") THEN
@@ -3047,6 +3235,13 @@ C ---- Position de l'arborescence complète des différents fichiers
        LFIC = INDEX(FICGRANU_MLP,' ') - 1
        IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC2)) GOTO 1996
        FICGRANU_MLP = RESROOT_ADV(1:LDIRADV)//'/'//FICGRANU_MLP(1:LFIC)
+        
+       !Fichier IOP des hydrosols
+       IF (FICHYD_IOP.NE."NO_IOP_FILE") THEN
+          LFIC = INDEX(FICHYD_IOP,' ') - 1
+          IF((LFIC.LE.0).OR.(LFIC.GT.CTE_LENFIC2)) GOTO 1996
+          FICHYD_IOP = RESROOT_ADV(1:LDIRADV)//'/'//FICHYD_IOP(1:LFIC)
+       ENDIF
 
        !Fichier Trace des calculs de Mie des hydrosols
        IF (FICHYD_LOG_MIE.NE."NO_LOG_FILE") THEN
@@ -3154,7 +3349,8 @@ C     du fichier de champ de luminance décomposé en Séries de Fourier).
          CAS_REPRISE=.TRUE.
 	 
 	 COMMAND = 
-     &	 'cp '//RESROOT(1:LDIR)//'/ListParam.txt copy_ListParam.txt'
+     &	 'cp '//RESROOT(1:LDIR)//'/ListParam.txt '
+     &	      //RESROOT(1:LDIR)//'/copy_ListParam.txt'
          CALL SYSTEM(COMMAND)      
 
      
@@ -3164,7 +3360,6 @@ C     du fichier de champ de luminance décomposé en Séries de Fourier).
          CAS_REPRISE=.FALSE. 
 	 
       ENDIF        
-         
 
 
 	   
@@ -3200,8 +3395,6 @@ C =========================================
      &	  "--> Starting the check of user parameters "
           WRITE (IDLOG,*,ERR=910) " "
       ENDIF
-
-
 
  
 C --- Contrôle de la définition de la longueur d'onde de simulation
@@ -3279,140 +3472,420 @@ C         Def du fichier GRANU résultat des calculs Hydrosols - Sédiments :  opt
       ENDIF ! Fin Trace
 
 
-C     Cas CHL > 0 ou SED_CSED > 0:
-      IF ((CHL.GT.0.0000).OR.(SED_CSED.GT.0.0000)) THEN
+      ! ------------------------------------------------------------------------------------------------------
+      ! Gestion cas définition de HYD.Model (IMOD_HYD):
+      !    Si IMOD_HYD = 3 : Fourniture par l'utilisateur du profil de coefficients d'extinction et diffusion.
+      !                      Il ne faut pas fournir d'information supplémentaire sur la concentration en hydrosols.
+      !
+      !    Si IMOD_HYD = 1 ou 2  : Il faut définir la concentration en hydrosols (phytoplancton et sédiments).
+      ! ------------------------------------------------------------------------------------------------------
+      IF (IMOD_HYD.EQ.3) THEN
 
-         !Définition du répertoire de stockage des fichiers de Mie : obligatoire  
-          IF (DEF_DIRMIE_HYD.EQ.0) GOTO 2610   
-	  
-	  !Création du répertoire de stockage des fichiers de Mie
-	  LDIR = INDEX(DIRMIE_HYD,' ') - 1
-          IF((LDIR.LE.0).OR.(LDIR.GT.CTE_LENDIR)) GOTO 1997
+         ! Contrôle de la récupération du nom du fichier de données externes
+	 IF (DEF_FICEXTDATA_HYD.EQ.0) GOTO 2700
+         ! Contrôle de la récupération du nom du fichier de profil utilisateur
+	 IF (DEF_FICUSER_PROFILE_HYD.EQ.0) GOTO 2710
 
-          COMMAND='mkdir -p '//DIRMIE_HYD(1:LDIR)
-          LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') - 1
-          IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1995
-          CALL SYSTEM(COMMAND)
-	  
-	  	    
-          !Définition du type de caractérisation des hydrosols : obligatoire   
-          IF (DEF_IMOD_HYD.EQ.0) GOTO 2620
-	  
-	  IF ((IMOD_HYD.LT.1).OR.(IMOD_HYD.GT.2)) GOTO 2621
+         IF ( (DEF_CHL.EQ.1).OR. 
+     &        (DEF_CHL_GP_BG.EQ.1).OR.(DEF_CHL_GP_MAX.EQ.1).OR.
+     &        (DEF_CHL_GP_DEEP.EQ.1).OR.(DEF_CHL_GP_WIDTH.EQ.1).OR.
+     &        (DEF_FICPHYTO_USER.EQ.1).OR.(DEF_IPHYTO_PROFIL.EQ.1).OR.
+     &        (DEF_SED_CSED.EQ.1)  ) THEN 
 
-C         ----------------------------------------------------
-C         Cas d'une définition des propriétés radiatives des
-C         hydrosols par modèle  : IMOD_HYD = 1  
-C         ----------------------------------------------------	  
-	  IF (IMOD_HYD.EQ.1) THEN 
-	  	   
-             IF (CHL.GT.0.0000) THEN
-	     
-	         !Test que le mode Junge obligatoire est renseigné
-		 IF (DEF_PHYTO_JD_SLOPE.EQ.0) GOTO 2630
-		 IF (DEF_PHYTO_JD_MR.EQ.0)    GOTO 2630
-		 IF (DEF_PHYTO_JD_MI.EQ.0)    GOTO 2630
-		 IF (DEF_PHYTO_JD_RATE.EQ.0)  GOTO 2630
+
+            WRITE(6,*) 
+     &      "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &      "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"	
+            WRITE(6,*) "Warning: "
+            WRITE(6,*) "  By setting HYD.Model = 3, the user only ",
+     &      "needs to provide the profile of a and b coefficients."
+            WRITE(6,*) "  This is not consistent with the definition ",
+     &      "of another parameter to define the profile",
+     &      " of mineral-like particles,"
+            WRITE(6,*) "  neither chlorophyll concentration ",
+     &      "from models or user's data."
+            WRITE(6,*) " => The simulation will only consider the ",
+     &      "profile of a and b coefficients, defined by parameter ",
+     &      "-HYD.UserProfile"
+            WRITE(6,*) " Parameters not taken into account ", 
+     &      "if defined: -SED.Csed, -PHYTO.ProfilType, -PHYTO.Chl, ",
+     &      "-PHYTO.GP.Chlbg, -PHYTO.GP.Chlzmax, -PHYTO.GP.Deep, ",
+     &      "-PHYTO.GP.Deep.Width, -PHYTO.Userfile"
+            WRITE(6,*) 
+     &      "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &      "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"	   
+            CALL FLUSH(6)	!Force l'envoie du message à l'écran  
+         ENDIF
+
+      !Fin cas IMOD_HYD = 3
+      ELSE
+
+         IF ((IMOD_HYD.EQ.1).OR.(IMOD_HYD.EQ.2)) THEN
+
+            ! Contrôle de la définition de la concentation en sédiments
+            IF (DEF_SED_CSED.EQ.0) GOTO 2260
+
+            ! Substance jaune : Coeff d'absorption à 440 nm (m-1) : obligatoire  
+            ! Coeff de conversion spectrale     : valeur par défaut si non définie
+            IF (DEF_YS_A440.EQ.0) GOTO 2270  
+      
+            ! Détritus : Coeff d'absorption à 440 nm (m-1) : obligatoire
+            ! Coeff de conversion spectrale     : valeur par défaut si non définie
+            IF (DEF_DET_A440.EQ.0) GOTO 2275    
+
+            IF (DEF_IPHYTO_PROFIL.EQ.0) GOTO 22400
+            IF ((IPHYTO_PROFIL.LT.1).OR.(IPHYTO_PROFIL.GT.3))GOTO 22401
+
+            ! Contrôle du renseignement du paramètre de concentration du cas profil homogène de chlorophylle 
+            IF (IPHYTO_PROFIL.EQ.1) THEN
+               IF (DEF_CHL.EQ.0) GOTO 22402
+
+               IF ( (DEF_CHL_GP_BG.EQ.1).OR.(DEF_CHL_GP_MAX.EQ.1).OR.
+     &              (DEF_CHL_GP_DEEP.EQ.1).OR.
+     &              (DEF_CHL_GP_WIDTH.EQ.1).OR.  
+     &              (DEF_FICPHYTO_USER.EQ.1)  ) THEN 
+
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  WRITE(6,*) "Warning: "
+                  WRITE(6,*) "  By setting PHYTO.ProfilType = 1 ",
+     &            "(homogeneous chlorophyll concentration profile), ",
+     &            "the user only needs to provide the chlorophyll ",
+     &            "concentration at sea surface defined by parameter ",
+     &            "-PHYTO.Chl"
+                  WRITE(6,*) " Parameters not taken into account ", 
+     &            "if defined:  -PHYTO.GP.Chlbg, -PHYTO.GP.Chlzmax, ",
+     &            "-PHYTO.GP.Deep, -PHYTO.GP.Deep.Width, ",
+     &            "-PHYTO.Userfile"
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" 
+                  CALL FLUSH(6)	!Force l'envoie du message à l'écran  
+               ENDIF
+
+            ENDIF !Fin Test IPHYTO_PROFIl = 1 
+
+            ! Contrôle du renseignement des paramètres de profil gaussien de chlorophylle 
+            IF (IPHYTO_PROFIL.EQ.2) THEN
+               IF (DEF_CHL_GP_BG.EQ.0) GOTO 22403
+               IF (DEF_CHL_GP_MAX.EQ.0) GOTO 22403
+	       IF (DEF_CHL_GP_DEEP.EQ.0) GOTO 22403
+	       IF (DEF_CHL_GP_WIDTH.EQ.0) GOTO 22403
+
+               IF ( (DEF_CHL.EQ.1).OR.(DEF_FICPHYTO_USER.EQ.1) ) THEN
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  WRITE(6,*) "Warning: "
+                  WRITE(6,*) "  By setting PHYTO.ProfilType = 2, the ",
+     &            "user only needs to provide the parameters ",
+     &            "defining the Gaussian profile of the chlorophyll ",
+     &            "concentration."
+                  WRITE(6,*) " Parameters not taken into account ", 
+     &            "if defined:  -PHYTO.Chl, -PHYTO.Userfile"
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  CALL FLUSH(6)	!Force l'envoie du message à l'écran  
+
+                  !Si CHL est défini, on force sa valeur à être non nulle, pour que l'appel de OSOAA_HYDROSOLS ne produise pas une matrice de phase nulle.
+                  IF (DEF_CHL.EQ.1) CHL=CTE_NOT_DEFINED_VALUE_DBLE
+               ENDIF
+
+               IF (  (CHL_GP_BG.EQ.0.).AND.(CHL_GP_MAX.EQ.0).AND.
+     &               (SED_CSED.EQ.0.0000)  ) THEN
+
+                  IPHYTO_PROFIL=1
+                  DEF_IPHYTO_PROFIL=1
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  WRITE(6,*) "Warning: "
+                  WRITE(6,*) "Pure seawater case ",
+     &            " => The parameter -PHYTO.ProfilType is forced to 1 "
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  CALL FLUSH(6)	!Force l'envoie du message à l'écran  
+               ENDIF
+            ENDIF !Fin Test IPHYTO_PROFIl = 2
+
+
+            ! Contrôle du renseignement des paramètres pour le cas d'un profil de concentration de chlorophylle fourni
+            IF (IPHYTO_PROFIL.EQ.3) THEN
+	       IF (DEF_FICPHYTO_USER.EQ.0) GOTO 22404
+               IF ( (DEF_CHL.EQ.1).OR. 
+     &              (DEF_CHL_GP_BG.EQ.1).OR.(DEF_CHL_GP_MAX.EQ.1).OR.
+     &              (DEF_CHL_GP_DEEP.EQ.1).OR.
+     &              (DEF_CHL_GP_WIDTH.EQ.1)  ) THEN 
+
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  WRITE(6,*) "Warning: "
+                  WRITE(6,*) "  By setting PHYTO.ProfilType = 3, ",
+     &            "the user only needs to provide the file defining ",
+     &            "the chlorophyll concentration profile."
+                  WRITE(6,*) "  This is not consistent with the use ",
+     &            "of another parameter to define the ",
+     &            "chlorophyll concentration profile ."
+                  WRITE(6,*) " => The simulation will only consider ",
+     &            "the chlorophyll concentration profile, defined  ",
+     &            "by parameter -PHYTO.Userfile "
+                  WRITE(6,*) " Parameters not taken into account ", 
+     &               "if defined: -PHYTO.Chl, -PHYTO.GP.Chlbg, ", 
+     &               "-PHYTO.GP.Chlzmax, -PHYTO.GP.Deep, ",
+     &               "-PHYTO.GP.Deep.Width"
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                   CALL FLUSH(6)	!Force l'envoie du message à l'écran  
+
+                  !Si CHL est défini, on force sa valeur à être non nulle, pour que l'appel de OSOAA_HYDROSOLS ne produise pas une matrice de phase nulle.
+                  IF (DEF_CHL.EQ.1) CHL=CTE_NOT_DEFINED_VALUE_DBLE
+               ENDIF
+            ENDIF !Fin Test IPHYTO_PROFIl = 3
+
+
+
+            IF (IMOD_HYD.EQ.1) THEN ! Cas IMOD_HYD = 1 : Application de modèles de granulométrie
+               !----------------------------------------------------
+               ! Cas d'une définition des propriétés radiatives des hydrosols par modèle  : IMOD_HYD = 1  
+               ! ----------------------------------------------------
+               
+               ! Cas profil de chlorophylle homogène avec CHL > 0,
+               ! ou  Profil de chlorophylle gaussien avec concentration non nulle,
+               ! ou présence de sédiments SED_CSED > 0:
+               IF (  ( (IPHYTO_PROFIL.EQ.1).AND.(CHL.GT.0.) ).OR.
+     &               ( (IPHYTO_PROFIL.EQ.2).AND.
+     &               ((CHL_GP_BG.GT.0.).OR.(CHL_GP_MAX.GT.0)) ).OR.
+     &               (IPHYTO_PROFIL.EQ.3).OR.
+     &               (SED_CSED.GT.0.0000)  ) THEN
+
+                  !Définition du répertoire de stockage des fichiers de Mie : obligatoire  
+                  IF (DEF_DIRMIE_HYD.EQ.0) GOTO 2610   
+	  
+	          !Création du répertoire de stockage des fichiers de Mie
+	          LDIR = INDEX(DIRMIE_HYD,' ') - 1
+                  IF((LDIR.LE.0).OR.(LDIR.GT.CTE_LENDIR)) GOTO 1997
+
+                  COMMAND='mkdir -p '//DIRMIE_HYD(1:LDIR)
+                  LCOM = INDEX(COMMAND(10:CTE_LENCOM),' ') - 1
+                  IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1995
+                  CALL SYSTEM(COMMAND)
+
+               ENDIF
+
+               ! Tests s'il y a du phytoplancton
+               IF (  ( (IPHYTO_PROFIL.EQ.1).AND.(CHL.GT.0.) ).OR.
+     &               ( (IPHYTO_PROFIL.EQ.2).AND.
+     &               ((CHL_GP_BG.GT.0.).OR.(CHL_GP_MAX.GT.0)) ).OR.
+     &               (IPHYTO_PROFIL.EQ.3) ) THEN
+
+                  !Test que le mode Junge obligatoire est renseigné
+                  IF (DEF_PHYTO_JD_SLOPE.EQ.0) GOTO 2630
+                  IF (DEF_PHYTO_JD_MR.EQ.0)    GOTO 2630
+                  IF (DEF_PHYTO_JD_MI.EQ.0)    GOTO 2630
+                  IF (DEF_PHYTO_JD_RATE.EQ.0)  GOTO 2630
 		 
-		 !Test que si un param du mode LND secondaire est renseigné
-		 !alors l'ensemble des param du mode LND secondaire doit être renseigné
-		 IF ( (DEF_PHYTO_LND_SM_RADIUS.EQ.1).OR.
-     &	              (DEF_PHYTO_LND_SM_VAR.EQ.1).OR.
-     &	              (DEF_PHYTO_LND_SM_MR.EQ.1).OR.
-     &	              (DEF_PHYTO_LND_SM_MI.EQ.1).OR.
-     &	              (DEF_PHYTO_LND_SM_RATE.EQ.1) ) THEN
+                  !Test que si le taux du mode LND secondaire est renseigné et non nul,
+                  !alors l'ensemble des param du mode LND secondaire est renseigné
+                  IF ( (DEF_PHYTO_LND_SM_RATE.EQ.1).AND.
+     &	               (PHYTO_LND_SM_RATE.NE.0.)) THEN
 		      
-		         IF (DEF_PHYTO_LND_SM_RADIUS.EQ.0) GOTO 2632
-		         IF (DEF_PHYTO_LND_SM_VAR.EQ.0)    GOTO 2632
-		         IF (DEF_PHYTO_LND_SM_MR.EQ.0)     GOTO 2632
-		         IF (DEF_PHYTO_LND_SM_MI.EQ.0)     GOTO 2632
-		         IF (DEF_PHYTO_LND_SM_RATE.EQ.0)   GOTO 2632
-		 ENDIF !Fin si un param LND secondary mode défini     
+                     IF (DEF_PHYTO_LND_SM_RADIUS.EQ.0) GOTO 2632
+                     IF (DEF_PHYTO_LND_SM_VAR.EQ.0)    GOTO 2632
+                     IF (DEF_PHYTO_LND_SM_MR.EQ.0)     GOTO 2632
+                     IF (DEF_PHYTO_LND_SM_MI.EQ.0)     GOTO 2632
+		  ENDIF !Fin si un param LND secondary mode défini     
 
-		 !Test que si un param du mode LND tertiaire est renseigné
-		 !alors l'ensemble des param du mode LND tertiaire doit être renseigné
-		 IF ( (DEF_PHYTO_LND_TM_RADIUS.EQ.1).OR.
-     &	              (DEF_PHYTO_LND_TM_VAR.EQ.1).OR.
-     &	              (DEF_PHYTO_LND_TM_MR.EQ.1).OR.
-     &	              (DEF_PHYTO_LND_TM_MI.EQ.1).OR.
-     &	              (DEF_PHYTO_LND_TM_RATE.EQ.1) ) THEN
+                  !Si le taux du mode LND secondaire n'est pas renseigné ==> Supposé nul
+                  IF ( (DEF_PHYTO_LND_SM_RATE.EQ.0).AND.
+     &                 (PHYTO_JD_RATE.NE.1.) ) THEN
+                     WRITE(6,*) 
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                     WRITE(6,*) "Warning: "
+                     WRITE(6,*) "  -PHYTO.LND.SM.rate is not defined"
+                     WRITE(6,*) " ==> It is then assumed to be null"
+                     WRITE(6,*) " ==> Parameters relating to the",  
+     &               " secondary mode of phytoplankton are",  
+     &               " not taken into account"
+                     WRITE(6,*) " (-PHYTO.LND.SM.SDradius, ", 
+     &               "-PHYTO.LND.SM.SDvar, -PHYTO.LND.SM.MRwa, ", 
+     &               "-PHYTO.LND.SM.MIwa)"
+                     WRITE(6,*) 
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"		
+                     CALL FLUSH(6)	!Force l'envoie du message à l'écran                        
+                  ENDIF 
+
+		  !Test que si le taux du mode LND tertiaire est renseigné et non nul,
+		  !alors l'ensemble des param du mode LND tertiaire est renseigné
+                  IF ( (DEF_PHYTO_LND_TM_RATE.EQ.1).AND.
+     &	               (PHYTO_LND_TM_RATE.NE.0.)) THEN
 		      
-		         IF (DEF_PHYTO_LND_TM_RADIUS.EQ.0) GOTO 2634
-		         IF (DEF_PHYTO_LND_TM_VAR.EQ.0)    GOTO 2634
-		         IF (DEF_PHYTO_LND_TM_MR.EQ.0)     GOTO 2634
-		         IF (DEF_PHYTO_LND_TM_MI.EQ.0)     GOTO 2634
-		         IF (DEF_PHYTO_LND_TM_RATE.EQ.0)   GOTO 2634
-		 ENDIF !Fin si un param LND tertiary mode défini     
-		 	
-	     ENDIF ! Cas concentration phyto CHL non nulle
-	     
-	     
-             IF (SED_CSED.GT.0.0000) THEN
-	         
-		 !Test que le mode Junge obligatoire est renseigné
-		 IF (DEF_SED_JD_SLOPE.EQ.0) GOTO 2640
-		 IF (DEF_SED_JD_MR.EQ.0)    GOTO 2640
-		 IF (DEF_SED_JD_MI.EQ.0)    GOTO 2640
-		 IF (DEF_SED_JD_RATE.EQ.0)  GOTO 2640
+                     IF (DEF_PHYTO_LND_TM_RADIUS.EQ.0) GOTO 2634
+                     IF (DEF_PHYTO_LND_TM_VAR.EQ.0)    GOTO 2634
+                     IF (DEF_PHYTO_LND_TM_MR.EQ.0)     GOTO 2634
+                     IF (DEF_PHYTO_LND_TM_MI.EQ.0)     GOTO 2634
+		  ENDIF !Fin si un param LND tertiary mode défini   
 
-		 !Test que si un param du mode LND secondaire est renseigné
-		 !alors l'ensemble des param du mode LND secondaire doit être renseigné
-		 IF ( (DEF_SED_LND_SM_RADIUS.EQ.1).OR.
-     &	              (DEF_SED_LND_SM_VAR.EQ.1).OR.
-     &	              (DEF_SED_LND_SM_MR.EQ.1).OR.
-     &	              (DEF_SED_LND_SM_MI.EQ.1).OR.
-     &	              (DEF_SED_LND_SM_RATE.EQ.1) ) THEN
+                  !Si le taux du mode LND tertiaire n'est pas renseigné ==> Supposé nul
+                  IF ( (DEF_PHYTO_LND_TM_RATE.EQ.0).AND.
+     &                 (PHYTO_JD_RATE.NE.1.) ) THEN
+                     WRITE(6,*) 
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"		
+                     WRITE(6,*) "Warning: "
+                     WRITE(6,*) " -PHYTO.LND.TM.rate is not defined"
+                     WRITE(6,*) " ==> It is then assumed to be null"
+                     WRITE(6,*) " ==> Parameters relating to the",  
+     &               " tertiary mode of phytoplankton are",  
+     &               " not taken into account"
+                     WRITE(6,*) " (-PHYTO.LND.TM.SDradius, ", 
+     &               "-PHYTO.LND.TM.SDvar, -PHYTO.LND.TM.MRwa, ", 
+     &               "-PHYTO.LND.TM.MIwa)"
+                     WRITE(6,*) 
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                     CALL FLUSH(6)	!Force l'envoie du message à l'écran                        
+                  ENDIF 
+                  
+               ENDIF !Fin bloc de tests s'il y a du phytoplancton           
+
+	
+               ! Tests s'il y a des sédiments
+               IF (SED_CSED.GT.0.0000)  THEN
+
+                  !Test que le mode Junge obligatoire est renseigné
+		  IF (DEF_SED_JD_SLOPE.EQ.0) GOTO 2640
+		  IF (DEF_SED_JD_MR.EQ.0)    GOTO 2640
+		  IF (DEF_SED_JD_MI.EQ.0)    GOTO 2640
+		  IF (DEF_SED_JD_RATE.EQ.0)  GOTO 2640
+
+		  !Test que si le taux du mode LND secondaire est renseigné et non nul,
+		  !alors l'ensemble des param du mode LND secondaire est renseigné
+                  IF ( (DEF_SED_LND_SM_RATE.EQ.1).AND.
+     &	               (SED_LND_SM_RATE.NE.0.)) THEN
 		      
-		         IF (DEF_SED_LND_SM_RADIUS.EQ.0) GOTO 2642
-		         IF (DEF_SED_LND_SM_VAR.EQ.0)    GOTO 2642
-		         IF (DEF_SED_LND_SM_MR.EQ.0)     GOTO 2642
-		         IF (DEF_SED_LND_SM_MI.EQ.0)     GOTO 2642
-		         IF (DEF_SED_LND_SM_RATE.EQ.0)   GOTO 2642
-		 ENDIF !Fin si un param LND secondary mode défini     
+                     IF (DEF_SED_LND_SM_RADIUS.EQ.0) GOTO 2642
+                     IF (DEF_SED_LND_SM_VAR.EQ.0)    GOTO 2642
+                     IF (DEF_SED_LND_SM_MR.EQ.0)     GOTO 2642
+                     IF (DEF_SED_LND_SM_MI.EQ.0)     GOTO 2642
+		  ENDIF !Fin si un param LND secondary mode défini     
 
-		 !Test que si un param du mode LND tertiaire est renseigné
-		 !alors l'ensemble des param du mode LND tertiaire doit être renseigné
-		 IF ( (DEF_SED_LND_TM_RADIUS.EQ.1).OR.
-     &	              (DEF_SED_LND_TM_VAR.EQ.1).OR.
-     &	              (DEF_SED_LND_TM_MR.EQ.1).OR.
-     &	              (DEF_SED_LND_TM_MI.EQ.1).OR.
-     &	              (DEF_SED_LND_TM_RATE.EQ.1) ) THEN
+                  !Si le taux du mode LND secondaire n'est pas renseigné ==> Supposé nul
+                  IF ( (DEF_SED_LND_SM_RATE.EQ.0).AND.
+     &                 (SED_JD_RATE.NE.1.) ) THEN
+                     WRITE(6,*) 
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                     WRITE(6,*) "Warning: "
+                     WRITE(6,*) "  -SED.LND.SM.rate is not defined"
+                     WRITE(6,*) " ==> It is assumed to be null"
+                     WRITE(6,*) " ==> Parameters relating to the",  
+     &               " secondary mode of mineral-like particles are",  
+     &               " not taken into account"
+                     WRITE(6,*) " (-SED.LND.SM.SDradius, ", 
+     &               "-SED.LND.SM.SDvar, -SED.LND.SM.MRwa, ", 
+     &               "-SED.LND.SM.MIwa)"
+                     WRITE(6,*) 
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                     CALL FLUSH(6)	!Force l'envoie du message à l'écran                        
+                  ENDIF 
+
+
+		  !Test que si le taux du mode LND tertiaire est renseigné et non nul,
+		  !alors l'ensemble des param du mode LND tertiaire est renseigné
+                  IF ( (DEF_SED_LND_TM_RATE.EQ.1).AND.
+     &	               (SED_LND_TM_RATE.NE.0.)) THEN
 		      
-		         IF (DEF_SED_LND_TM_RADIUS.EQ.0) GOTO 2644
-		         IF (DEF_SED_LND_TM_VAR.EQ.0)    GOTO 2644
-		         IF (DEF_SED_LND_TM_MR.EQ.0)     GOTO 2644
-		         IF (DEF_SED_LND_TM_MI.EQ.0)     GOTO 2644
-		         IF (DEF_SED_LND_TM_RATE.EQ.0)   GOTO 2644
-		 ENDIF !Fin si un param LND tertiary mode défini     
-	 
-	     ENDIF ! Cas concentration sédiment SED_CSED non nulle
-	     
-	     
-	  ENDIF !Fin cas IMOD_HYD = 1
+                     IF (DEF_SED_LND_TM_RADIUS.EQ.0) GOTO 2644
+                     IF (DEF_SED_LND_TM_VAR.EQ.0)    GOTO 2644
+                     IF (DEF_SED_LND_TM_MR.EQ.0)     GOTO 2644
+                     IF (DEF_SED_LND_TM_MI.EQ.0)     GOTO 2644
+		  ENDIF !Fin si un param LND tertiary mode défini                     
+ 
+                  !Si le taux du mode LND tertiaire n'est pas renseigné ==> Supposé nul
+                  IF ( (DEF_SED_LND_TM_RATE.EQ.0).AND.
+     &                 (SED_JD_RATE.NE.1.) ) THEN
+                     WRITE(6,*) 
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                     WRITE(6,*) "Warning: "
+                     WRITE(6,*) "  -SED.LND.TM.rate is not defined"
+                     WRITE(6,*) " ==> It is assumed to be null"
+                     WRITE(6,*) " ==> Parameters relating to the",  
+     &               " secondary mode of mineral-like particles are",  
+     &               " not taken into account"
+                     WRITE(6,*) " (-SED.LND.TM.SDradius, ", 
+     &               "-SED.LND.TM.SDvar, -SED.LND.TM.MRwa, ", 
+     &               "-SED.LND.TM.MIwa)"
+                     WRITE(6,*) 
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &               "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"	
+                     CALL FLUSH(6)	!Force l'envoie du message à l'écran                        
+                  ENDIF                  
+               ENDIF !Fin bloc de tests s'il y a des sédiments
 
 
-C         ----------------------------------------------------
-C         Cas de données de fonction de phase hydrosols 
-C         fournies par l'utilisateur : IMOD_HYD = 2  
-C         ----------------------------------------------------	  
-	  IF (IMOD_HYD.EQ.2) THEN 	!Cas fonctions externes
-             ! Contrôle de la récupération du nom du fichier de données externes
-	     IF (DEF_FICEXTDATA_HYD.EQ.0) GOTO 2700
-	          
-	  ENDIF !Fin cas IMOD_HYD = 2 (fonctions phases externes)
+            ELSE ! IMOD_HYD = 2 Cas fonctions externes
+               !----------------------------------------------------
+               ! Cas de données de fonction de phase hydrosols fournies par l'utilisateur : IMOD_HYD = 2  
+               !----------------------------------------------------	 
+               ! Contrôle de la récupération du nom du fichier de données externes
+	       IF (DEF_FICEXTDATA_HYD.EQ.0) GOTO 2700
+               IF (SED_CSED.NE.0.) GOTO 2701 
+            ENDIF
+         
+         ELSE ! Cas IMOD_HYD ne vaut ni 1, ni 2, ni 3 (non défini)
+              ! ==> Doit correspondre à un cas d'eau pure
+
+            IF( (SED_CSED.NE.0.).OR.(CHL.NE.0.) ) THEN
+               WRITE(6,*) "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+               WRITE(6,*) "Warning: "
+               WRITE(6,*) "  -HYD.Model is not defined"
+               WRITE(6,*) " ==> This assumes that the simulation ",
+     &         "is carried out for pure seawater"
+               WRITE(6,*) "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+               CALL FLUSH(6)	!Force l'envoie du message à l'écran  
+               IF (SED_CSED.NE.0.) GOTO 2702
+               IF (CHL.NE.0.) GOTO 2702
+
+            ELSE
+               IMOD_HYD = 1	  !On force la génération de fichiers de coef Greek (qui seront nuls)
+
+               IF (IPHYTO_PROFIL.NE.1) THEN
+                  IPHYTO_PROFIL=1
+                  DEF_IPHYTO_PROFIL=1
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  WRITE(6,*) "Warning: "
+                  WRITE(6,*) "Pure seawater case ",
+     &            " => The parameter -PHYTO.ProfilType is forced to 1 "
+                  WRITE(6,*) 
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+     &            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  CALL FLUSH(6)	!Force l'envoie du message à l'écran  
+               ENDIF
+            ENDIF
+	
+         ENDIF !Fin cas IMOD_HYD = 1  ou 2     
+      
+      ENDIF !Fin test IMOD_HYD = 3
 
 
-      ELSE ! CHL = 0 et SED_CSED = 0 : Cas sans chloro ni sédiments.
-	   ! ==> on impose IMOD=1 pour que la routine OSOAA_HYDROSOLS 
-	   !     puisse produire une matrice de phase nulle.
-         IMOD_HYD = 1
 
-	  	  	  	  	  	  
-      ENDIF ! Fin du cas CHL > 0 ou SED_CSED > 0
 
 	 
 C ------------------------------------------------------------------------  
-C --- Contrôle du passage des arguments des profils atmosphérique et marin 
+C --- Contrôle du passage des arguments du profil atmosphérique 
 C ------------------------------------------------------------------------  
 C
 C     L'ep opt moléculaire est renseignée directement par -AP.MOT (pour la longueur 
@@ -3440,52 +3913,6 @@ C           d'onde de simulation de la luminance WA
 C           --> Il est refait après calcul de l'AOT à WA 
       IF ((DEF_HA.EQ.0).AND.(AOT_REF.GT.0.0001)) GOTO 2220 
 
-
-C     Quantite de chlorophille en surface : obligatoire           
-      IF (DEF_CHL.EQ.0) GOTO 2230
-
-C     Définition du type de profile de chlorophylle : 
-C     ==> à définir si la quantite de chlorophylle n'est pas nulle          
-      IF (CHL.GT.0.0000) THEN
-      
-         IF (DEF_IPHYTO_PROFIL.EQ.0) GOTO 2240
-	 
-C        Contrôle du domaine de  IPHYTO_PROFIL  
-	 IF ((IPHYTO_PROFIL.LT.1).OR.(IPHYTO_PROFIL.GT.3)) GOTO 2250
-	 
-C        Contrôle du renseignement des paramètres de profil gaussien de chlorophylle   
-         IF (IPHYTO_PROFIL.EQ.2) THEN	!Cas du profil gaussien
-            IF (DEF_CHL_GP_BG.EQ.0) GOTO 2251
-	    IF (DEF_CHL_GP_DEEP.EQ.0) GOTO 2251
-	    IF (DEF_CHL_GP_WIDTH.EQ.0) GOTO 2251  
-         ENDIF	
-	 
-C        Contrôle du renseignement du fichier Utilisateur   
-         IF (IPHYTO_PROFIL.EQ.3) THEN	!Cas de l'utilisation d'un fichier utilisateur
-            IF (DEF_FICPHYTO_USER.EQ.0) GOTO 2252  
-	    CHL_GP_BG = CTE_NOT_DEFINED_VALUE_DBLE
-	    CHL_GP_DEEP = CTE_NOT_DEFINED_VALUE_DBLE
-	    CHL_GP_WIDTH = CTE_NOT_DEFINED_VALUE_DBLE
-         ENDIF		
-	   
-      ELSE	!Cas Chl=0. ==> On force à "indéfini" tous les paramètres associés 
-	 IPHYTO_PROFIL = 1     !sauf le profil qui est fixé homogène par défaut
-	 CHL_GP_BG = CTE_NOT_DEFINED_VALUE_DBLE
-	 CHL_GP_DEEP = CTE_NOT_DEFINED_VALUE_DBLE
-	 CHL_GP_WIDTH = CTE_NOT_DEFINED_VALUE_DBLE
-	 FICPHYTO_USER = "NO_USER_PHYTO_PROFILE"
-      ENDIF
-      
-C     Quantite de sédiment en surface : obligatoire           
-      IF (DEF_SED_CSED.EQ.0) GOTO 2260      
-
-C     Substance jaune : Coeff d'absorption à 440 nm (m-1) : obligatoire  
-C			Coeff de conversion spectrale     : obligatoire 
-C 						            si le coef d'abs. n'est pas nul.
-      IF (DEF_YS_A440.EQ.0) GOTO 2270  
-      
-C     Détritus : Coeff d'absorption à 440 nm (m-1) : obligatoire
-      IF (DEF_DET_A440.EQ.0) GOTO 2275        
 
 
       IF (TRACE) THEN
@@ -3540,6 +3967,8 @@ C     Création du répertoire de stockage des fichiers de Mie
          IF((LCOM.LE.0).OR.(LCOM.GT.CTE_LENCOM)) GOTO 1995
          CALL SYSTEM(COMMAND)
       ENDIF      
+
+
 
 C --------------------------------------------------------------  
 C --- Contrôle du passage des arguments de modèle d'aérosols
@@ -3732,9 +4161,9 @@ C
       
       !Définition du choix de type de fond : obligatoire  
       IF (DEF_IBOT_TYPE.EQ.0) GOTO 2520      
+      IF ((IBOT_TYPE.LT.1).OR.(IBOT_TYPE.GT.5)) GOTO 2524
 
-      !Définition de l'albédo de fond (composante lambertienne) doit être définie
-      !Si IBOT_TYPE=1 
+      !Définition de l'albédo de fond (composante lambertienne) doit être définie si IBOT_TYPE=1 
       IF ((IBOT_TYPE.EQ.1).AND.(DEF_RHO_BOT.EQ.0)) GOTO 2525
 
       !Définition de l'azimut relatif : obligatoire  
@@ -3970,6 +4399,10 @@ C     -AER.ResFile:
       LFIC = INDEX(FICGRANU_AER,' ') - 1
       WRITE(11,1851,ERR=3501) FICGRANU_AER(1:LFIC)
 
+C     -AER.ResFile.IOP:
+      LFIC = INDEX(FICAER_IOP,' ') - 1
+      WRITE(11,18511,ERR=3501) FICAER_IOP(1:LFIC)
+
 C     -AER.Log:
       LFIC = INDEX(FICAER_LOG,' ') - 1
       WRITE(11,1852,ERR=3501) FICAER_LOG(1:LFIC)
@@ -3983,6 +4416,10 @@ C     -PHYTO.ResFile:
 C     -MLP.ResFile:
       LFIC = INDEX(FICGRANU_MLP,' ') - 1
       WRITE(11,1854,ERR=3501) FICGRANU_MLP(1:LFIC)
+
+C     -HYD.ResFile.IOP:
+      LFIC = INDEX(FICHYD_IOP,' ') - 1
+      WRITE(11,18541,ERR=3501) FICHYD_IOP(1:LFIC)
 
 C     -HYD.Log:
       LFIC = INDEX(FICHYD_LOG,' ') - 1
@@ -4099,6 +4536,10 @@ C     -HYD.ExtData:
       LFIC = INDEX(FICEXTDATA_HYD,' ') - 1
       WRITE(11,1891,ERR=3501) FICEXTDATA_HYD(1:LFIC)
       
+C     -HYD.UserProfile:
+      LFIC = INDEX(FICUSER_PROFILE_HYD,' ') - 1
+      WRITE(11,1891,ERR=3501) FICUSER_PROFILE_HYD(1:LFIC)
+
       
 C ------- Arguments propres à la définition des profils atmosphérique et marin	
 C     -AP.MOT:
@@ -4124,6 +4565,9 @@ C     -PHYTO.ProfilType:
 
 C     -PHYTO.GP.Chlbg:
       WRITE(11,1899,ERR=3501) CHL_GP_BG
+
+C     -PHYTO.GP.Chlzmax:
+      WRITE(11,18991,ERR=3501) CHL_GP_MAX
 
 C     -PHYTO.GP.Deep:
       WRITE(11,1900,ERR=3501) CHL_GP_DEEP
@@ -4293,26 +4737,28 @@ C     $OSOAA_ROOT/exe
       IF (EX) THEN
             
          COMMAND = 'diff '//DIREXE(1:IFIN)//'/config.txt '
-     &            //RESROOT(1:LDIR)//'/config.txt > out_diff' 
+     &            //RESROOT(1:LDIR)//'/config.txt > '
+     &            //RESROOT(1:LDIR)//'out_diff' 
          CALL SYSTEM(COMMAND)      
          
 	 !Si le fichier out_diff n'est pas vide c'est qu'il y a eu une 
 	 !recompilation avec un fichier OSOAA.h modifié
-	 OPEN(11,FILE="out_diff",ERR=35011)
+	 OPEN(11,FILE=RESROOT(1:LDIR)//"out_diff",ERR=35011)
 	 READ(11,*,IOSTAT=IO) LIGNE_TEXTE 	 
 
 	 IF(IO.GE.0)  CAS_REPRISE=.FALSE.
 	 
 	 CLOSE(11,STATUS='DELETE',ERR=4004)
 
-      ELSE		
-         COMMAND = 'cp '//DIREXE(1:IFIN)//'/config.txt '
-     &             //RESROOT(1:LDIR)//'/config.txt'
-         CALL SYSTEM(COMMAND)
-	 
+      ELSE		 
 	 CAS_REPRISE=.FALSE. 
       ENDIF
 
+C     On copie ensuite le fichier config.txt sur l'espace résultat dans le cas où il a changé 
+C     (cas pour code recompilé avec un fichier OSOAA.h modifié)  
+      COMMAND = 'cp '//DIREXE(1:IFIN)//'/config.txt '
+     &              //RESROOT(1:LDIR)//'/config.txt'
+      CALL SYSTEM(COMMAND)
 
       IF (TRACE) THEN
  
@@ -4323,7 +4769,7 @@ C     $OSOAA_ROOT/exe
 	  WRITE (IDLOG,*,ERR=910) " "  
           IF (CAS_REPRISE.EQV..TRUE.) THEN 
 	     WRITE (IDLOG,*,ERR=910) 
-     &	     "No change in OSOAA.h file since last process"
+     &	     "No change in OSOAA.h file since last process " 
           ELSE
 	     WRITE (IDLOG,*,ERR=910) 
      &       "First process on this working folder."
@@ -4343,12 +4789,11 @@ C ---------------------------------------------------------------
 				       !ou par modification de OSOAA.h du code
 				       !compilé
 
-         OPEN(11,FILE="copy_ListParam.txt",ERR=3502)
+         OPEN(11,FILE=RESROOT(1:LDIR)//"/copy_ListParam.txt",ERR=3502)
 
 C        -OSOAA.ResRoot: 
          READ(11,'(a)',ERR=3503) LIGNE_TEXTE
-		
-	 
+			 
 C        -OSOAA.Log:      
          READ(11,'(a)',ERR=3503) LIGNE_TEXTE
 
@@ -4596,6 +5041,11 @@ C        -AER.ResFile: Lu par OSOAA_SOS
      &          			11,TRACE,CAS_REPRISE,IER)
          IF(IER.NE.0) GOTO 3504  
 
+C        -AER.ResFile.IOP: Lu par OSOAA_SOS
+         CALL OSOAA_COMPA_SIMU_FILENAME(FICAER_IOP,'-AER.ResFile.IOP:',
+     &          			11,TRACE,CAS_REPRISE,IER)
+         IF(IER.NE.0) GOTO 3504  
+
 C        -AER.Log:
          READ(11,'(a)',ERR=3503) LIGNE_TEXTE
 
@@ -4605,7 +5055,12 @@ C        -PHYTO.ResFile: Lu par OSOAA_SOS
          IF(IER.NE.0) GOTO 3504  
 
 C        -MLP.ResFile: Lu par OSOAA_SOS
-         CALL OSOAA_COMPA_SIMU_FILENAME(FICGRANU_MLP,'-MLP.ResFilex:',
+         CALL OSOAA_COMPA_SIMU_FILENAME(FICGRANU_MLP,'-MLP.ResFile:',
+     &          			11,TRACE,CAS_REPRISE,IER)
+         IF(IER.NE.0) GOTO 3504  
+
+C        -HYD.ResFile.IOP: Lu par OSOAA_SOS
+         CALL OSOAA_COMPA_SIMU_FILENAME(FICHYD_IOP,'-HYD.ResFile.IOP:',
      &          			11,TRACE,CAS_REPRISE,IER)
          IF(IER.NE.0) GOTO 3504  
 
@@ -4788,6 +5243,12 @@ C        -HYD.ExtData:
      &          			11,TRACE,CAS_REPRISE,IER)
          IF(IER.NE.0) GOTO 3504  
 
+C        -HYD.UserProfile:
+         CALL OSOAA_COMPA_SIMU_FILENAME(FICUSER_PROFILE_HYD,
+     &                                  '-HYD.UserProfile:',
+     &          			11,TRACE,CAS_REPRISE,IER)
+         IF(IER.NE.0) GOTO 3504  
+
 C        -AP.MOT:
          CALL OSOAA_COMPA_SIMU_VALUE(TR,"DBL",
      &             '-AP.MOT:',11,TRACE,CAS_REPRISE,IER)
@@ -4827,6 +5288,11 @@ C        -PHYTO.GP.Chlbg:
          CALL OSOAA_COMPA_SIMU_VALUE(CHL_GP_BG,"DBL",
      &             '-PHYTO.GP.Chlbg:',11,TRACE,CAS_REPRISE,IER)
          IF(IER.NE.0) GOTO 3505  
+
+C        -PHYTO.GP.Chlzmax:
+         CALL OSOAA_COMPA_SIMU_VALUE(CHL_GP_MAX,"DBL",
+     &             '-PHYTO.GP.Chlzmax:',11,TRACE,CAS_REPRISE,IER)
+         IF(IER.NE.0) GOTO 3505 
 
 C        -PHYTO.GP.Deep:
          CALL OSOAA_COMPA_SIMU_VALUE(CHL_GP_DEEP,"DBL",
@@ -4909,7 +5375,7 @@ C        -SEA.BotType:
 
 C        -SEA.BotAlb:
          CALL OSOAA_COMPA_SIMU_VALUE(RHO_BOT,"DBL",
-     &             '-SEA.BotAl:',11,TRACE,CAS_REPRISE,IER)
+     &             '-SEA.BotAlb:',11,TRACE,CAS_REPRISE,IER)
          IF(IER.NE.0) GOTO 3505  
 
 C        -OSOAA.View.Phi:
@@ -4955,7 +5421,6 @@ C        -SOS.ResFile.Bin: Lu par OSOAA_TRPHI
       
 
 
-
 C --- Gestion de la poursuite des traitements ou saut direct à OSOAA_SOS
    
       IF (CAS_REPRISE.EQV..TRUE.) THEN
@@ -4966,24 +5431,32 @@ C --- Gestion de la poursuite des traitements ou saut direct à OSOAA_SOS
 
              IF (CAS_REPRISE.EQV..TRUE.) THEN 
 	        WRITE (IDLOG,*,ERR=910) 
-     &	        "No change in simulation parameters since last process"
+     &	        "No change in simulation parameters since the latest"
+     &	        //" process within a range of absolute differences "
+     &	        //" less than ", THRESHOLD_ABS_COMPA
                 WRITE (IDLOG,*,ERR=910) 
-     &          "except for output parameters after Fourier "
-     &          //"series expansion (relative azimuth, viewing angle "
-     &          //"or altitude output)"
+     &          "except for output parameters after Fourier"
+     &          //" series expansion (relative azimuth, viewing angle"
+     &          //" or altitude output)"
                 WRITE (IDLOG,*,ERR=910) 
-     &		"==> Use of the previous radiance field "
-     &          //"decomposed in Fourier expansion"
+     &		"==> Use of the previous radiance field"
+     &          //" decomposed in Fourier expansion"
              ELSE
 	        WRITE (IDLOG,*,ERR=910) 
-     &          "Change in simulation parameters since last process" 
+     &          "Change in simulation parameters since the latest" 
+     &	        //" process"
                 WRITE (IDLOG,*,ERR=910) 
-     &          "==>Simulation restarts from the beginning" 
+     &          "==> Simulation restarts from the beginning" 
 	     ENDIF 
              WRITE (IDLOG,*,ERR=910) " "
 	   	  
          ENDIF ! Fin Trace      
           
+
+         WRITE(6,*)  
+     &   '==> Simulation carried out previously : ',
+     &   'extraction of the required results'
+         CALL FLUSH(6)	!Force l'envoie du message à l'écran    
 	  
 	 GOTO 3000 !Passage à OSOAA_SOS directement avec APPEL_SOS_CORE=.FALSE.
 	 
@@ -5125,11 +5598,13 @@ C =========================================================
 	    WRITE (IDLOG,*,ERR=910) "      --------------"
  	    WRITE (IDLOG,862,ERR=910) FICAER_LOG 
 	    WRITE (IDLOG,863,ERR=910) FICGRANU_AER
+	    WRITE (IDLOG,866,ERR=910) "NO_IOP_FILE"
          ENDIF !Fin Trace 
 	          
 	 ITRONC_AER_IN = ITRONC_AER  !Si ITRONC_AER=1 mais que le code estime la troncature
 	 			     !inutile seul le paramètre ITRONC_AER_IN basculera	
 				     !de 1 à 0 sans impacter la valeur de ITRONC_AER
+         
 	 CALL OSOAA_AEROSOLS(FICANGLES_RES_MIE, 
      &	    	             WA_SIMU, TA, WAREF_AOT, AOT_REF,	  
      &	  	             ITRONC_AER_IN, IMOD_AER,
@@ -5149,8 +5624,8 @@ C =========================================================
      &	  	             BMD_FM_RMODAL, BMD_FM_VAR,	 
      &	  	             FICEXTDATA_AER, 
      &			     DIRMIE_AER, FICAER_LOG_MIE,
-     &	  	             FICGRANU_AER, FICAER_LOG, KMAT1_WA,
-     &			     PIZAER, IER)
+     &	  	             FICGRANU_AER, TXT_CAS_NO_IOP, FICAER_LOG, 
+     &			     KMAT1_WA, PIZAER, IER)
 		    
       ELSE ! Cas AOT_REF non nulle
       
@@ -5229,6 +5704,7 @@ C =========================================================
 	        WRITE (IDLOG,*,ERR=910) "      --------------"
  	        WRITE (IDLOG,862,ERR=910) FICAER_LOG 
 	        WRITE (IDLOG,863,ERR=910) FICGRANU_AER
+	        WRITE (IDLOG,866,ERR=910) FICAER_IOP
              ENDIF !Fin Trace 
 	  
 	  
@@ -5236,6 +5712,7 @@ C =========================================================
 	 			         !troncature inutile seul le paramètre ITRONC_AER_IN
 				         !basculera de 1 à 0 
 					 !sans impacter la valeur de ITRONC_AER
+		
 	     CALL OSOAA_AEROSOLS(FICANGLES_RES_MIE, 
      &	  	                 WAREF_AOT, AOT_REF, WAREF_AOT, AOT_REF,	  
      &	  	                 ITRONC_AER_IN, IMOD_AER,
@@ -5256,8 +5733,8 @@ C =========================================================
      &	  	                 BMD_FM_RMODAL, BMD_FM_VAR,	 
      &	  	                 FICEXTDATA_AER, 
      &                           DIRMIE_AER, FICAER_LOG_MIE,
-     &	  	                 FICGRANU_AER, FICAER_LOG, KMAT1_WAREF,
-     &			         PIZAER, IER)
+     &	  	                 FICGRANU_AER, FICAER_IOP, FICAER_LOG, 
+     &			         KMAT1_WAREF, PIZAER, IER)
 	 
 	     IF (IER.NE.0) THEN ! cas d'erreur 
 	  			
@@ -5269,7 +5746,7 @@ C =========================================================
               ENDIF 	  
 	   
          ELSE	!Cas WA != WAREF
-          
+
              ! Appel de la fonction OSOAA_AEROSOLS pour WAREF_AOT
 	     IF (TRACE) THEN
 	        WRITE (IDLOG,*,ERR=910) "Case WA != WAREF"
@@ -5332,12 +5809,14 @@ C =========================================================
 	        WRITE (IDLOG,*,ERR=910) "      --------------"
  	        WRITE (IDLOG,862,ERR=910) FICAER_LOG 
 	        WRITE (IDLOG,863,ERR=910) FICGRANU_AER
+	        WRITE (IDLOG,866,ERR=910) "NO_IOP_FILE"
              ENDIF !Fin Trace 
 	  
 	     ITRONC_AER_IN = ITRONC_AER  !Si ITRONC_AER=1 mais que le code estime la 
 	 			         !troncature inutile seul le paramètre ITRONC_AER_IN
 				         !basculera de 1 à 0 
 					 !sans impacter la valeur de ITRONC_AER
+             
 	     CALL OSOAA_AEROSOLS(FICANGLES_RES_MIE, 
      &	  	                 WAREF_AOT, AOT_REF, WAREF_AOT, AOT_REF,	  
      &	  	                 ITRONC_AER_IN, IMOD_AER,
@@ -5358,8 +5837,8 @@ C =========================================================
      &	  	                 BMD_FM_RMODAL, BMD_FM_VAR,	 
      &	  	                 FICEXTDATA_AER, 
      &                           DIRMIE_AER, FICAER_LOG_MIE,
-     &	  	                 FICGRANU_AER, FICAER_LOG, KMAT1_WAREF,
-     &			         PIZAER, IER)
+     &	  	                 FICGRANU_AER, TXT_CAS_NO_IOP, FICAER_LOG, 
+     &			         KMAT1_WAREF, PIZAER, IER)
 
              IF (IER.NE.0) THEN ! cas d'erreur 
 	  	    		
@@ -5434,12 +5913,14 @@ C =========================================================
 	        WRITE (IDLOG,*,ERR=910) "      --------------"
  	        WRITE (IDLOG,862,ERR=910) FICAER_LOG 
 	        WRITE (IDLOG,863,ERR=910) FICGRANU_AER
+	        WRITE (IDLOG,866,ERR=910) FICAER_IOP
              ENDIF !Fin Trace 
 	  
 	     ITRONC_AER_IN = ITRONC_AER  !Si ITRONC_AER=1 mais que le code estime la 
 	 			         !troncature inutile seul le paramètre ITRONC_AER_IN 
 				         !basculera de 1 à 0 
 					 !sans impacter la valeur de ITRONC_AER
+
 	     CALL OSOAA_AEROSOLS(FICANGLES_RES_MIE, 
      &	    	                 WA_SIMU, TA, WAREF_AOT, AOT_REF,	  
      &	  	                 ITRONC_AER_IN, IMOD_AER,
@@ -5460,8 +5941,8 @@ C =========================================================
      &	  	                 BMD_FM_RMODAL, BMD_FM_VAR,	 
      &	  	                 FICEXTDATA_AER, 
      &			         DIRMIE_AER, FICAER_LOG_MIE,
-     &	  	                 FICGRANU_AER, FICAER_LOG, KMAT1_WA,
-     &			         PIZAER, IER)
+     &	  	                 FICGRANU_AER, FICAER_IOP, FICAER_LOG, 
+     &			         KMAT1_WA, PIZAER, IER)
 
              IF (IER.NE.0) THEN ! cas d'erreur   
 	  	  		
@@ -5507,6 +5988,10 @@ C =========================================================
       WRITE(6,*) '==> Hydrosols radiative properties computation'
       CALL FLUSH(6)	!Force l'envoie du message à l'écran      
 
+C     Wavelength in the sea water
+C     -------------------------------------------------
+      WA_SIMU_SEA = WA_SIMU / SEA_IND
+
          
       IF (TRACE) THEN
           WRITE (IDLOG,*,ERR=910) " "
@@ -5519,8 +6004,11 @@ C =========================================================
      &	  "------------------------------------------"
       ENDIF !Fin Trace 	  
 
-     
-      	  
+      IF (FICHYD_IOP.NE."NO_IOP_FILE") THEN     
+         OPEN(UNIT=65,FILE=FICHYD_IOP,ERR=920)       
+      ENDIF
+
+	  
       IF (IMOD_HYD.EQ.1) THEN
 C     Cas d'une représentation des hydrosols par modèle
 C     --> Génération du fichier de matrice de phase pour le phytoplancton
@@ -5540,7 +6028,7 @@ C        par modèle
             WRITE (IDLOG,*,ERR=910) 
      &	    "--> OSOAA_HYDROSOLS is called with the parameters :"
 	    WRITE (IDLOG,808,ERR=910) FICANGLES_RES_MIE
-	    WRITE (IDLOG,841,ERR=910) WA_SIMU  
+	    WRITE (IDLOG,841,ERR=910) WA_SIMU_SEA  
  	    WRITE (IDLOG,871,ERR=910) 1  
 	    WRITE (IDLOG,879,ERR=910) CHL  
 	    WRITE (IDLOG,*,ERR=910) "      --------------------------"
@@ -5567,7 +6055,7 @@ C        par modèle
 	    WRITE (IDLOG,*,ERR=910) "      ---------------"
  	    WRITE (IDLOG,*,ERR=910) "      External data :"
 	    WRITE (IDLOG,*,ERR=910) "      ---------------"
- 	    WRITE (IDLOG,876,ERR=910) FICEXTDATA_HYD  
+ 	    WRITE (IDLOG,876,ERR=910)  FICEXTDATA_HYD  
 	    WRITE (IDLOG,*,ERR=910) "      ------------------"
 	    WRITE (IDLOG,*,ERR=910) "      MIE computations :"
 	    WRITE (IDLOG,*,ERR=910) "      ------------------"
@@ -5578,11 +6066,22 @@ C        par modèle
 	    WRITE (IDLOG,*,ERR=910) "      --------------"
 	    WRITE (IDLOG,870,ERR=910) FICHYD_LOG
 	    WRITE (IDLOG,877,ERR=910) FICGRANU_PHYTO
+	    WRITE (IDLOG,8771,ERR=910) FICHYD_IOP
 	
          ENDIF !Fin Trace
-      
+
+         IF (FICHYD_IOP.NE."NO_IOP_FILE") THEN    
+             WRITE(65,*,ERR=921) 'RADIATIVE PROPERTIES OF HYDROSOLS'
+             WRITE(65,*,ERR=921) '---------------------------------'
+             WRITE(65,*,ERR=921) ' '
+	     WRITE(65,*,ERR=921) 'PHYTOPLANKTON:' 
+	     WRITE(65,*,ERR=921) '--------------'  
+	     WRITE(65,*,ERR=921)  ' '  
+         ENDIF
+              
+     
          CALL OSOAA_HYDROSOLS(FICANGLES_RES_MIE, 
-     & 			   WA_SIMU, 1, CHL,
+     & 			   WA_SIMU_SEA, 1, CHL,
      &                     PHYTO_JD_SLOPE, PHYTO_JD_RMIN,PHYTO_JD_RMAX, 
      &                     PHYTO_JD_MR, PHYTO_JD_MI, PHYTO_JD_RATE,
      &			   PHYTO_LND_SM_RADIUS, PHYTO_LND_SM_VAR, 
@@ -5592,7 +6091,7 @@ C        par modèle
      &			   PHYTO_LND_TM_MR, PHYTO_LND_TM_MI, 
      &                     PHYTO_LND_TM_RATE,
      & 		  	   FICEXTDATA_HYD,
-     &                     FICGRANU_PHYTO, 
+     &                     FICGRANU_PHYTO, FICHYD_IOP, INT_90_180_CHL,
      &	  	           FICHYD_LOG, DIRMIE_HYD, FICHYD_LOG_MIE, IER)
 
          IF (IER.NE.0) THEN ! cas d'erreur     		
@@ -5617,7 +6116,7 @@ C        par modèle
             WRITE (IDLOG,*,ERR=910) 
      &	    "--> OSOAA_HYDROSOLS is called with the parameters :"
 	    WRITE (IDLOG,808,ERR=910) FICANGLES_RES_MIE
-	    WRITE (IDLOG,841,ERR=910) WA_SIMU   
+	    WRITE (IDLOG,841,ERR=910) WA_SIMU_SEA  
  	    WRITE (IDLOG,871,ERR=910) 1  
 	    WRITE (IDLOG,879,ERR=910) SED_CSED 
 	    WRITE (IDLOG,*,ERR=910) "      ----------------------"
@@ -5653,11 +6152,19 @@ C        par modèle
 	    WRITE (IDLOG,*,ERR=910) "      --------------"
 	    WRITE (IDLOG,870,ERR=910) FICHYD_LOG
 	    WRITE (IDLOG,878,ERR=910) FICGRANU_MLP
+	    WRITE (IDLOG,8771,ERR=910) FICHYD_IOP
 	
          ENDIF !Fin Trace
+
+         IF (FICHYD_IOP.NE."NO_IOP_FILE") THEN              
+	     WRITE(65,*,ERR=921) '-----------------------'  
+	     WRITE(65,*,ERR=921) 'MINERAL-LIKE PARTICLES:' 
+	     WRITE(65,*,ERR=921) '-----------------------'  
+	     WRITE(65,*,ERR=921)  ' '  
+         ENDIF
 	 
 	 CALL OSOAA_HYDROSOLS(FICANGLES_RES_MIE, 
-     & 			   WA_SIMU, 1, SED_CSED, 
+     & 			   WA_SIMU_SEA, 1, SED_CSED, 
      &                     SED_JD_SLOPE,SED_JD_RMIN,SED_JD_RMAX,
      &			   SED_JD_MR, SED_JD_MI, SED_JD_RATE,
      &		 	   SED_LND_SM_RADIUS,SED_LND_SM_VAR,
@@ -5667,7 +6174,7 @@ C        par modèle
      &  		   SED_LND_TM_MR, SED_LND_TM_MI, 
      &                     SED_LND_TM_RATE,
      & 		  	   FICEXTDATA_HYD,
-     &                     FICGRANU_MLP, 
+     &                     FICGRANU_MLP,FICHYD_IOP,INT_90_180_MLP, 
      &	  	           FICHYD_LOG, DIRMIE_HYD, FICHYD_LOG_MIE, IER)
 
          IF (IER.NE.0) THEN ! cas d'erreur     		
@@ -5681,7 +6188,7 @@ C        par modèle
       ENDIF !Fin cas IMOD_HYD=1
 
       
-      IF (IMOD_HYD.EQ.2) THEN
+      IF ((IMOD_HYD.EQ.2).OR.(IMOD_HYD.EQ.3)) THEN
 C     Cas d'une représentation des hydrosols par mesures externes
 C     --> Génération du fichier de matrice de phase. 
 C     --> Enregistrement arbitrairement affecté au phytoplancton
@@ -5694,6 +6201,9 @@ C        avec valeurs à zéro :
 C            - Choix du type de caractérisation des hydrosols : IMOD = 1
 C            - Concentration posée nulle : CONC = 0. 
 C            - Sortie = fichier FICGRANU_MLP
+
+C        La valeur de la longueur d'onde n'a pas d'importance quand les hydrosols
+C        sont renseignés par des mesures externes car elle n'est pas utilisée.
 
          IF (TRACE) THEN
       		
@@ -5708,7 +6218,7 @@ C            - Sortie = fichier FICGRANU_MLP
             WRITE (IDLOG,*,ERR=910) 
      &	    "--> OSOAA_HYDROSOLS is called with the parameters :"
 	    WRITE (IDLOG,808,ERR=910) FICANGLES_RES_MIE
-	    WRITE (IDLOG,841,ERR=910) WA_SIMU     
+	    WRITE (IDLOG,841,ERR=910) WA_SIMU_SEA     
  	    WRITE (IDLOG,871,ERR=910) 1  
 	    WRITE (IDLOG,879,ERR=910) 0.D+00 
 	    WRITE (IDLOG,*,ERR=910) "      ----------------------"
@@ -5733,7 +6243,7 @@ C            - Sortie = fichier FICGRANU_MLP
 	    WRITE (IDLOG,*,ERR=910) "      ---------------"
  	    WRITE (IDLOG,*,ERR=910) "      External data :"
 	    WRITE (IDLOG,*,ERR=910) "      ---------------"
- 	    WRITE (IDLOG,876,ERR=910) FICEXTDATA_HYD  
+ 	    WRITE (IDLOG,876,ERR=910)  FICEXTDATA_HYD   
 	    WRITE (IDLOG,*,ERR=910) "      ------------------"
 	    WRITE (IDLOG,*,ERR=910) "      MIE computations :"
 	    WRITE (IDLOG,*,ERR=910) "      ------------------"
@@ -5744,11 +6254,12 @@ C            - Sortie = fichier FICGRANU_MLP
 	    WRITE (IDLOG,*,ERR=910) "      --------------"
 	    WRITE (IDLOG,870,ERR=910) FICHYD_LOG
 	    WRITE (IDLOG,878,ERR=910) FICGRANU_MLP
+	    WRITE (IDLOG,8771,ERR=910) "NO_IOP_FILE"
 	
          ENDIF !Fin Trace
 
          CALL OSOAA_HYDROSOLS(FICANGLES_RES_MIE, 
-     & 			   WA_SIMU, 1, 0.D+00, 
+     & 			   WA_SIMU_SEA, 1, 0.D+00, 
      &                     SED_JD_SLOPE,SED_JD_RMIN,SED_JD_RMAX,
      &			   SED_JD_MR, SED_JD_MI, SED_JD_RATE,
      &		 	   SED_LND_SM_RADIUS,SED_LND_SM_VAR,
@@ -5758,9 +6269,8 @@ C            - Sortie = fichier FICGRANU_MLP
      &  		   SED_LND_TM_MR, SED_LND_TM_MI, 
      &                     SED_LND_TM_RATE,
      & 		  	   FICEXTDATA_HYD,
-     &                     FICGRANU_MLP, 
+     &                     FICGRANU_MLP,TXT_CAS_NO_IOP,INT_90_180_MLP, 
      &	  	           FICHYD_LOG, DIRMIE_HYD, FICHYD_LOG_MIE, IER)
-
 
          IF (IER.NE.0) THEN ! cas d'erreur     		
             IF (TRACE) THEN
@@ -5788,7 +6298,7 @@ C            - Sortie = fichier FICGRANU_PHYTO
             WRITE (IDLOG,*,ERR=910)    
      &	    "--> OSOAA_HYDROSOLS is called with the parameters :"
 	    WRITE (IDLOG,808,ERR=910) FICANGLES_RES_MIE
-	    WRITE (IDLOG,841,ERR=910) WA_SIMU      
+	    WRITE (IDLOG,841,ERR=910) WA_SIMU_SEA      
  	    WRITE (IDLOG,871,ERR=910) 2  
 	    WRITE (IDLOG,879,ERR=910) CHL  
 	    WRITE (IDLOG,*,ERR=910) "      --------------------------"
@@ -5815,7 +6325,7 @@ C            - Sortie = fichier FICGRANU_PHYTO
 	    WRITE (IDLOG,*,ERR=910) "      ---------------"
  	    WRITE (IDLOG,*,ERR=910) "      External data :"
 	    WRITE (IDLOG,*,ERR=910) "      ---------------"
- 	    WRITE (IDLOG,876,ERR=910) FICEXTDATA_HYD  
+ 	    WRITE (IDLOG,876,ERR=910)  FICEXTDATA_HYD   
 	    WRITE (IDLOG,*,ERR=910) "      ------------------"
 	    WRITE (IDLOG,*,ERR=910) "      MIE computations :"
 	    WRITE (IDLOG,*,ERR=910) "      ------------------"
@@ -5826,22 +6336,30 @@ C            - Sortie = fichier FICGRANU_PHYTO
 	    WRITE (IDLOG,*,ERR=910) "      --------------"
 	    WRITE (IDLOG,870,ERR=910) FICHYD_LOG
 	    WRITE (IDLOG,877,ERR=910) FICGRANU_PHYTO
+	    WRITE (IDLOG,8771,ERR=910) FICHYD_IOP
 	
          ENDIF !Fin Trace
+
+         IF (FICHYD_IOP.NE."NO_IOP_FILE") THEN               
+	     WRITE(65,*,ERR=921) '----------------------------'  
+	     WRITE(65,*,ERR=921) 'USER-DEFINED MUELLER MATRIX:' 
+	     WRITE(65,*,ERR=921) '----------------------------'  
+	     WRITE(65,*,ERR=921)  ' '  
+         ENDIF
 	 
          CALL OSOAA_HYDROSOLS(FICANGLES_RES_MIE, 
-     & 			   WA_SIMU, 2, CHL,
-     &                     PHYTO_JD_SLOPE, PHYTO_JD_RMIN,PHYTO_JD_RMAX, 
-     &                     PHYTO_JD_MR, PHYTO_JD_MI, PHYTO_JD_RATE,
-     &			   PHYTO_LND_SM_RADIUS, PHYTO_LND_SM_VAR, 
-     &			   PHYTO_LND_SM_MR, PHYTO_LND_SM_MI, 
-     &                     PHYTO_LND_SM_RATE,
-     &  		   PHYTO_LND_TM_RADIUS,PHYTO_LND_TM_VAR, 
-     &			   PHYTO_LND_TM_MR, PHYTO_LND_TM_MI, 
-     &                     PHYTO_LND_TM_RATE,
-     & 		  	   FICEXTDATA_HYD,
-     &                     FICGRANU_PHYTO, 
-     &	  	           FICHYD_LOG, DIRMIE_HYD, FICHYD_LOG_MIE, IER)
+     & 			  WA_SIMU_SEA, 2, CHL,
+     &                    PHYTO_JD_SLOPE, PHYTO_JD_RMIN,PHYTO_JD_RMAX, 
+     &                    PHYTO_JD_MR, PHYTO_JD_MI, PHYTO_JD_RATE,
+     &			  PHYTO_LND_SM_RADIUS, PHYTO_LND_SM_VAR, 
+     &			  PHYTO_LND_SM_MR, PHYTO_LND_SM_MI, 
+     &                    PHYTO_LND_SM_RATE,
+     &  		  PHYTO_LND_TM_RADIUS,PHYTO_LND_TM_VAR, 
+     &			  PHYTO_LND_TM_MR, PHYTO_LND_TM_MI, 
+     &                    PHYTO_LND_TM_RATE,
+     & 		  	  FICEXTDATA_HYD,
+     &                    FICGRANU_PHYTO,FICHYD_IOP,INT_90_180_EXTDATA,
+     &	  	          FICHYD_LOG, DIRMIE_HYD, FICHYD_LOG_MIE, IER)
 
          IF (IER.NE.0) THEN ! cas d'erreur     		
             IF (TRACE) THEN
@@ -5851,7 +6369,7 @@ C            - Sortie = fichier FICGRANU_PHYTO
 	    GOTO 6500   
          ENDIF
            
-      ENDIF !Fin cas IMOD_HYD=2
+      ENDIF !Fin cas IMOD_HYD=2 ou 3
       
 
 
@@ -5876,7 +6394,8 @@ C =========================================================
 
 C --- Détermination des paramètres liés au modèle de sédiments :
 C --- SED_KMAT2, SED_VSED, SED_MRWA, SED_PIZ
-      IF (SED_CSED.NE.0.D+00) THEN
+      IF ((SED_CSED.NE.0.D+00).AND.
+     &    (SED_CSED.NE.CTE_NOT_DEFINED_VALUE_DBLE)) THEN
       
          ! Lecture des paramètres utiles du fichier GRANU_MLP
          !  -------------------------------------------------
@@ -5964,9 +6483,14 @@ C --- SED_KMAT2, SED_VSED, SED_MRWA, SED_PIZ
           WRITE (IDLOG,809,ERR=910) WA_SIMU
 	  WRITE (IDLOG,*,ERR=910) "SEA PARAMETERS :"
 	  WRITE (IDLOG,*,ERR=910) "--------------"
+          WRITE (IDLOG,*,ERR=910) "Type of hydrosol definition :"
+	  WRITE (IDLOG,8091,ERR=910) IMOD_HYD
+          WRITE (IDLOG,*,ERR=910) 
+     &	  "User's profile file for absorption and scattering coeffs :"
+	  WRITE (IDLOG,8092,ERR=910) FICUSER_PROFILE_HYD
 	  WRITE (IDLOG,*,ERR=910) "Depth of sea :"
 	  WRITE (IDLOG,810,ERR=910) SEA_DEPTH
-	  WRITE (IDLOG,*,ERR=910) "Chlorophylle :"
+	  WRITE (IDLOG,*,ERR=910) "Chlorophyll :"
 	  WRITE (IDLOG,811,ERR=910) CHL
 	  WRITE (IDLOG,812,ERR=910) IPHYTO_PROFIL
 	  IF (IPHYTO_PROFIL.EQ.1) THEN
@@ -5982,6 +6506,7 @@ C --- SED_KMAT2, SED_VSED, SED_MRWA, SED_PIZ
      &	      '         ==> Chlorophyll profile from Userfile'
 	  ENDIF
 	  WRITE (IDLOG,813,ERR=910) CHL_GP_BG
+	  WRITE (IDLOG,8131,ERR=910) CHL_GP_MAX
 	  WRITE (IDLOG,814,ERR=910) CHL_GP_DEEP
 	  WRITE (IDLOG,815,ERR=910) CHL_GP_WIDTH
 	  WRITE (IDLOG,816,ERR=910) FICPHYTO_USER
@@ -6015,14 +6540,22 @@ C --- SED_KMAT2, SED_VSED, SED_MRWA, SED_PIZ
       ENDIF
  	
       CALL OSOAA_PROFILE(WA_SIMU, TR, HR, PRESSION, TA, HA, PIZAER, 
+     &                   IMOD_HYD, FICUSER_PROFILE_HYD, 
      &                   SEA_DEPTH, CHL, IPHYTO_PROFIL, 
-     &                   CHL_GP_BG, CHL_GP_DEEP, CHL_GP_WIDTH,
+     &                   CHL_GP_BG, CHL_GP_MAX, 
+     &                   CHL_GP_DEEP, CHL_GP_WIDTH,
      &                   FICPHYTO_USER, SED_CSED,  
      &			 SED_MRWA, SED_VSED, SED_KMAT2, SED_PIZ,
      &			 YS_A440, YS_SWA, DET_A440, DET_SWA,   
      &                   FICPROFIL_LOG, FICPROFIL_ATM_RES, 
-     &                   FICPROFIL_SEA_RES, IER)
+     &                   FICPROFIL_SEA_RES, SED_DIF, 
+     &                   PROF_Z, NZ, PROF_PHY_DIF,PROF_Z_COEF_SCA,
+     &                   PROF_Z_MEL_PHY,PROF_Z_MEL_SED,
+     &                   IER)
      
+
+
+ 
      	
       IF (IER.NE.0) THEN ! cas d'erreur
       		
@@ -6033,6 +6566,64 @@ C --- SED_KMAT2, SED_VSED, SED_MRWA, SED_PIZ
 	  GOTO 7000   
       ENDIF
 
+
+      IF (FICHYD_IOP.NE."NO_IOP_FILE") THEN       
+                          
+	 WRITE(65,*,ERR=921) '---------------------------------------'  
+	 WRITE(65,*,ERR=921) 'SCATTERING and BACK-SCATTERING PROFILES'
+	 WRITE(65,*,ERR=921) '---------------------------------------'  
+	 WRITE(65,*,ERR=921)  ' '  
+
+         IF (IMOD_HYD.EQ.1) THEN
+	    WRITE(65,*,ERR=921)  
+     &	    '          |  PHYTOPLANKTON                       |', 
+     &	    '  MINERAL-LIKE PARTICLES                |', 
+     &	    '  GLOBAL MIXTURE OF PARTICLES '
+	    WRITE(65,*,ERR=921)  
+     &	    ' Depth (m)  b (/m)       bb (/m)      bb/b         ', 
+     &	    ' b (/m)       bb (/m)      bb/b          ', 
+     &	    ' b (/m)       bb (/m)      bb/b '
+         ELSE
+	    WRITE(65,*,ERR=921)  
+     &	    ' Depth (m)  b (/m)       bb (/m)      bb/b'        
+         ENDIF
+
+         IF (IMOD_HYD.EQ.1) THEN
+
+            BB_SED = SED_DIF * 0.5 *INT_90_180_MLP
+            BBsurB_SED = 0.5 *INT_90_180_MLP
+
+            BBsurB_CHL = 0.5 * INT_90_180_CHL
+
+            DO I=0,NZ
+               B_CHL  = PROF_PHY_DIF(I)
+               BB_CHL = B_CHL * 0.5 * INT_90_180_CHL
+
+               B_MEL = PROF_Z_MEL_PHY(I)*B_CHL  
+     &	             + PROF_Z_MEL_SED(I)*SED_DIF
+               BB_MEL = PROF_Z_MEL_PHY(I)*BB_CHL  
+     &	              + PROF_Z_MEL_SED(I)*BB_SED
+               BBsurB_MEL = BB_MEL / B_MEL
+
+               WRITE(65,1950,ERR=921)  
+     &	          PROF_Z(I), B_CHL, BB_CHL, BBsurB_CHL,
+     &	          SED_DIF, BB_SED , BBsurB_SED,
+     &            B_MEL, BB_MEL, BBsurB_MEL
+            ENDDO    
+
+         ELSE !Cas fonction de phase externe (calcul du profil de coefficients de diffusion ou profil externe)
+
+            BBsurB_MEL = 0.5 * INT_90_180_EXTDATA
+            DO I=0,NZ
+               B_MEL  = PROF_PHY_DIF(I)		!Les coefficients de diffusion sont arbitrairement affectées au phytoplancton
+               BB_MEL = B_MEL * BBsurB_MEL
+               WRITE(65,1960,ERR=921)   
+     &	          PROF_Z(I), B_MEL, BB_MEL, BBsurB_MEL
+            ENDDO   
+ 
+         ENDIF
+
+      ENDIF !Fin infos fichier IOP Hydrosols
 
 
 
@@ -6101,8 +6692,10 @@ C =========================================================
 C =========================================================
 C --- Simulation de la luminance 
 C =========================================================  
-3000  WRITE(6,*) '==> Radiative transfer computation'
+      WRITE(6,*) '==> Radiative transfer computation'
       CALL FLUSH(6)	!Force l'envoie du message à l'écran      
+
+3000  CONTINUE
 
       IF (WIND.NE.0.) THEN 
          IMAT_SURF=1	!Cas mer agitée
@@ -6141,7 +6734,7 @@ C =========================================================
          IF (TRACE) THEN
             WRITE (IDLOG,*,ERR=910) " "	
             WRITE (IDLOG,*,ERR=910) 
-     &      "   Interpolation of the sea bottom reflectance: "	  
+     &      "   Interpolation of the seabed reflectance: "	  
             WRITE (IDLOG,*,ERR=910) 
      &      "      Data file: ", 	FIC_BOT_DATA  
          ENDIF !Fin Trace 
@@ -6219,7 +6812,7 @@ C =========================================================
 
             IF (TRACE) THEN               
                WRITE (IDLOG,*,ERR=910) 
-     &         " Estimated sea bottom reflectance: ", RHO_BOT
+     &         " Estimated seabed reflectance: ", RHO_BOT
             ENDIF !Fin Trace 
          ENDIF 
 
@@ -6232,7 +6825,7 @@ C =========================================================
       IF ((DEF_IGMAX.EQ.1).AND.(TRACE))	THEN
 	  WRITE (IDLOG,*,ERR=910) " "
 	  WRITE (IDLOG,*,ERR=910) "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! "
-         WRITE (IDLOG,*,ERR=910) "WARNING : The maximal order of "
+          WRITE (IDLOG,*,ERR=910) "WARNING : The maximal order of "
 	  WRITE (IDLOG,*,ERR=910) "          interaction has been "
 	  WRITE (IDLOG,*,ERR=910) "          changed by the user."
 	  WRITE (IDLOG,*,ERR=910) "          ==> IGMAX =",IGMAX
@@ -6291,7 +6884,7 @@ C
 	     WRITE (IDLOG,899,ERR=910) "FALSE"
 	  ENDIF   
       ENDIF
-       
+   
       IF (IGMAX.NE.0) THEN     
           CALL OSOAA_SOS(FICANGLES_RES_LUM,
      &               FICGRANU_AER, FICPROFIL_ATM_RES,
@@ -6329,7 +6922,8 @@ C
 	  GOTO 9000   
       ENDIF
 
-
+      !Fermeture du fichier FICHYD_IOP
+      IF (FICHYD_IOP.NE."NO_IOP_FILE")  CLOSE(65)
 
 
 
@@ -6354,6 +6948,13 @@ C =========================================================
       GOTO 9998
 
   910 WRITE(6,*) '  OSOAA_MAIN : ERROR_910 on Log file writing'
+      GOTO 9998
+
+  920 WRITE(6,*) 
+     &'  OSOAA_MAIN : ERROR_920 on hydrosols IOP file opening'
+      GOTO 9998
+
+  921 WRITE(6,*) '  OSOAA_MAIN : ERROR_921 on IOP results file writing'
       GOTO 9998
             
  1000 WRITE(6,*) '  OSOAA_MAIN : ERROR_1000 on argument loading'
@@ -6910,13 +7511,13 @@ C =========================================================
 
  1550 WRITE(6,*) '  OSOAA_MAIN : ERROR_1550 on argument loading'
       WRITE(6,*) '  --> Check required formats for '
-      WRITE(6,*) '      -PHYTO.Chl : Chlorophylle concentration at sea' 
+      WRITE(6,*) '      -PHYTO.Chl : Chlorophyll concentration at sea' 
       WRITE(6,*) '        surface (mg/m3) (Float).'
       GOTO 9998
       
  1560 WRITE(6,*) '  OSOAA_MAIN : ERROR_1560 on argument loading'
       WRITE(6,*) '  --> Check required formats for '
-      WRITE(6,*) '      -PHYTO.ProfilType : Type of chlorophylle ' 
+      WRITE(6,*) '      -PHYTO.ProfilType : Type of chlorophyll ' 
       WRITE(6,*) '        profile (Integer).'
       GOTO 9998
   
@@ -6925,18 +7526,25 @@ C =========================================================
       WRITE(6,*) '      -PHYTO.GP.Chlbg :  ' 
       WRITE(6,*) '        Constant biomass background (mg/m3) (Float).'
       GOTO 9998  
+ 
+15701 WRITE(6,*) '  OSOAA_MAIN : ERROR_15701 on argument loading'
+      WRITE(6,*) '  --> Check required formats for '
+      WRITE(6,*) '      -PHYTO.GP.Chlzmax :  ' 
+      WRITE(6,*) '        Max chlorophyll concentration (mg/m3) '
+      WRITE(6,*) '        of the Gaussian profile (Float).'
+      GOTO 9998  
    
  1571 WRITE(6,*) '  OSOAA_MAIN : ERROR_1571 on argument loading'
       WRITE(6,*) '  --> Check required formats for '
       WRITE(6,*) '      -PHYTO.GP.Deep :  ' 
-      WRITE(6,*) '        Maximum deep of gaussian chlorophyll '
+      WRITE(6,*) '        Maximum deep of Gaussian chlorophyll '
       WRITE(6,*) '        profile(m) (Float).'
       GOTO 9998  
     
  1572 WRITE(6,*) '  OSOAA_MAIN : ERROR_1572 on argument loading'
       WRITE(6,*) '  --> Check required formats for '
       WRITE(6,*) '      -PHYTO.GP.Width : Width of the chlorophyll peak' 
-      WRITE(6,*) '        of gaussian profile (m) (Float).'
+      WRITE(6,*) '        of Gaussian profile (m) (Float).'
       GOTO 9998  
 
  1580 WRITE(6,*) '  OSOAA_MAIN : ERROR_1580 on argument loading'
@@ -6987,7 +7595,7 @@ C =========================================================
       	 	 	 
  1690 WRITE(6,*) '  OSOAA_MAIN : ERROR_1690 on argument loading'
       WRITE(6,*) '  --> Check required formats for '
-      WRITE(6,*) '      -SEA.BotType :  Type of sea bottom (Integer).'
+      WRITE(6,*) '      -SEA.BotType :  Type of seabed (Integer).'
       WRITE(6,*) '      	1 : Lambertian value  (user data)'
       WRITE(6,*) '      	2 : Light sand	      (tabulated data)'
       WRITE(6,*) '      	3 : Green algua	      (tabulated data)'
@@ -6997,7 +7605,7 @@ C =========================================================
 
  1695 WRITE(6,*) '  OSOAA_MAIN : ERROR_1695 on argument loading'
       WRITE(6,*) '  --> Check required formats for '
-      WRITE(6,*) '      -SEA.BotAlb :  Sea bottom albedo   (Float).'
+      WRITE(6,*) '      -SEA.BotAlb :  Seabed albedo   (Float).'
       GOTO 9998	 
    
  1700 WRITE(6,*) '  OSOAA_MAIN : ERROR_1700 on argument loading'
@@ -7006,22 +7614,26 @@ C =========================================================
       WRITE(6,*) '                        (degrees)   (Float).'
       GOTO 9998	 
 
+ 1705 WRITE(6,*) '  OSOAA_MAIN : ERROR_1705 on argument loading'
+      WRITE(6,*) '  --> Check required formats for '
+      WRITE(6,*) '      -OSOAA.View.Level : Index of ouput level '
+      WRITE(6,*) '      (Integer).'    
+      GOTO 9998	 
+
  1710 WRITE(6,*) '  OSOAA_MAIN : ERROR_1710 on argument loading'
       WRITE(6,*) '  --> Check required formats for '
-      WRITE(6,*) '      -OSOAA.View.Z : Altitude or depth for which the'
-      WRITE(6,*) '      		radiance has to be given versus'
-      WRITE(6,*) '      		the viewing zenith angle'
-      WRITE(6,*) '      	       (for the given relative azimuth)'
-      WRITE(6,*) '                     (meters)   (Float).'    
+      WRITE(6,*) '      -OSOAA.View.Z : Altitude or depth for which ',
+     &  'the radiance has to be given versus the viewing zenith angle',
+     &  ' (for the given relative azimuth)  '
+      WRITE(6,*) '      (meters)   (Float).'    
       GOTO 9998	 
 
  1720 WRITE(6,*) '  OSOAA_MAIN : ERROR_1720 on argument loading'
       WRITE(6,*) '  --> Check required formats for '
-      WRITE(6,*) '      -OSOAA.View.VZA : Viewing zenith angle for '
-      WRITE(6,*) '      		  which the radiance has to be '
-      WRITE(6,*) '      		  given vs the depth (or alt.)'
-      WRITE(6,*) '      		 (for a given relative azimuth)'
-      WRITE(6,*) '                       (degrees)   (Float).'    
+      WRITE(6,*) '      -OSOAA.View.VZA : Viewing zenith angle for ',
+     &  ' which the radiance has to be given vs the depth',
+     &  ' (for a given relative azimuth)  '
+      WRITE(6,*) '      (degrees)   (Float).'    
       GOTO 9998	 
 
  1730 WRITE(6,*) '  OSOAA_MAIN : ERROR_1730 on argument loading'
@@ -7097,16 +7709,16 @@ C =========================================================
       GOTO 9998 
 
  2105 WRITE(6,*) '  OSOAA_MAIN : ERROR_2105 on parameters'
-      WRITE(6,*) '  -->  -ANG.Thetas value : SZA out of available range'
+      WRITE(6,*) '  --> -ANG.Thetas value : SZA out of available range'
       GOTO 9998  	
 
  2200 WRITE(6,*) '  OSOAA_MAIN : ERROR_2200 on parameters'
-      WRITE(6,*) '  --> Required (-Keyword Value) definition : ',
-     &           '         -AP.MOT : Molecular atmos optical thickness',
-     &		 '         (at radiance simulation wavelength) ',
-     &		 '      OR -AP.Pressure : Atmos pressure at sea level',
-     &           '      ==> Can not be defined together : ',
-     &           '	    only -AP.MOT or -AP.Pressure  (Float).'
+      WRITE(6,*) '  --> Required (-Keyword Value) definition : '
+      WRITE(6,*) '      -AP.MOT : Molecular atmos optical thickness',
+     &		 ' (at radiance simulation wavelength) '
+      WRITE(6,*) '   OR -AP.Pressure : Atmos pressure at sea level'
+      WRITE(6,*) '      ==> Can not be defined together : ',
+     &           ' only -AP.MOT or -AP.Pressure  (Float).'
       GOTO 9998    
 	
  2210 WRITE(6,*) '  OSOAA_MAIN : ERROR_2210 on parameters'
@@ -7118,55 +7730,62 @@ C =========================================================
  2220 WRITE(6,*) '  OSOAA_MAIN : ERROR_2220 on parameters'
       WRITE(6,*) '  --> Required (-Keyword Value) definition : ',
      &           '     -AP.HA Value   (format : Float)' 
-      WRITE(6,*) '  ==> Height scale of the aerosol atmospheric profile'
+      WRITE(6,*) '  ==> Height scale of aerosol atmospheric profile'
       GOTO 9998     
 
- 2230 WRITE(6,*) '  OSOAA_MAIN : ERROR_2230 on parameters'
+22400 WRITE(6,*) '  OSOAA_MAIN : ERROR_22400 on parameters'
       WRITE(6,*) '  --> Required (-Keyword Value) definition : ',
-     &           '     -PHYTO.Chl Value   (format : Float)' 
-      WRITE(6,*) '  ==> Chlorophylle concentration at surface (mg/m3)'
-      GOTO 9998     
-
- 2240 WRITE(6,*) '  OSOAA_MAIN : ERROR_2240 on parameters'
-      WRITE(6,*) '  --> Required (-Keyword Value) definition : ',
-     &           '     -PHYTO.ProfilType Value   (format : Integer)' 
-      WRITE(6,*) '  ==> Option of chrolophylle profile type'
+     &           ' -PHYTO.ProfilType Value   (format : Integer)' 
+      WRITE(6,*) '  ==> Option of chrolophyll profile type'
       WRITE(6,*) '		1 : Homogeneous profile'
       WRITE(6,*) '		2 : Gaussian profile'
       WRITE(6,*) '		3 : Userfile profile'
       GOTO 9998  
 
- 2250 WRITE(6,*) '  OSOAA_MAIN : ERROR_2250 '
-      WRITE(6,*) '  --> Wrong option of chrolophylle profile type'
+22401 WRITE(6,*) '  OSOAA_MAIN : ERROR_22401 on parameters'
+      WRITE(6,*) '  --> Wrong option of chrolophyll profile type'
       WRITE(6,*) '      Check -PHYTO.ProfilType Value   '
       WRITE(6,*) '		1 : Homogeneous profile'
       WRITE(6,*) '		2 : Gaussian profile'
       WRITE(6,*) '		3 : Userfile profile'
       GOTO 9998
 
- 2251 WRITE(6,*) '  OSOAA_MAIN : ERROR_2251 '
-      WRITE(6,*) '  --> Gaussian chrolophylle profile'
-      WRITE(6,*) '      requires (-Keyword Value): ' 
-      WRITE(6,*) '     -PHYTO.GP.Chlbg Value   (format : Float)' 
-      WRITE(6,*) '  ==> Constant biomass background (mg/m3)'
-      WRITE(6,*) '     -PHYTO.GP.Deep  Value   (format : Float)' 
-      WRITE(6,*) '  ==> Maximum deep of gaussian chlorophyll profile(m)'
-      WRITE(6,*) '     -PHYTO.GP.Width Value   (format : Float)' 
-      WRITE(6,*) '  ==> Width of chloro. peak of gaussian profile (m)'
+22402 WRITE(6,*) '  OSOAA_MAIN : ERROR_22402 on parameters'
+      WRITE(6,*) '  --> Required (-Keyword Value) definition : ',
+     &           ' -PHYTO.Chl Value   (format : Float)', 
+     &           ' as a homogeneous profile is selected', 
+     &           ' (by -PHYTO.ProfilType 1)' 
+      WRITE(6,*) '  ==> Chlorophyll concentration at surface (mg/m3)'
+      GOTO 9998   
+
+22403 WRITE(6,*) '  OSOAA_MAIN : ERROR_22403 on parameters'
+      WRITE(6,*) '  --> Simulation case -PHYTO.ProfilType 2 selected:',
+     & ' Gaussian profile of chlorophyll'
+      WRITE(6,*) ' ==> Following parameters are required',
+     & ' (-Keyword Value): ' 
+      WRITE(6,*) '     -PHYTO.GP.Chlbg Value   (format : Float)',
+     & ' ==> Constant biomass background (mg/m3)'
+      WRITE(6,*) '     -PHYTO.GP.Chlzmax Value   (format : Float)',
+     & ' ==> Max concentration of Gaussian profile (mg/m3)'
+      WRITE(6,*) '     -PHYTO.GP.Deep  Value   (format : Float)', 
+     & ' ==> Deepth of max concentration (m)'
+      WRITE(6,*) '     -PHYTO.GP.Width Value   (format : Float)',
+     & ' ==> Half-width of chloro. peak of Gaussian profile (m)'
       GOTO 9998
 
- 2252 WRITE(6,*) '  OSOAA_MAIN : ERROR_2252 '
-      WRITE(6,*) '  --> Using a chrolophylle profile defined by user'
-      WRITE(6,*) '      requires (-Keyword Value): ' 
-      WRITE(6,*) '     -PHYTO.Userfile Value   ' 
-      WRITE(6,*) '  ==> Name of user phyto. profile file '
-      WRITE(6,*) '      (complete access)'
-      GOTO 9998          
+22404 WRITE(6,*) '  OSOAA_MAIN : ERROR_22404 '
+      WRITE(6,*) '  --> Simulation case -PHYTO.ProfilType 3 selected:',
+     & ' User profile of chlorophyll concentration'
+      WRITE(6,*) '  --> Required (-Keyword Value) definition : ',
+     &           ' -PHYTO.Userfile  Value '
+      WRITE(6,*) '  ==> User file (complete access)'
+      GOTO 9998      
 
  2260 WRITE(6,*) '  OSOAA_MAIN : ERROR_2260 on parameters'
       WRITE(6,*) '  --> Required (-Keyword Value) definition : ',
      &           '     -SED.Csed Value    (format : Float)' 
-      WRITE(6,*) '  ==> Sediment concentration at sea surf. (mg/liter)'
+      WRITE(6,*) '  ==> Sediment concentration at sea surface ',
+     &'(mg/liter)'
       GOTO 9998  
 
  2270 WRITE(6,*) '  OSOAA_MAIN : ERROR_2270 on parameters'
@@ -7411,16 +8030,29 @@ C =========================================================
       GOTO 9998 
 
  2520 WRITE(6,*) '  OSOAA_MAIN : ERROR_2520 on parameters'
-      WRITE(6,*) '  --> Type of sea bottom -SEA.BotType'
+      WRITE(6,*) '  --> Type of seabed -SEA.BotType'
       WRITE(6,*) '      requires (-Keyword Value)  '
       GOTO 9998 
 
- 2525 WRITE(6,*) '  OSOAA_MAIN : ERROR_2525 on parameters'
-      WRITE(6,*) '  --> When using the sea bottom albedo definition'
-      WRITE(6,*) '      by an user value(-SEA.BotType 1) '
-      WRITE(6,*) '      the sea bottom albedo has to be defined',
-     &           '      -SEA.BotAlb (-Keyword Value) (format : Float)'
+ 2524 WRITE(6,*) '  OSOAA_MAIN : ERROR_2524 on parameters'
+      WRITE(6,*) '      -SEA.BotType value (type of seabed):'
+      WRITE(6,*) '  --> out of available range'
+      WRITE(6,*) '  --> Defined value : ',IBOT_TYPE
+      WRITE(6,*) '      Must be defined between 1 and 5'  
+      WRITE(6,*) '         1 : user lambertian reflectance'
+      WRITE(6,*) '         2 : Light sand'
+      WRITE(6,*) '         3 : Green algae'
+      WRITE(6,*) '         4 : Brown algae'
+      WRITE(6,*) "         5 : Red algae"  
       GOTO 9998 
+
+ 2525 WRITE(6,*) '  OSOAA_MAIN : ERROR_2525 on parameters'
+      WRITE(6,*) '  --> When using the seabed albedo definition',
+     &           ' by an user value (-SEA.BotType 1) '
+      WRITE(6,*) '      the seabed albedo must be defined :',
+     &           ' -SEA.BotAlb (-Keyword Value) (format : Float)'
+      GOTO 9998 
+
 
  2540 WRITE(6,*) '  OSOAA_MAIN : ERROR_2540 on parameters'
       WRITE(6,*) '  --> Relative azimuth -OSOAA.View.Phi'
@@ -7432,7 +8064,7 @@ C =========================================================
      &'  --> Type of output level in profile -OSOAA.View.Level'
       WRITE(6,*) '      required (-Keyword Value)  '
       WRITE(6,*) '         1 : Top of Atmosphere'
-      WRITE(6,*) '         2 : Sea Bottom'
+      WRITE(6,*) '         2 : Seabed'
       WRITE(6,*) '         3 : Sea Surface 0+'
       WRITE(6,*) '         4 : Sea Surface 0-'
       WRITE(6,*) "         5 : User's definition of altitude or depth"  
@@ -7442,32 +8074,32 @@ C =========================================================
       WRITE(6,*) '      -OSOAA.View.Level value :'
       WRITE(6,*) '  --> out of available range'
       WRITE(6,*) '  --> Defined value : ',LEVEL_OUT
-      WRITE(6,*) '      Has to be define between 1 and 5'  
+      WRITE(6,*) '      Must be defined between 1 and 5'  
       WRITE(6,*) '         1 : Top of Atmosphere'
-      WRITE(6,*) '         2 : Sea Bottom'
+      WRITE(6,*) '         2 : Seabed'
       WRITE(6,*) '         3 : Sea Surface 0+'
       WRITE(6,*) '         4 : Sea Surface 0-'
-      WRITE(6,*) "         5 : User's definition of altitude or depth"  
+      WRITE(6,*) "         5 : User's definition of altitude or depth"
       GOTO 9998  
                   
  2550 WRITE(6,*) '  OSOAA_MAIN : ERROR_2550 on parameters'
-      WRITE(6,*) '  --> Altitude or depth (meters) for radiance '
-      WRITE(6,*) '      vs viewing zenith angle : -OSOAA.View.Z'
-      WRITE(6,*) '      requires (-Keyword Value)  '
+      WRITE(6,*) '  --> Altitude or depth (meters) for radiance',
+     &           ' vs viewing zenith angle : -OSOAA.View.Z'
+      WRITE(6,*) '      required (-Keyword Value)  '
       GOTO 9998       
       
  2560 WRITE(6,*) '  OSOAA_MAIN : ERROR_2560 on parameters'
-      WRITE(6,*) '  --> Viewing zenith angle (degrees) for radiance '
-      WRITE(6,*) '      vs depth (or altitude) : -OSOAA.View.VZA'
-      WRITE(6,*) '      and associated result file -OSOAA.ResFile.vsZ'
-      WRITE(6,*) '      have to be defined together (-Keyword Value) '
-      WRITE(6,*) '      if one of them is defined '
+      WRITE(6,*) '  --> Viewing zenith angle -OSOAA.View.VZA',
+     &           '  (degrees) for radiance vs depth and',
+     &           ' associated result file -OSOAA.ResFile.vsZ'
+      WRITE(6,*) '      must both be defined (-Keyword Value)',
+     &           ' if one of them is defined '
       GOTO 9998       
 
  2565 WRITE(6,*) '  OSOAA_MAIN : ERROR_2565 on parameters'
       WRITE(6,*) '  --> Viewing zenith angle (degrees) for radiance '
-      WRITE(6,*) '      vs depth (or altitude) : -OSOAA.View.VZA'
-      WRITE(6,*) '      has to be definer between 0 and 180° :'
+      WRITE(6,*) '      vs depth : -OSOAA.View.VZA'
+      WRITE(6,*) '      Must be defined between 0 and 180° :'
       WRITE(6,*) '           0 - 90° : upward radiance '
       WRITE(6,*) '           90° - 180° : downward radiance '
       GOTO 9998       
@@ -7475,8 +8107,8 @@ C =========================================================
  2610 WRITE(6,*) '  OSOAA_MAIN : ERROR_2610 on parameters'
       WRITE(6,*) '  --> Required (-Keyword Value) definition : ',
      &           '     -HYD.DirMie Value   '
-      WRITE(6,*) '  ==> Storage directory for MIE files producted by'
-      WRITE(6,*) '      OSOAA_HYDROSOLS computations (complete path) '
+      WRITE(6,*) '  ==> Storage directory for MIE files producted by',
+     &           ' OSOAA_HYDROSOLS computations (complete path) '
       GOTO 9998  
              
  2620 WRITE(6,*) '  OSOAA_MAIN : ERROR_2620 on parameters'
@@ -7484,58 +8116,70 @@ C =========================================================
      &           '     -HYD.Model Value (format : Integer)'
       WRITE(6,*) '  ==> Type of hydrosol characterization : '
       WRITE(6,*) '         1 : From size distribution models.  '
-      WRITE(6,*) '         2 : Phaze functions from an external source'
+      WRITE(6,*) 
+     &    '         2 : From a user-defined external Mueller matrix'
+      WRITE(6,*) 
+     &    '         3 : From a user-defined external Mueller matrix',
+     &    ' and profile of absorption and scattering coefficients'
       GOTO 9998         
 
  2621 WRITE(6,*) '  OSOAA_MAIN : ERROR_2621 on parameters'
       WRITE(6,*) '  -->  -HYD.Model value : out of available range.'
-      WRITE(6,*) '  ==> Type of hydrosol characterization : '
+      WRITE(6,*) '  ==> Type of hydrosol characterization associated',
+     &    ' to a chlorophyll profile of concentration can only be: '
       WRITE(6,*) '         1 : From size distribution models.  '
-      WRITE(6,*) '         2 : Phaze functions from an external source'
-      GOTO 9998  
+      WRITE(6,*) 
+     &    '         2 : From a user-defined external Mueller matrix'
+      WRITE(6,*) 
+     &    '         3 : From a user-defined external Mueller matrix',
+     &    ' and profile of absorption and scattering coefficients'
+      GOTO 9998         
 
  2630 WRITE(6,*) '  OSOAA_MAIN : ERROR_2630 on parameters'
-      WRITE(6,*) '  -->  Junge model for phytoplankton is required.'
-      WRITE(6,*) '        Required (-Keyword Value) definition : '
-      WRITE(6,*) '          -PHYTO.JD.slope (Float): Slope.'
-      WRITE(6,*) '          -PHYTO.JD.MRwa (Float): '
-      WRITE(6,*) '               real part of refractive index.'
-      WRITE(6,*) '          -PHYTO.JD.MIwa (Float): '
-      WRITE(6,*) '               imaginary part of refractive index.'
-      WRITE(6,*) '          -PHYTO.JD.rate (Float): Ratio of this mode'
-      WRITE(6,*) '               for phytoplankton particles.'
+      WRITE(6,*) '  -->  Junge model for phytoplankton is requested.'
+      WRITE(6,*) '  ==>  Required (-Keyword Value) parameters to',
+     &           ' define the phytoplankton particles: '
+      WRITE(6,*) '          -PHYTO.JD.slope (Float): Slope'
+      WRITE(6,*) '          -PHYTO.JD.MRwa  (Float):',
+     &           ' Real part of refractive index'
+      WRITE(6,*) '          -PHYTO.JD.MIwa  (Float):',
+     &           ' Imaginary part of refractive index'
+      WRITE(6,*) '          -PHYTO.JD.rate  (Float):',
+     &           ' Ratio of this mode'
       GOTO 9998  
 
  2632 WRITE(6,*) '  OSOAA_MAIN : ERROR_2632 on parameters'
-      WRITE(6,*) '  -->  LND secondary model for phytoplankton'
-      WRITE(6,*) '       if used all the associated parameters '
-      WRITE(6,*) '       have to be defined Required (-Keyword Value) :'
-      WRITE(6,*) '          -PHYTO.LND.SM.SDradius (Float): '
-      WRITE(6,*) '               modal radius (mic.).'
-      WRITE(6,*) '          -PHYTO.LND.SM.SDvar  (Float): '
-      WRITE(6,*) '               standard deviation of the LND.'
-      WRITE(6,*) '          -PHYTO.LND.SM.MRwa (Float): '
-      WRITE(6,*) '               real part of refractive index.'
-      WRITE(6,*) '          -PHYTO.LND.SM.MIwa (Float): '
-      WRITE(6,*) '               imaginary part of refractive index.'
-      WRITE(6,*) '          -PHYTO.LND.SM.rate (Float): Ratio of this'
-      WRITE(6,*) '               mode for phytoplankton particles.'
+      WRITE(6,*) 
+     &'  -->  LND secondary mode for phytoplankton is requested.'
+      WRITE(6,*) '  ==>  Required (-Keyword Value) parameters to',
+     &           ' define the phytoplankton particles: '
+      WRITE(6,*) '          -PHYTO.LND.SM.SDradius (Float):',
+     &           ' Modal radius (mic.).'
+      WRITE(6,*) '          -PHYTO.LND.SM.SDvar  (Float):' ,
+     &           ' Standard deviation of the LND.'
+      WRITE(6,*) '          -PHYTO.LND.SM.MRwa (Float):',
+     &           ' Real part of refractive index.'
+      WRITE(6,*) '          -PHYTO.LND.SM.MIwa (Float):',
+     &           ' Imaginary part of refractive index.'
+      WRITE(6,*) '          -PHYTO.LND.SM.rate (Float):' ,
+     &           ' Ratio of this mode'
       GOTO 9998  
 
  2634 WRITE(6,*) '  OSOAA_MAIN : ERROR_2634 on parameters'
-      WRITE(6,*) '  -->  LND tertiary model for phytoplankton'
-      WRITE(6,*) '       if used all the associated parameters '
-      WRITE(6,*) '       have to be defined Required (-Keyword Value) :'
-      WRITE(6,*) '          -PHYTO.LND.TM.SDradius (Float): '
-      WRITE(6,*) '               modal radius (mic.).'
-      WRITE(6,*) '          -PHYTO.LND.TM.SDvar  (Float): '
-      WRITE(6,*) '               standard deviation of the LND.'
-      WRITE(6,*) '          -PHYTO.LND.TM.MRwa (Float): '
-      WRITE(6,*) '               real part of refractive index.'
-      WRITE(6,*) '          -PHYTO.LND.TM.MIwa (Float): '
-      WRITE(6,*) '               imaginary part of refractive index.'
-      WRITE(6,*) '          -PHYTO.LND.TM.rate (Float): Ratio of this '
-      WRITE(6,*) '               mode for phytoplankton particles.'
+      WRITE(6,*) 
+     &'  -->  LND tertiary mode for phytoplankton is requested.'
+      WRITE(6,*) '  ==>  Required (-Keyword Value) parameters to',
+     &           ' define the phytoplankton particles: '
+      WRITE(6,*) '          -PHYTO.LND.TM.SDradius (Float):',
+     &           ' Modal radius (mic.).'
+      WRITE(6,*) '          -PHYTO.LND.TM.SDvar  (Float):' ,
+     &           ' Standard deviation of the LND.'
+      WRITE(6,*) '          -PHYTO.LND.TM.MRwa (Float):',
+     &           ' Real part of refractive index.'
+      WRITE(6,*) '          -PHYTO.LND.TM.MIwa (Float):',
+     &           ' Imaginary part of refractive index.'
+      WRITE(6,*) '          -PHYTO.LND.TM.rate (Float):' ,
+     &           ' Ratio of this mode'
       GOTO 9998  
 
  2640 WRITE(6,*) '  OSOAA_MAIN : ERROR_2640 on parameters'
@@ -7589,22 +8233,50 @@ C =========================================================
  2660 WRITE(6,*) '  OSOAA_MAIN : ERROR_2660 on parameters'
       WRITE(6,*) '               on file GRANU_MLP reading'
       GOTO 9998 
+
+ 2665 WRITE(6,*) '  OSOAA_MAIN ERROR_1048 on SEA_PROFILE file opening'
+      GOTO 9998      
+
+ 2666 WRITE(6,*) '  OSOAA_MAIN ERROR_1049 on SEA_PROFILE file reading'
+      GOTO 9998 
  
  2670 WRITE(6,*) '  OSOAA_MAIN : ERROR_2670'
       WRITE(6,*) 
-     &     'Error while opening the sea bottom reflectance datafile',
+     &     'Error while opening the seabed reflectance datafile',
      &     'CTE_FIC_BOT_SPECTRAL_DATA in fic/ directory:',
      &     CTE_FIC_BOT_SPECTRAL_DATA
       GOTO 9998 
 
  2671 WRITE(6,*) '  OSOAA_MAIN : ERROR_2671 on file reading:'
-      WRITE(6,*) '  --> sea bottom spectral reflectance :',FIC_BOT_DATA 
+      WRITE(6,*) '  --> seabed spectral reflectance :',FIC_BOT_DATA 
       GOTO 9998
            
  2700 WRITE(6,*) '  OSOAA_MAIN : ERROR_2700 on parameters'
-      WRITE(6,*) '  --> External phaze functions file -HYD.ExtData'
+      WRITE(6,*) '  --> External phase functions file -HYD.ExtData'
       WRITE(6,*) '      requires (-Keyword Value)  '
+      GOTO 9998   	          
+           
+ 2701 WRITE(6,*) '  OSOAA_MAIN : ERROR_2701 on parameters'
+      WRITE(6,*) '  --> Use of option -HYD.Model 2'
+      WRITE(6,*) '  --> Absorption and scattering coefficients are '//
+     &           'only calculated for the phytoplanckton'
+      WRITE(6,*) '  --> Parameter -SED.Csed must be set to 0.' 
       GOTO 9998   		          
+
+           
+ 2702 WRITE(6,*) '  OSOAA_MAIN : ERROR_2702 on parameters'
+      WRITE(6,*) '  --> No value given for the -HYD.Model parameter',
+     &           ' (type of hydrosol model)'
+      WRITE(6,*) '  --> Assumes a pure sea water simulation'
+      WRITE(6,*) '  --> Parameter -SED.Csed must be set to 0.' 
+      WRITE(6,*) '  --> Parameter -PHYTO.Chl must be set to 0.' 
+      GOTO 9998   		     
+
+           
+ 2710 WRITE(6,*) '  OSOAA_MAIN : ERROR_2710 on parameters'
+      WRITE(6,*) '  --> External user profile file -HYD.UserProfile'
+      WRITE(6,*) '      requires (-Keyword Value)  '
+      GOTO 9998 
 
  3500 WRITE(6,*) '  OSOAA_MAIN : ERROR_3500: '
       WRITE(6,*) '  => Error while opening ListParam.txt'
@@ -7655,7 +8327,7 @@ C =========================================================
 
  4003 WRITE(6,*) '  OSOAA_MAIN : ERROR_4003: '
       WRITE(6,*) '  => Simulation wavelength out of the range of' 
-      WRITE(6,*) '     wavelengths for sea bottom reflectance data.'
+      WRITE(6,*) '     wavelengths for seabed reflectance data.'
       WRITE(6,*) '       Simulation wavelength (nm): ', WA_SIMU_NM     
       WRITE(6,*) '       Min wavelength for spectral data (nm): ', 
      &           TAB_WA(1)   
@@ -7695,7 +8367,7 @@ C =========================================================
       ENDIF 
  
       CALL EXIT(1)    
- 9999 STOP
+ 9999 CONTINUE
 
 
 
@@ -7716,10 +8388,13 @@ C --- Formats pour le fichier Trace : entrées de OSOAA_ANGLES
 
 C --- Formats pour le fichier Trace : entrées de OSOAA_PROFILE
   809 FORMAT(28h       WA_SIMU        :     ,F8.5)
+ 8091 FORMAT(28h       IMOD_HYD       :     ,I4) 
+ 8092 FORMAT(32h       FICUSER_PROFILE_HYD:     ,A) 
   810 FORMAT(28h       SEA_DEPTH      :     ,F10.3) 
   811 FORMAT(28h       CHL            :     ,F10.3) 
   812 FORMAT(28h       IPHYTO_PROFIL  :     ,I4)
   813 FORMAT(28h       CHL_GP_BG      :     ,F10.3) 
+ 8131 FORMAT(28h       CHL_GP_MAX     :     ,F10.3) 
   814 FORMAT(28h       CHL_GP_DEEP    :     ,F10.3) 
   815 FORMAT(28h       CHL_GP_WIDTH   :     ,F10.3) 
   816 FORMAT(28h       FICPHYTO_USER  :     ,A)   
@@ -7781,7 +8456,8 @@ C --- Formats pour le fichier Trace : entrées de OSOAA_AEROSOLS
   862 FORMAT(45h       Log file                            : ,A)  
   863 FORMAT(45h       Res file                            : ,A) 
   864 FORMAT(45h       Storage directory for MIE files     : ,A)  
-  865 FORMAT(45h       Mie computations log file           : ,A)    
+  865 FORMAT(45h       Mie computations log file           : ,A)   
+  866 FORMAT(45h       Aerosol IOP results file            : ,A)    
 
 C --- Formats pour le fichier Trace : entrées de OSOAA_HYDROSOLS
   870 FORMAT(31h       FICHYD_LOG        :     ,A) 
@@ -7793,6 +8469,7 @@ C --- Formats pour le fichier Trace : entrées de OSOAA_HYDROSOLS
   876 FORMAT(31h       User data file    :     ,A) 
   877 FORMAT(31h       Res file Phyto    :     ,A) 
   878 FORMAT(31h       Res file MLP      :     ,A) 
+ 8771 FORMAT(31h       Res file IOP hydro:     ,A) 
   879 FORMAT(31h       Concentration     :     ,F12.5)
 
 C --- Formats pour le fichier Trace : entrées de OSOAA_SOS
@@ -7803,7 +8480,7 @@ C --- Formats pour le fichier Trace : entrées de OSOAA_SOS
   884 FORMAT(32h       FICPROFIL_SEA_RES  :     ,A)        
   885 FORMAT(50h       Index for surface matrix use IMAT_SURF :   ,I4)
   886 FORMAT(40h       Sea surface albedo RHO_SURF  :   ,F8.4)         
-  887 FORMAT(40h       Sea bottom  albedo RHO_BOT   :   ,F8.4)       
+  887 FORMAT(40h       Seabed albedo RHO_BOT        :   ,F8.4)       
   888 FORMAT(32h       IGMAX              :     ,I4) 
   889 FORMAT(32h       FICSOS_RES_BIN     :     ,A)         
   890 FORMAT(32h       FICSOS_RES_ADV_UP  :     ,A)
@@ -7873,9 +8550,11 @@ C --- Formats pour le fichier ListParam.txt
  1849 FORMAT(30h -AER.MieLog            :     ,A)
  1850 FORMAT(30h -AER.DirMie            :     ,A)
  1851 FORMAT(30h -AER.ResFile           :     ,A)
+18511 FORMAT(30h -AER.ResFile.IOP       :     ,A)
  1852 FORMAT(30h -AER.Log               :     ,A)
  1853 FORMAT(30h -PHYTO.ResFile         :     ,A)
  1854 FORMAT(30h -MLP.ResFile           :     ,A)
+18541 FORMAT(30h -HYD.ResFile.IOP       :     ,A)
  1855 FORMAT(30h -HYD.Log               :     ,A)
  1856 FORMAT(30h -HYD.DirMie            :     ,A)
  1857 FORMAT(30h -HYD.MieLog            :     ,A)
@@ -7921,6 +8600,7 @@ C --- Formats pour le fichier ListParam.txt
  1897 FORMAT(30h -PHYTO.Chl             :     ,F12.5)
  1898 FORMAT(30h -PHYTO.ProfilType      :     ,I4)
  1899 FORMAT(30h -PHYTO.GP.Chlbg        :     ,F12.5)
+18991 FORMAT(30h -PHYTO.GP.Chlzmax      :     ,F12.5)
  1900 FORMAT(30h -PHYTO.GP.Deep         :     ,F12.5)
  1901 FORMAT(30h -PHYTO.GP.Width        :     ,F12.5)
  1902 FORMAT(30h -PHYTO.Userfile        :     ,A)
@@ -7931,7 +8611,7 @@ C --- Formats pour le fichier ListParam.txt
  1907 FORMAT(30h -DET.Swa               :     ,F12.5)
  1908 FORMAT(30h -PROFILE_ATM.ResFile   :     ,A)
  1909 FORMAT(30h -PROFILE_SEA.ResFile   :     ,A)
- 1910 FORMAT(30h -PROFILE.Log 	        :     ,A)
+ 1910 FORMAT(30h -PROFILE.Log           :     ,A)
  1911 FORMAT(30h -SEA.Ind               :     ,F8.5)
  1912 FORMAT(30h -SEA.Wind              :     ,F8.5)
  1913 FORMAT(30h -SEA.Dir               :     ,A)
@@ -7953,7 +8633,10 @@ C --- FIN MOD
  1927 FORMAT(30h -SOS.IGmax             :     ,I4)
  1928 FORMAT(30h -SOS.ResFile.Bin       :     ,A)
 
-  
+C --- Formats pour le fichier IOP hydrosols
+ 1950 FORMAT(F8.2,3X,3(E12.5,1X,E12.5,1X,E12.5,3X))
+ 1960 FORMAT(F8.2,3X,1(E12.5,1X,E12.5,1X,E12.5,3X))
+
       END          !FIN DU PROGRAMME OSOAA_MAIN  
 
 
@@ -7981,7 +8664,7 @@ C
 C Description des paramètres entrée / sortie
 C ------------------------------------------
 C	NOM_FIC   (CHARACTER*CTE_LENFIC2)  : (E) Nom du fichier (chemin complet)
-C	NOM_PARAM (CHARACTER*CTE_LENFIC2)  : (E) Nom de l'argument d'entrée du paramètre
+C	NOM_PARAM (CHARACTER*)             : (E) Nom de l'argument d'entrée du paramètre
 C       FIC_UNIT  (I4) 			   : (E) Numéro du fichier
 C       TRACE     (Logical) 		   : (E) Indicateur de fichier Trace
 C       CAS_REPRISE 		           : (S) Indicateur d'un cas de reprise de traitement
@@ -8019,7 +8702,7 @@ C -----------------
 
       CHARACTER*CTE_LENFIC2  PREVIOUS_SIMU_FILE	! Nom d'un fichier en entrée d'un traitement antérieur
       CHARACTER*CTE_LENFIC2  NOM_FIC		! (E) Nom du fichier en entrée du traitement courant
-      CHARACTER*CTE_LENFIC2  NOM_PARAM          ! (E) Nom du parametre dans le script de lancement       
+      CHARACTER(LEN=*)  NOM_PARAM          	! (E) Nom du parametre dans le script de lancement       
 
  
       LOGICAL CAS_REPRISE	! (S) Indicateur si le paramètre n'est pas le même (FALSE si c'est le cas)
@@ -8132,7 +8815,7 @@ C Description des paramètres entrée / sortie
 C ------------------------------------------
 C	VALUE   (DBLE)  		   : (E) Valeur du paramètre pour le traitement en cours
 C       VALUE_TYPE  		   	   : (E) Type vrai de la valeur VALUE (INT ou DBL)
-C	NOM_PARAM (CHARACTER*CTE_LENFIC2)  : (E) Nom de l'argument d'entrée du paramètre
+C	NOM_PARAM (CHARACTER*)             : (E) Nom de l'argument d'entrée du paramètre
 C       FIC_UNIT  (I4) 			   : (E) Numéro du fichier
 C       TRACE     (Logical) 		   : (E) Indicateur de fichier Trace
 C       CAS_REPRISE 		           : (S) Indicateur d'un cas de reprise de traitement
@@ -8159,11 +8842,18 @@ C==============================================================================
       
       IMPLICIT NONE 
 
+
+
 C Constantes 
 C -----------------            
       INTEGER*2 IDLOG			! Numéro identifiant du fichier Trace	    
       PARAMETER(IDLOG=INCTE_IDLOG_MAIN)
 
+
+
+
+C Variables
+C -----------------  
       CHARACTER*3 VALUE_TYPE		! (E) : Type de la valeur VALUE (INT ou DBL)
       
       CHARACTER*INCTE_LENLINE LIGNE_TEXTE   !Ligne de caractères pour décodage de paramètres
@@ -8171,10 +8861,12 @@ C -----------------
 
       DOUBLE PRECISION  PREVIOUS_VALUE_DBLE	! Valeur du parametre en entrée d'un traitement antérieur
       DOUBLE PRECISION  VALUE			! (E) Valeur du parametre en entrée du traitement courant
-      CHARACTER*CTE_LENFIC2  NOM_PARAM  ! (E) Nom du parametre dans le script de lancement       
+      CHARACTER(LEN=*)  NOM_PARAM  		! (E) Nom du parametre dans le script de lancement       
 
+      DOUBLE PRECISION  VALUE_TEST	
  
-      LOGICAL CAS_REPRISE	! (S) Indicateur si le paramètre n'est pas le même (FALSE si c'est le cas)
+      LOGICAL CAS_REPRISE	! (E/S) Indicateur si le paramètre n'est pas le même (FALSE si c'est le cas)
+      LOGICAL RES_TEST		! Résultat du test de comparaison pour le paramètre en cours	
       LOGICAL TRACE     	! (E) = vrai si écriture dans le fichier trace
  
 
@@ -8195,34 +8887,47 @@ C*-----------------------------------------------------------------
 	
 C* Comparaison au fichier du fichier pour les paramètres de simulation
 C* du traitement en cours                    
-C*-----------------------------------------------------------------      
-      IF(VALUE.NE.PREVIOUS_VALUE_DBLE) THEN
-         CAS_REPRISE=.FALSE.
-	      	 
-	 IF (TRACE) THEN
+C*-----------------------------------------------------------------
+      RES_TEST = .TRUE.
+      
+      IF (PREVIOUS_VALUE_DBLE.EQ.0.D+00) THEN
+      
+         IF (VALUE.NE.0.D+00) THEN
+	    CAS_REPRISE=.FALSE.
+	    RES_TEST=.FALSE.
+         ENDIF      
+	 
+      ELSE
+         VALUE_TEST = VALUE - PREVIOUS_VALUE_DBLE
+	
+         IF(DABS(VALUE_TEST).GE.THRESHOLD_ABS_COMPA) THEN
+            CAS_REPRISE=.FALSE.
+	    RES_TEST=.FALSE.
+         ENDIF      
+ 
+      ENDIF   
+  
+      IF ((TRACE).AND.(RES_TEST.EQV..FALSE.)) THEN
     
 	    IFIN=INDEX(NOM_PARAM,':') - 1  !Le nom de l'argument passé à la routine doit être suivi de ":"
 	   
 	    IF (VALUE_TYPE.EQ.'INT') THEN
 
 	       WRITE (IDLOG,*,ERR=100) 
-     &	          "Difference for parameter ", NOM_PARAM(1:IFIN) ," : ",
-     &            INT(VALUE)," / ", INT(PREVIOUS_VALUE_DBLE)
+     &	       "Difference for parameter ", NOM_PARAM(1:IFIN), " : ",
+     &          INT(VALUE)," / ", INT(PREVIOUS_VALUE_DBLE)
 	       	       	    
 	    ELSE
-	    
+
 	       WRITE (IDLOG,*,ERR=100) 
-     &	          "Difference for parameter ", NOM_PARAM(1:IFIN) ," : ",
-     &            VALUE," / ", PREVIOUS_VALUE_DBLE
+     &	       "Difference for parameter ", NOM_PARAM(1:IFIN), " : ",
+     &         VALUE," / ", PREVIOUS_VALUE_DBLE
 	    
 	    ENDIF
 	    
 	    WRITE (IDLOG,*,ERR=100) " "
 	    
 	 ENDIF
-	 
-      ENDIF   
-      
 
 C* Fin nominale 
 C-------------------

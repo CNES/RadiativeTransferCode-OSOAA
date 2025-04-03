@@ -9,11 +9,15 @@ import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.File;
 import java.math.BigDecimal;
 
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -86,6 +90,9 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 	private JSpinner PhytoGPDeep_Spinner;
 	private JSpinner PhytoGPChlbg_Spinner;
 	private JLabel PhytoGPChlbg_Desc;
+	private JLabel PhytoGPChlzmax_Title;
+	private JSpinner PhytoGPChlzmax_Spinner;
+	private JLabel PhytoGPChlzmax_Desc;
 	private JLabel PhytoGPDeep_Desc;
 	private JTextField PHYTOUserfile_Jtextfield;
 	private JLabel PHYTOUserfile_Title;
@@ -124,6 +131,8 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 	private JPanel panel_1;
 	private JPanel panel_2;
 
+	private Integer currentY=1;
+
 	public void init() {
 		atmosphericAndSeaProfiles = PreferencesFactory.getInstance()
 				.getAtmosphericAndSeaProfiles();
@@ -159,6 +168,8 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 				.getPhytoprofileType() - 1);
 		PhytoGPChlbg_Spinner.setValue(atmosphericAndSeaProfiles
 				.getPhytoGPChlbg());
+		PhytoGPChlzmax_Spinner.setValue(atmosphericAndSeaProfiles
+				.getPhytoGPChlzmax());
 		PhytoGPDeep_Spinner
 				.setValue(atmosphericAndSeaProfiles.getPhytoGPDeep());
 		PhytoGPWidth_Spinner.setValue(atmosphericAndSeaProfiles
@@ -182,11 +193,16 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		notifyFormValidated();
 	}
 
+	private String getStr(String mask) {
+		return String.format(mask,currentY);
+	}
+
 	private void validateSeaProfileFormInitToFalse() {
 		FormUtils.setFieldState(false, ProfileSeaResFile_title);
 		FormUtils.setFieldState(false, PHYTOChl_Title);
 		FormUtils.setFieldState(false, PHYTOProfilType_Title);
 		FormUtils.setFieldState(false, PhytoGPChlbg_Title);
+		FormUtils.setFieldState(false, PhytoGPChlzmax_Title);
 		FormUtils.setFieldState(false, PhytoGPDeep_Title);
 		FormUtils.setFieldState(false, PhytoGPWidth_Title);
 
@@ -205,9 +221,11 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		validateSeaProfileFormInitToFalse();
 		boolean isValid = true;
 
+		/* Remove PROFILE_SEA.ResFile mandatory
 		isValid &= FormUtils.setFieldState(getProfileSeaResFile() == null
 				|| getProfileSeaResFile().trim().length() <= 0,
 				ProfileSeaResFile_title);
+		*/
 		isValid &= FormUtils.setFieldState(getPhytoChl() == null,
 				PHYTOChl_Title);
 		if (getPhytoChl() != null) {
@@ -235,17 +253,20 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		isValid &= FormUtils.setFieldState(getSEDCsed() == null, SEDCsed_Title);
 		isValid &= FormUtils.setFieldState(getYSAbs440() == null,
 				YSAbs440_Title);
+		/* Remove YS.Swa mandatory */
 		if (getYSAbs440() != null && getYSAbs440().doubleValue() > 0.0) {
 			isValid &= FormUtils.setFieldState(getYSSwa() == null, YSSwa_Title);
 		}
+		
 
 		isValid &= FormUtils.setFieldState(getDETAbs400() == null,
 				DETAbs440_Title);
+		
+		/* Remove DET.Swa mandatory */
 		if (getDETSwa() != null && getDETAbs400().doubleValue() > 0.0) {
 			isValid &= FormUtils.setFieldState(getDETSwa() == null,
 					DETSwa_Title);
 		}
-
 		return isValid;
 	}
 
@@ -277,9 +298,11 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		isValid &= FormUtils.setFieldState(getSeaBottomAlbedo() == null,
 				SeaSurfAlb_Title);
 
+		/* remove PROFILE_ATM.ResFile mandatory 
 		isValid &= FormUtils.setFieldState(getAtmosphericProfile() == null
 				|| getAtmosphericProfile().trim().length() <= 0,
 				profileAtm_title);
+		*/
 
 		if (APMOT_radioBtn.isSelected()) {
 			isValid &= FormUtils.setFieldState(getAPMot() == null, APMot_title);
@@ -368,6 +391,17 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		}
 	}
 
+	public BigDecimal getPhytoGPChlzmax() {
+		PhytoGPChlzmax_Spinner.validate();
+		return (BigDecimal) PhytoGPChlzmax_Spinner.getValue();
+	}
+
+	private void savePhytoGPChlzmax() {
+		if (getPhytoGPChlzmax() != null) {
+			atmosphericAndSeaProfiles.setPhytoGPChlzmax(getPhytoGPChlzmax());
+		}
+	}
+
 	public BigDecimal getPhytoGPDeep() {
 		PhytoGPDeep_Spinner.validate();
 		return (BigDecimal) PhytoGPDeep_Spinner.getValue();
@@ -423,7 +457,9 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 	}
 
 	public BigDecimal getYSSwa() {
-		YSSwa_Spinner.validate();
+		if (YSSwa_Spinner.getValue()!=null) {
+			YSSwa_Spinner.validate();
+		}
 		return (BigDecimal) YSSwa_Spinner.getValue();
 	}
 
@@ -681,6 +717,8 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 						FormFactory.RELATED_GAP_ROWSPEC,
 						FormFactory.DEFAULT_ROWSPEC,
 						FormFactory.RELATED_GAP_ROWSPEC,
+						FormFactory.DEFAULT_ROWSPEC,
+						FormFactory.RELATED_GAP_ROWSPEC,
 						RowSpec.decode("default:grow"),
 						FormFactory.RELATED_GAP_ROWSPEC, }));
 
@@ -711,7 +749,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		getFormFieldsPanel().add(SeaSurfAlb_Spinner, "4, 3");
 
 		JLabel lblSeaSurfaceAlbedo = DefaultComponentFactory.getInstance()
-				.createLabel("Foam lambertian reflectance for the  simulation wavelength (albedo of the foam at the sea surface)");
+				.createLabel("Lambertian reflectance of the foam at the simulation wavelength (albedo of the foam at the sea surface)");
 		getFormFieldsPanel().add(lblSeaSurfaceAlbedo, "9, 3");
 
 		Seabottype_title = DefaultComponentFactory.getInstance().createLabel(
@@ -734,7 +772,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		getFormFieldsPanel().add(SeaBotType_ComboBox, "4, 5, fill, default");
 
 		JLabel lblTypeOfSea = DefaultComponentFactory.getInstance()
-				.createLabel("Type of sea bottom for albedo definition");
+				.createLabel("Type of seabed composition");
 		getFormFieldsPanel().add(lblTypeOfSea, "9, 5");
 
 		SEABotType_Title = new JLabel("SEA.BotAlb *:");
@@ -752,7 +790,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		getFormFieldsPanel().add(SEABotAlbedo_Spinner, "4, 7");
 
 		SEABotType_Desc = new JLabel(
-				"Sea bottom albedo for the wavelength of radiance calculation (lambertian component)");
+				"Seabed albedo at the simulation wavelength (lambertian component)");
 		SEABotType_Desc
 				.setToolTipText("Sea bottom albedo for the wavelength of radiance calculation (lambertian component)");
 		getFormFieldsPanel().add(SEABotType_Desc, "9, 7");
@@ -779,7 +817,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 				.getColor("InternalFrame.inactiveTitleGradient"));
 		getFormFieldsPanel().add(separator, "9, 13");
 
-		profileAtm_title = new JLabel("PROFILE_ATM.ResFile *:");
+		profileAtm_title = new JLabel("PROFILE_ATM.ResFile:");
 		profileAtm_title.setHorizontalAlignment(SwingConstants.RIGHT);
 		getFormFieldsPanel().add(profileAtm_title, "2, 15, right, default");
 
@@ -795,7 +833,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		atmosphericProfile_txtField.setColumns(10);
 
 		JLabel PROFILE_ATM_Desc = new JLabel(
-				"Filename for the definition of the atmospheric profile");
+				"Filename of the output of the atmospheric profile (result file)");
 		getFormFieldsPanel().add(PROFILE_ATM_Desc, "9, 15");
 
 		profileLog_Title = new JLabel("PROFILE.Log :");
@@ -812,7 +850,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		profileLog_TxtField.setColumns(10);
 
 		JLabel lblNewLabel_27 = new JLabel(
-				"Log filename for OSOAA_PROFILE calculations");
+				"Name of log file for OSOAA_PROFILE calculations");
 		getFormFieldsPanel().add(lblNewLabel_27, "9, 17");
 
 		JSeparator separator_7 = new JSeparator();
@@ -969,7 +1007,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		getFormFieldsPanel().add(AERWaref_Spinner, "4, 29");
 
 		JLabel lblNewLabel_2 = new JLabel(
-				"Reference wavelength (\u00B5m) related to the aerosol optical thickness for the reference wavelength (AER.AOTref)");
+				"Reference wavelength (\u00B5m) for the aerosol optical thickness (AER.AOTref)");
 		lblNewLabel_2
 				.setToolTipText("Reference wavelength (\u00B5m) related to the aerosol optical thickness for the reference wavelength (AER.AOTref)");
 		getFormFieldsPanel().add(lblNewLabel_2, "9, 29");
@@ -1016,7 +1054,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 
 		getFormFieldsPanel().add(APHA_Spinner, "4, 33");
 
-		APHA_Desc = new JLabel("Height scale of the aerosol profile (km)  ");
+		APHA_Desc = new JLabel("Aerosol height scale (in km)");
 		APHA_Desc.setEnabled(false);
 		getFormFieldsPanel().add(APHA_Desc, "9, 33");
 
@@ -1030,7 +1068,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 				.getColor("InternalFrame.inactiveTitleGradient"));
 		getFormFieldsPanel().add(separator_8, "4, 37, 6, 1");
 
-		ProfileSeaResFile_title = new JLabel("PROFILE_SEA.ResFile *:");
+		ProfileSeaResFile_title = new JLabel("PROFILE_SEA.ResFile :");
 		getFormFieldsPanel().add(ProfileSeaResFile_title,
 				"2, 39, right, default");
 
@@ -1046,7 +1084,7 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		ProfileSeaResFile_JTxtField.setColumns(10);
 
 		JLabel lblNewLabel_4 = new JLabel(
-				"Filename for the sea profile result file ");
+				"Filename of the output of the sea profile ");
 		getFormFieldsPanel().add(lblNewLabel_4, "9, 39");
 
 		SeaDepth_Title = new JLabel("SEA.Depth :");
@@ -1079,9 +1117,35 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 				.getColor("InternalFrame.inactiveTitleGradient"));
 		getFormFieldsPanel().add(separator_11, "9, 43");
 
-		PHYTOChl_Title = new JLabel("PHYTO.Chl *:");
+		// ----------------
+		PHYTOProfilType_Title = new JLabel("PHYTO.ProfilType* :");
+		getFormFieldsPanel()
+				.add(PHYTOProfilType_Title, "2, 45, right, default");
+
+		PHYTOProfilType_JCombobox = new JComboBox();
+		PHYTOProfilType_JCombobox.addItemListener(new ItemListener() {
+			public void itemStateChanged(ItemEvent e_) {
+				JComboBox cb = (JComboBox) e_.getSource();
+				int selIndex = cb.getSelectedIndex();
+				setHomogeneousPorfileVisible(selIndex == 0);
+				setPhytoGaussianProfileVisible(selIndex == 1);
+				setPhytoUserProfileVisible(selIndex == 2);
+
+				savePhytoprofileType();
+				validateForm();
+			}
+		});
+		PHYTOProfilType_JCombobox.setModel(new DefaultComboBoxModel(
+				PhytoProfiletTypeEnum.values()));
+		getFormFieldsPanel().add(PHYTOProfilType_JCombobox,
+				"4, 45, fill, default");
+
+		PHYTOProfilType_Desc = new JLabel("Type of chlorophyll profile ");
+		getFormFieldsPanel().add(PHYTOProfilType_Desc, "9, 45");
+		// ----------------
+		PHYTOChl_Title = new JLabel("PHYTO.Chl :");
 		PHYTOChl_Title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(PHYTOChl_Title, "2, 45");
+		getFormFieldsPanel().add(PHYTOChl_Title, "2, 47");
 
 		PHYTOChl_Spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(PHYTOChl_Title, PHYTOChl_Spinner);
@@ -1105,37 +1169,15 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
             }
 
         });
-		getFormFieldsPanel().add(PHYTOChl_Spinner, "4, 45");
+		getFormFieldsPanel().add(PHYTOChl_Spinner, "4, 47");
 
 		PHYTOChl_Desc = new JLabel(
-				"Chlorophylle concentration at sea surface (mg.m-3)");
+				"Chlorophyll concentration at sea surface (mg.m-3)");
 		PHYTOChl_Desc
 				.setToolTipText("Chlorophylle concentration at sea surface (mg.m-3)");
-		getFormFieldsPanel().add(PHYTOChl_Desc, "9, 45");
+		getFormFieldsPanel().add(PHYTOChl_Desc, "9, 47");
 
-		PHYTOProfilType_Title = new JLabel("PHYTO.ProfilType :");
-		getFormFieldsPanel()
-				.add(PHYTOProfilType_Title, "2, 47, right, default");
-
-		PHYTOProfilType_JCombobox = new JComboBox();
-		PHYTOProfilType_JCombobox.addItemListener(new ItemListener() {
-			public void itemStateChanged(ItemEvent e_) {
-				JComboBox cb = (JComboBox) e_.getSource();
-				int selIndex = cb.getSelectedIndex();
-				setPhytoGaussianProfileVisible(selIndex == 1);
-				setPhytoUserProfileVisible(selIndex == 2);
-
-				savePhytoprofileType();
-				validateForm();
-			}
-		});
-		PHYTOProfilType_JCombobox.setModel(new DefaultComboBoxModel(
-				PhytoProfiletTypeEnum.values()));
-		getFormFieldsPanel().add(PHYTOProfilType_JCombobox,
-				"4, 47, fill, default");
-
-		PHYTOProfilType_Desc = new JLabel("Type of the chlorophyll profile ");
-		getFormFieldsPanel().add(PHYTOProfilType_Desc, "9, 47");
+		// ----------
 
 		PhytoGPChlbg_Title = new JLabel("PHYTO.GP.Chlbg :");
 		PhytoGPChlbg_Title.setEnabled(false);
@@ -1154,14 +1196,40 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		PhytoGPChlbg_Spinner.setEnabled(false);
 		getFormFieldsPanel().add(PhytoGPChlbg_Spinner, "4, 49");
 
-		PhytoGPChlbg_Desc = new JLabel("Constant biomass background (mg.m-3)");
+		PhytoGPChlbg_Desc = new JLabel("Chlorophyll concentration background (mg.m-3)");
 		PhytoGPChlbg_Desc.setEnabled(false);
 		getFormFieldsPanel().add(PhytoGPChlbg_Desc, "9, 49");
 
+		/* PHYTO.GP.Chlzmax */
+		currentY = 51;
+
+		PhytoGPChlzmax_Title = new JLabel("PHYTO.GP.Chlzmax :");
+		PhytoGPChlzmax_Title.setEnabled(false);
+		PhytoGPChlzmax_Title.setHorizontalAlignment(SwingConstants.RIGHT);
+		getFormFieldsPanel().add(PhytoGPChlzmax_Title, getStr("2, %d"));
+
+		PhytoGPChlzmax_Spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"),
+                new BigDecimal("0.00"), null, new BigDecimal("0.01")));
+        PropertiesManager.getInstance().register(PhytoGPChlzmax_Title, PhytoGPChlzmax_Spinner);
+		PhytoGPChlzmax_Spinner.addChangeListener(new ChangeListener() {
+			public void stateChanged(ChangeEvent e) {
+				savePhytoGPChlzmax();
+				validateForm();
+			}
+		});
+		PhytoGPChlzmax_Spinner.setEnabled(false);
+		getFormFieldsPanel().add(PhytoGPChlzmax_Spinner, getStr("4, %d"));
+
+		PhytoGPChlzmax_Desc = new JLabel("Maximum chlorophyll-a concentration (mg.m-3) in the water column (reached at depth PHYTO.GP.Deep)");
+		PhytoGPChlzmax_Desc.setEnabled(false);
+		getFormFieldsPanel().add(PhytoGPChlzmax_Desc, getStr("9, %d"));
+
+		/* ================ */
+		currentY += 2;
 		PhytoGPDeep_Title = new JLabel("PHYTO.GP.Deep :");
 		PhytoGPDeep_Title.setEnabled(false);
 		PhytoGPDeep_Title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(PhytoGPDeep_Title, "2, 51");
+		getFormFieldsPanel().add(PhytoGPDeep_Title, getStr("2, %d"));
 
 		PhytoGPDeep_Spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal(0),
                 new BigDecimal(0), null, new BigDecimal(1)));
@@ -1173,16 +1241,17 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 			}
 		});
 		PhytoGPDeep_Spinner.setEnabled(false);
-		getFormFieldsPanel().add(PhytoGPDeep_Spinner, "4, 51");
+		getFormFieldsPanel().add(PhytoGPDeep_Spinner, getStr("4, %d"));
 
-		PhytoGPDeep_Desc = new JLabel("Deep chlorophyll maximum (m)");
+		PhytoGPDeep_Desc = new JLabel("Depth of the maximum chlorophyll-a value (m)");
 		PhytoGPDeep_Desc.setEnabled(false);
-		getFormFieldsPanel().add(PhytoGPDeep_Desc, "9, 51");
+		getFormFieldsPanel().add(PhytoGPDeep_Desc, getStr("9, %d"));
 
+		currentY += 2;
 		PhytoGPWidth_Title = new JLabel("PHYTO.GP.Width :");
 		PhytoGPWidth_Title.setEnabled(false);
 		PhytoGPWidth_Title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(PhytoGPWidth_Title, "2, 53");
+		getFormFieldsPanel().add(PhytoGPWidth_Title, getStr("2, %d"));
 
 		PhytoGPWidth_Spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"),
                 new BigDecimal("0.0"), null, new BigDecimal("0.1")));
@@ -1194,15 +1263,16 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 			}
 		});
 		PhytoGPWidth_Spinner.setEnabled(false);
-		getFormFieldsPanel().add(PhytoGPWidth_Spinner, "4, 53");
+		getFormFieldsPanel().add(PhytoGPWidth_Spinner, getStr("4, %d"));
 
-		PhytoGPWidth_Desc = new JLabel("Width of the chlorophyll peak (m)");
+		PhytoGPWidth_Desc = new JLabel("Half-width of the chlorophyll gaussian peak (m)");
 		PhytoGPWidth_Desc.setEnabled(false);
-		getFormFieldsPanel().add(PhytoGPWidth_Desc, "9, 53");
+		getFormFieldsPanel().add(PhytoGPWidth_Desc, getStr("9, %d"));
 
+		currentY += 2;
 		PHYTOUserfile_Title = new JLabel("PHYTO.Userfile :");
 		PHYTOUserfile_Title.setEnabled(false);
-		getFormFieldsPanel().add(PHYTOUserfile_Title, "2, 55, right, default");
+		getFormFieldsPanel().add(PHYTOUserfile_Title, getStr("2, %d, right, default"));
 
 		PHYTOUserfile_Jtextfield = new JTextField();
 		PHYTOUserfile_Jtextfield.addFocusListener(new FocusAdapter() {
@@ -1212,29 +1282,39 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
+		PHYTOUserfile_Jtextfield.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent arg0) {
+				onUserFileClicked();
+				validateForm();
+			}
+		});
 		PHYTOUserfile_Jtextfield.setEnabled(false);
 		getFormFieldsPanel().add(PHYTOUserfile_Jtextfield,
-				"4, 55, fill, default");
+				getStr("4, %d, fill, default"));
 		PHYTOUserfile_Jtextfield.setColumns(10);
 
 		PHYTOUserfile_Desc = new JLabel(
 				"Userfile describing the chlorophyll profile");
 		PHYTOUserfile_Desc.setEnabled(false);
-		getFormFieldsPanel().add(PHYTOUserfile_Desc, "9, 55");
+		getFormFieldsPanel().add(PHYTOUserfile_Desc, getStr("9, %d"));
 
+		currentY += 2;
 		JLabel lblNewLabel_5 = new JLabel("    |--> Mineral-like particles");
 		lblNewLabel_5.setFont(new Font("Tahoma", Font.BOLD, 11));
 		lblNewLabel_5.setForeground(Color.BLUE);
-		getFormFieldsPanel().add(lblNewLabel_5, "2, 57, 3, 1");
+		getFormFieldsPanel().add(lblNewLabel_5, getStr("2, %d, 3, 1"));
 
+		currentY += 2;
 		JSeparator separator_10 = new JSeparator();
 		separator_10.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		getFormFieldsPanel().add(separator_10, "9, 57");
+		getFormFieldsPanel().add(separator_10, getStr("9, %d"));
 
+		currentY += 2;
 		SEDCsed_Title = new JLabel("SED.Csed* :");
 		SEDCsed_Title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(SEDCsed_Title, "2, 59");
+		getFormFieldsPanel().add(SEDCsed_Title, getStr("2, %d"));
 
 		SEDCsed_Spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(SEDCsed_Title, SEDCsed_Spinner);
@@ -1244,26 +1324,28 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		getFormFieldsPanel().add(SEDCsed_Spinner, "4, 59");
+		getFormFieldsPanel().add(SEDCsed_Spinner, getStr("4, %d"));
 
 		JLabel lblNewLabel_7 = new JLabel(
-				"Concentration of sediment at sea surface (mg.\u2113-1)");
-		getFormFieldsPanel().add(lblNewLabel_7, "9, 59");
+				"Concentration of mineral-like particles at sea surface (mg.\u2113-1)");
+		getFormFieldsPanel().add(lblNewLabel_7, getStr("9, %d"));
 
+		currentY +=2;
 		JLabel lblNewLabel_8 = new JLabel(
 				"    |--> Yellow substance and detritus");
 		lblNewLabel_8.setFont(new Font("Tahoma", Font.BOLD, 11));
 		lblNewLabel_8.setForeground(Color.BLUE);
-		getFormFieldsPanel().add(lblNewLabel_8, "2, 61, 3, 1");
+		getFormFieldsPanel().add(lblNewLabel_8, getStr("2, %d, 3, 1"));
 
 		JSeparator separator_9 = new JSeparator();
 		separator_9.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		getFormFieldsPanel().add(separator_9, "9, 61");
+		getFormFieldsPanel().add(separator_9, getStr("9, %d"));
 
+		currentY += 2;
 		YSAbs440_Title = new JLabel("YS.Abs440* :");
 		YSAbs440_Title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(YSAbs440_Title, "2, 63");
+		getFormFieldsPanel().add(YSAbs440_Title, getStr("2, %d"));
 
 		YSAbs440_Spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(YSAbs440_Title, YSAbs440_Spinner);
@@ -1276,35 +1358,37 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		getFormFieldsPanel().add(YSAbs440_Spinner, "4, 63");
+		getFormFieldsPanel().add(YSAbs440_Spinner, getStr("4, %d"));
 
 		JLabel lblNewLabel_10 = new JLabel(
 				"Absorption coefficient of yellow substance at 440 nm (m-1)");
-		getFormFieldsPanel().add(lblNewLabel_10, "9, 63");
+		getFormFieldsPanel().add(lblNewLabel_10, getStr("9, %d"));
 
+		currentY += 2;
 		YSSwa_Title = new JLabel("YS.Swa* :");
 		YSSwa_Title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(YSSwa_Title, "2, 65");
+		getFormFieldsPanel().add(YSSwa_Title, getStr("2, %d"));
 
 		YSSwa_Spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(YSSwa_Title, YSSwa_Spinner);
         YSSwa_Spinner.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
-				saveYSSwa();
-				validateForm();
+				/*saveYSSwa();
+				validateForm();*/
 			}
 		});
-		getFormFieldsPanel().add(YSSwa_Spinner, "4, 65");
+		getFormFieldsPanel().add(YSSwa_Spinner, getStr("4, %d"));
 
 		YSSwa_Desc = new JLabel(
-				"Coefficient for the spectral variation of yellow substance absorption (m-1) for the simulation wavelength  ");
+				"Exponential slope of the spectral variation of the yellow substance absorption coefficient (m-1)");
 		YSSwa_Desc
-				.setToolTipText("Coefficient for the spectral variation of yellow substance absorption (m-1) for the simulation wavelength  ");
-		getFormFieldsPanel().add(YSSwa_Desc, "9, 65");
+				.setToolTipText("Exponential slope of the spectral variation of the yellow substance absorption coefficient (m-1)");
+		getFormFieldsPanel().add(YSSwa_Desc, getStr("9, %d"));
 
+		currentY += 2;
 		DETAbs440_Title = new JLabel("DET.Abs440* :");
 		DETAbs440_Title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(DETAbs440_Title, "2, 67");
+		getFormFieldsPanel().add(DETAbs440_Title, getStr("2, %d"));
 
 		DETAbs440_Spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), null, null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(DETAbs440_Title, DETAbs440_Spinner);
@@ -1314,15 +1398,16 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		getFormFieldsPanel().add(DETAbs440_Spinner, "4, 67");
+		getFormFieldsPanel().add(DETAbs440_Spinner, getStr("4, %d"));
 
 		DETAbs440_Desc = new JLabel(
 				"Absorption coefficient of detritus at 440 nm (m-1)");
-		getFormFieldsPanel().add(DETAbs440_Desc, "9, 67");
+		getFormFieldsPanel().add(DETAbs440_Desc, getStr("9, %d"));
 
+		currentY += 2;
 		DETSwa_Title = new JLabel("DET.Swa* :");
 		DETSwa_Title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(DETSwa_Title, "2, 69");
+		getFormFieldsPanel().add(DETSwa_Title, getStr("2, %d"));
 
 		DETSwa_Spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(DETSwa_Title, DETSwa_Spinner);
@@ -1332,11 +1417,26 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		getFormFieldsPanel().add(DETSwa_Spinner, "4, 69");
+		getFormFieldsPanel().add(DETSwa_Spinner, getStr("4, %d"));
 
 		DETSwa_Desc = new JLabel(
-				"Coefficient for the spectral variation of detritus absorption (m-1) for the simulation wavelength  ");
-		getFormFieldsPanel().add(DETSwa_Desc, "9, 69");
+				"Exponential slope of the spectral variation of the detritus absorption coefficient (m-1)");
+		getFormFieldsPanel().add(DETSwa_Desc, getStr("9, %d"));
+	}
+
+	protected void onUserFileClicked() {
+		final JFileChooser fc = new JFileChooser();
+		fc.setApproveButtonText("OK");
+		fc.setDialogTitle("Select your file");
+		fc.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		int returnVal = fc.showOpenDialog(this);
+
+        if (returnVal == JFileChooser.APPROVE_OPTION) {
+            File file = fc.getSelectedFile();
+            //This is where a real application would open the file.
+            PHYTOUserfile_Jtextfield.setText(file.getAbsolutePath());
+            PHYTOUserfile_Jtextfield.setToolTipText(file.getAbsolutePath());
+        }
 	}
 
 	@Override
@@ -1363,11 +1463,19 @@ public class AtmosphericAndSeaProfilesJPanel extends AbstractForm {
 		YSSwa_Title.setEnabled(isVisible_);
 
 	}
-
+	protected void setHomogeneousPorfileVisible(boolean isVisible_) {
+		PHYTOChl_Desc.setEnabled(isVisible_);
+		PHYTOChl_Spinner.setEnabled(isVisible_);
+		PHYTOChl_Title.setEnabled(isVisible_);
+	}
 	protected void setPhytoGaussianProfileVisible(boolean isVisible_) {
 		PhytoGPChlbg_Desc.setEnabled(isVisible_);
 		PhytoGPChlbg_Spinner.setEnabled(isVisible_);
 		PhytoGPChlbg_Title.setEnabled(isVisible_);
+
+		PhytoGPChlzmax_Desc.setEnabled(isVisible_);
+		PhytoGPChlzmax_Spinner.setEnabled(isVisible_);
+		PhytoGPChlzmax_Title.setEnabled(isVisible_);
 
 		PhytoGPDeep_Desc.setEnabled(isVisible_);
 		PhytoGPDeep_Spinner.setEnabled(isVisible_);

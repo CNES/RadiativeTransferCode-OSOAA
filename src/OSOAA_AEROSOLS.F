@@ -4,6 +4,7 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
@@ -70,7 +71,12 @@ C*           (for gfortran compilation - linux system)
 C* MOD:VERSION:1.3: 03/11/2016:
 C*     Changes to be compliant with a f77 compilation
 C*         - CALL FLUSH() changed to CALL FLUSH(6)
-C*         - Change a variable type to read the file FICANGLES
+C*         - Change a variable type to read the file FICANGLES                                     
+C*         - Introduction of the new parameter FICAER_IOP to provide information on
+C*           the aerosol phase function and, absorption and scattering cross-sections.
+C*         - Introduction of Z1_NOTR which is the value of BETA11(0) without truncation of the phase function
+C*           and before normalization.
+C*         - The list of used angles in the logfile is now given as scattering angles.
 C*                                   
 C*   
 C******************************************************************************
@@ -271,6 +277,8 @@ C
 C     FICGRANU (CHAR*CTE_LENFIC2) (S) : Nom complet du fichier résultat GRANU
 C                 			(répertoire + nom fichier + extension)
 C	  
+C     FICAER_IOP (CHAR*CTE_LENFIC2) (S) : Nom du fichier des IOP aérosols 
+C	  
 C     FICAER_LOG (CHAR*CTE_LENFIC2) (S) : Nom du fichier de log 
 C
 C     KMAT1  (DOUBLE)          (S) : Section efficace d'extinction (micron^2)  
@@ -291,7 +299,7 @@ C    Un fichier Trace optionnel.
 C
 C
 C Variable d'environnement
-C ------------------------
+C ------------------------ 
 C
 C   OSOAA_ROOT qui définit l'arborescence d'accès au répertoire principal du code OSOAA
 C   Cette variable d'environnement permet de localiser les fichiers sous $OSOAA_ROOT/fic
@@ -383,6 +391,19 @@ C			ALPHA(K)        BETA11(K)       GAMMA12(K)      ZETA(K)
 C			==> lignes de K=0 à OS_NB
 C
 C  
+C    Fichier résultat optionnel FICAER_IOP:
+C      ==>   contient les informations suivantes
+C
+C            Section efficace d'extinction (micron^2)
+C            Section efficace de diffusion (micron^2)
+C            Albédo de simple diffusion
+C            Fonction de phase en fonction de l'angle de diffusion:
+C                   En intensité : P11
+C                   En polarisation : P12
+C                   En polarisation : P22
+C                   En polarisation : P33
+C
+C  
 C    Fichier trace global de la routine : FICAER_LOG
 C      ==>   contient des informations sur les étapes de traitements
 C
@@ -442,7 +463,8 @@ C==============================================================================
      &		  		BMD_FM_RMODAL, BMD_FM_VAR,
      &				FICEXTDATA,
      &				DIRMIE,FICMIE_LOG,
-     &                          FICGRANU, FICAER_LOG, KMAT1, PIZ, IER)
+     &                          FICGRANU, FICAER_IOP, FICAER_LOG,
+     &                          KMAT1, PIZ, IER)
 
 
 
@@ -636,6 +658,8 @@ C*-----------------------------------------------------------------
                        !Copie de la fonction de phase (P11) avant troncature.
      
       DOUBLE PRECISION Z1	!Valeur de BETA11(0) avant normalisation.
+      DOUBLE PRECISION Z1_NOTR  !Valeur de BETA11(0) sans troncature et avant normalisation.
+
       DOUBLE PRECISION TETA     !Angle de diffusion.
       
                   
@@ -668,6 +692,9 @@ C*-----------------------------------------------------------------
 
       DOUBLE PRECISION VMOY_MMD ! Volume de la particule moyenne 
       				! d'une granulométrie mono-mode (micron^3).
+    
+      DOUBLE PRECISION INT_0_180  ! Valeur de la fonction de phase intégrée de 0 à 180° / 2*PI
+      DOUBLE PRECISION INT_90_180 ! Valeur de la fonction de phase intégrée de 90 à 180° / 2*PI
       
       
 C---- Paramètres de type entier
@@ -704,7 +731,9 @@ C---- Code d'erreur
                         
 C---- Les fichiers utilisés
       CHARACTER*CTE_LENFIC2 FICANGLES   ! Chemin et nom du fichier des angles utilisés 
-                                        ! pour les calculs de Mie      
+                                        ! pour les calculs de Mie       
+ 
+      CHARACTER*CTE_LENFIC2 FICAER_IOP  ! Nom du fichier optionnel des IOP aérosols
  
       CHARACTER*CTE_LENFIC2 FICAER_LOG  ! Nom du fichier trace des calculs de phase aérosols
             
@@ -745,9 +774,7 @@ C---- Expressions logiques
 C*-------------
 C* Traitements
 C*-------------
- 
- 
- 
+		
       
 C* Initialisation                     
 C*-----------------------------------------------------------------
@@ -776,6 +803,7 @@ C------------------------------------------------------
 	 WRITE (IDLOG,*,ERR=921) ""
 	 
       ENDIF
+
       
 	 
 C* Lecture des tables d'angles et de poids utiles aux simulations
@@ -844,11 +872,13 @@ C* -----------------------------------------------------------------
 	    IF (J.EQ.0) GOTO 1000
 	    IF (J.LT.0) THEN 
 	        WRITE(IDLOG,222,ERR=921) J, XMU(J),
-     &	                    -DACOS(-XMU(J))*180./INCTE_PI, XHR(J)
+     &	              (180. - DACOS(-XMU(J))*180./INCTE_PI), XHR(J)
             ELSE
 	        WRITE(IDLOG,222,ERR=921) J, XMU(J),
-     &	                     DACOS(XMU(J))*180./INCTE_PI, XHR(J)
+     &	               DACOS(XMU(J))*180./INCTE_PI, XHR(J)
 	    ENDIF	    
+
+
 1000     CONTINUE
 	 WRITE (IDLOG,*,ERR=921) " " 
 	 WRITE (IDLOG,*,ERR=921) " "  	
@@ -1114,7 +1144,8 @@ C  avec application ou non de la troncature
 C  -----------------------------------------------------
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,MU1_TRONCA,MU2_TRONCA,
      &			 	   TRACE,MIE_NBMU,XMU,XHR,OS_NB,
-     &				   P11,TTT,P12,P22,P33,A_TRONCA,Z1,
+     &				   P11,TTT,P12,P22,P33,A_TRONCA,
+     &				   Z1,Z1_NOTR,
      &				   ALP,BETA11,BETA22,
      &                             GAMMA12,DELTA33,ZETA,IER)  
          IF (IER.NE.0) GOTO 996   ! cas d'erreur
@@ -1340,7 +1371,8 @@ C  avec application ou non de la troncature
 C  -----------------------------------------------------  
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,MU1_TRONCA,MU2_TRONCA,
      &			 	   TRACE,MIE_NBMU,XMU,XHR,OS_NB,
-     &				   P11,TTT,P12,P22,P33,A_TRONCA,Z1,
+     &				   P11,TTT,P12,P22,P33,A_TRONCA,
+     &				   Z1,Z1_NOTR,
      &				   ALP,BETA11,BETA22,
      &                             GAMMA12,DELTA33,ZETA,IER)  
          IF (IER.NE.0) GOTO 996   ! cas d'erreur
@@ -1548,7 +1580,8 @@ C  avec application ou non de la troncature
 C  -----------------------------------------------------  
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,MU1_TRONCA,MU2_TRONCA,
      &			 	   TRACE,MIE_NBMU,XMU,XHR,OS_NB,
-     &				   P11,TTT,P12,P22,P33,A_TRONCA,Z1,
+     &				   P11,TTT,P12,P22,P33,A_TRONCA,
+     &				   Z1,Z1_NOTR,
      &				   ALP,BETA11,BETA22,
      &                             GAMMA12,DELTA33,ZETA,IER)  
          IF (IER.NE.0) GOTO 996   ! cas d'erreur	 
@@ -1987,7 +2020,8 @@ C  avec application ou non de la troncature
 C  -----------------------------------------------------  
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,MU1_TRONCA,MU2_TRONCA,
      &			 	   TRACE,MIE_NBMU,XMU,XHR,OS_NB,
-     &				   P11,TTT,P12,P22,P33,A_TRONCA,Z1,
+     &				   P11,TTT,P12,P22,P33,A_TRONCA,
+     &				   Z1,Z1_NOTR,
      &				   ALP,BETA11,BETA22,
      &                             GAMMA12,DELTA33,ZETA,IER)     
          IF (IER.NE.0) GOTO 996   ! cas d'erreur	 
@@ -2141,7 +2175,8 @@ C  avec application ou non de la troncature
 C  -----------------------------------------------------
 	 CALL SOS_DECOMPO_LEGENDRE(ITRONC,MU1_TRONCA,MU2_TRONCA,
      &			 	   TRACE,MIE_NBMU,XMU,XHR,OS_NB,
-     &				   P11,TTT,P12,P22,P33,A_TRONCA,Z1,
+     &				   P11,TTT,P12,P22,P33,A_TRONCA,
+     &				   Z1,Z1_NOTR,
      &				   ALP,BETA11,BETA22,
      &                             GAMMA12,DELTA33,ZETA,IER)  
          IF (IER.NE.0) GOTO 996   ! cas d'erreur
@@ -2170,6 +2205,24 @@ C-------------------------------------------
 C* Troncature de l'albédo de simple diffusion des aérosols
 C---------------------------------------------------------
       PIZTR = PIZ*(1.-A_TRONCA/2.)/(1.-PIZ*A_TRONCA/2.)      
+
+
+C* Intégration de la fonction de phase (non tronquée)
+C* sur toutes les directions ou en rétro-diffusion uniquement 
+C  ----------------------------------------------------------
+      INT_0_180 = 0.
+      INT_90_180 = 0.
+      DO J=-MIE_NBMU,MIE_NBMU
+         INT_0_180 = INT_0_180 + TTT(J)*XHR(J)
+      ENDDO
+
+      DO J=-MIE_NBMU,-1
+         INT_90_180 = INT_90_180 + TTT(J)*XHR(J)
+      ENDDO
+      INT_0_180 = INT_0_180 / Z1_NOTR  
+      INT_90_180 = INT_90_180 / Z1_NOTR   
+
+
     
 C* Ecriture du fichier trace
 C-------------------------------------------
@@ -2211,8 +2264,16 @@ C-------------------------------------------
      &	    '  Single scattering albedo - no trunca. applied: ',
      &         PIZTR / (1.-A_TRONCA/2.+PIZTR*A_TRONCA/2.)      
 	    WRITE(IDLOG,*,err=921)
-     &	    '  Beta11(0) non-normalized - adjusted to the truncation: ',
-     &      Z1  
+     &	    '  Beta11(0) non-normalized - adjusted to the truncation:',
+     &      Z1 
+	    WRITE(IDLOG,*,err=921)
+     &	    '  Beta11(0) non-normalized - no truncation: ', Z1_NOTR  
+	    WRITE(IDLOG,*,err=921)
+     &	    '  Phase function integration from 0 to 180° ',
+     &      'divided by 2*PI --- no truncation: ', INT_0_180
+	    WRITE(IDLOG,*,err=921)
+     &	    '  Phase function integration from 90 to 180° ',
+     &      'divided by 2*PI --- no truncation: ', INT_90_180
             WRITE(IDLOG,*,err=921) 
      &	    '  Asymmetry factor - adjusted to the truncation: ',
      &      BETA11(1)/3.
@@ -2222,7 +2283,7 @@ C-------------------------------------------
      
             WRITE(IDLOG,*,err=921) ' '
 	    WRITE(IDLOG,*,err=921)
-     &        '  1st column : Scattering angle'
+     &        '  1st column : Scattering angle (in degree)'
 	    WRITE(IDLOG,*,err=921) 
      &	      '  2nd column : Truncated phase function P11'
 	    WRITE(IDLOG,*,err=921)
@@ -2241,6 +2302,7 @@ C-------------------------------------------
             WRITE(IDLOG,*,err=921) '                 P33(mu) '
 	    WRITE(IDLOG,*,err=921) ' '	    
             DO 44 J=-MIE_NBMU,MIE_NBMU
+               IF (J.EQ.0) GOTO 44
 	       TETA=DACOS(XMU(J))*180./INCTE_PI
 	       WRITE(IDLOG,10,err=921) TETA,P11(J),TTT(J),
      &                              P12(J)*P11(J)/TTT(J),P12(J),
@@ -2257,6 +2319,15 @@ C-------------------------------------------
      	 ENDIF !Fin test si troncature   
 
 
+         WRITE (IDLOG,*,ERR=921) ' '
+         WRITE (IDLOG,*,ERR=921)
+     &	 'Phase function integration (no truncation)'
+	 WRITE (IDLOG,*,ERR=921)
+     &	 '  Phase function integration from 0 to 180 deg:',INT_0_180
+         WRITE (IDLOG,*,ERR=921)
+     &	 '  Phase function integration from 90 to 180 deg:',INT_90_180
+	 WRITE (IDLOG,*,err=921) ' '
+
     
          WRITE(IDLOG,*,err=921) ' '  
 	 WRITE(IDLOG,35,err=921)'I','ALP(I)','BETA11(I)','GAMMA12(I)',
@@ -2269,7 +2340,39 @@ C-------------------------------------------
 	 	   	   	   	   	   
       ENDIF   !Trace   
 
-      
+      !Ecriture du fichier des IOP aérosols
+      IF (FICAER_IOP.NE."NO_IOP_FILE") THEN     
+         OPEN(UNIT=60,FILE=FICAER_IOP,ERR=960)
+         WRITE(60,*,ERR=961) 'RADIATIVE PROPERTIES OF AEROSOLS'
+         WRITE(60,*,ERR=961) '--------------------------------'
+         WRITE(60,*,ERR=961) ' '
+	 WRITE(60,*,ERR=961) 'Cross-sections:'   
+         WRITE(60,11,ERR=961) KMAT1
+	 WRITE(60,12,ERR=961) KMAT2
+	 WRITE(60,13,ERR=961) PIZ
+	 WRITE(60,*,ERR=961)  ' '  
+	 WRITE(60,*,ERR=961)  'Phase matrix:'    
+	 WRITE(60,*,ERR=961)
+     &        '   1st column : Scattering angle'
+	 WRITE(60,*,ERR=961) 
+     &	      '   2nd column : Phase function P11'
+	 WRITE(60,*,ERR=961)  
+     &        '   3rd column : Polarized phase function P12'
+	 WRITE(60,*,ERR=961) 
+     &        '   4th column : Polarized phase function P22' 
+	 WRITE(60,*,ERR=961) 
+     &        '   5th column : Polarized phase function P33' 
+	 WRITE(60,*,ERR=961)  ' '    
+         DO 100 J=-MIE_NBMU,MIE_NBMU
+            IF (J.EQ.0) GOTO 100
+	    TETA=DACOS(XMU(J))*180./INCTE_PI
+	    WRITE(60,15,ERR=961) TETA,TTT(J),P12(J),P22(J),P33(J)
+100      CONTINUE    
+         CLOSE(60)
+      ENDIF
+
+
+     
 1111  CALL OSOAA_ENREG_GRANU(KMAT1, KMAT2, A_TRONCA, PIZTR,
      &                       CTE_NOT_DEFINED_VALUE_DBLE, V_MOY, RN_MOY,
      &                       OS_NB, ALP, BETA11, GAMMA12, ZETA,
@@ -2408,6 +2511,14 @@ C----------------------------------------------
       WRITE(6,*) '  ERROR on -AER.BMD.VDdef : Option for volumetric '
       WRITE(6,*) '  concentration definition for bimodal LND (1 or 2)'
       GOTO 9998
+
+  960 WRITE(6,*) '  OSOAA_AEROSOLS : ERROR_960:'
+      WRITE(6,*) '  on IOP results file opening'
+      GOTO 9998
+
+  961 WRITE(6,*) 
+     &'  OSOAA_AEROSOLS : ERROR_961 on IOP results file writing'
+      GOTO 9998
                         
 9998  IER=-1             
 9999  RETURN   
@@ -2417,12 +2528,16 @@ C* Formats
 C--------- 
  
    10 FORMAT(1X,F6.2,6(2X,E12.4))
+   11 FORMAT(37h   Extinction cross-section (mic^2): ,E12.5)
+   12 FORMAT(37h   Scattering cross-section (mic^2): ,E12.5)
+   13 FORMAT(37h   Single scattering albedo        : ,F8.5)
+   15 FORMAT(4X,F6.2,4(2X,E12.4))
    25 FORMAT(1X,I3,5(2X,E13.5))
    35 FORMAT(3X,A1,5X,A6,9X,A9,6X,A10,5X,A10,5X,A7)
    
   402 FORMAT(F7.2,4E14.5)
        
-  222 FORMAT(I4,1X,D21.14,2X,F7.3,2X,D21.14,2X)
+  222 FORMAT(I4,1X,D21.14,2X,F8.3,2X,D21.14,2X)
   
       END      !FIN DE LA PROCEDURE OSOAA_AEROSOLS
       

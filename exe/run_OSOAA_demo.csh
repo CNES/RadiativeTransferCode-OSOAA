@@ -326,8 +326,7 @@ ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
 #    --------------------------   
 #       Status : Optional (if defined, it is required to also define -OSOAA.ResFile.vsZ)  
 #       Value :  Viewing zenith angle (degrees) for which the radiance has to be
-#                given versus the depth (or altitude) 
-#               (for the given relative azimuth angle).  
+#                given versus the depth (for the given relative azimuth angle).  
 #       Value format : Encoding as real F9 (10 characters max).   	 	 	
 #	 	 	 
 #    Keyword  : -OSOAA.ResFile.vsZ  
@@ -336,7 +335,7 @@ ${OSOAA_ROOT}/exe/OSOAA_MAIN.exe \
 #       Value :  Filename of the ascii file resulting from SOS computations 
 #                (defined without directory tree ==> this file will be located 
 #                 in the sub-directory Standard_outputs of the working folder) :  
-#                ==> Output radiance field versus the depth (or altitude) 
+#                ==> Output radiance field versus the depth  
 #                    (for the given relative azimuth angle and given viewing zenith angle).  
 #       Value format : Encoding as string (CTE_LENFIC2 characters max : see OSOAA.h).
 #        ==> Already existing file will be overwritten     	 	 	

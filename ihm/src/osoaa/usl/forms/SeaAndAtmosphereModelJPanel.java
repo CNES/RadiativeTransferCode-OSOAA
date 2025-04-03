@@ -156,9 +156,9 @@ public class SeaAndAtmosphereModelJPanel extends AbstractForm {
 		getFormFieldsPanel().add(SEALog_textField, "4, 3, fill, default");
 
 		SEALog_desc = DefaultComponentFactory.getInstance()
-				.createLabel("Log filename of the OSOAA_SURFACE routine ");
+				.createLabel("Name of log file for calculations of surface properties");
 		SEALog_desc
-				.setToolTipText("Log filename of the OSOAA_SURFACE routine ");
+				.setToolTipText("Name of log file for calculations of surface properties");
 		getFormFieldsPanel().add(SEALog_desc, "9, 3");
 
 		SEAInd_title = new JLabel("SEA.Ind *:");

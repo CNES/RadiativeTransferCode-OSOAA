@@ -72,6 +72,7 @@ public class PropertiesManager implements IPropertiesManager {
         theMap.put("PROFILE_ATM.ResFile", getCteDefaultFicprofilAtmRes());
         theMap.put("DET.Swa", getCteDefaultSpectralDet());
         theMap.put("YS.Swa", getCteDefaultSpectralYs());
+		theMap.put("AP.Pressure", getCteDefaultAPPressure());
         theMap.put("ANG.Mie.NbGauss", getCteDefaultNbmuMie());
         theMap.put("ANG.Mie.ResFile", getCteDefaultFicanglesResMie());
         theMap.put("ANG.Rad.NbGauss", getCteDefaultNbmuLum());
@@ -146,6 +147,9 @@ public class PropertiesManager implements IPropertiesManager {
 
 	@Override
 	public BigDecimal getCteDefaultSpectralYs(){ return (BigDecimal)m_dalPropertiesManager.getProperty("CTE_DEFAULT_SPECTRAL_YS", BigDecimal.class); }
+
+	@Override
+	public BigDecimal getCteDefaultAPPressure(){ return (BigDecimal)m_dalPropertiesManager.getProperty("CTE_DEFAULT_PRESSURE", BigDecimal.class); }
 
 	@Override
 	public String getCteDefaultFicgranuMlp(){ return (String)m_dalPropertiesManager.getProperty("CTE_DEFAULT_FICGRANU_MLP", String.class); }
@@ -232,7 +236,7 @@ public class PropertiesManager implements IPropertiesManager {
 	public Integer getCteNtAtm(){ return (Integer)m_dalPropertiesManager.getProperty("CTE_NT_ATM", Integer.class); }
 
 	@Override
-	public BigDecimal getCteCoefNrmax(){ return (BigDecimal)m_dalPropertiesManager.getProperty("CTE_COEF_NRMAX", BigDecimal.class); }
+	public Double getCteCoefNrmax(){ return (Double)m_dalPropertiesManager.getProperty("CTE_COEF_NRMAX", Double.class); }
 
 	@Override
 	public Integer getCteLenfic2(){ return (Integer)m_dalPropertiesManager.getProperty("CTE_LENFIC2", Integer.class); }

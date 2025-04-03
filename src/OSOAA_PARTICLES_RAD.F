@@ -4,6 +4,7 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
 C*
 C*   This program is free software: you can redistribute it and/or modify
@@ -65,8 +66,13 @@ C* MOD:VERSION:1.0: 02/04/2015: Initial version of the OSOAA code
 C* MOD:VERSION:1.1: 15/06/2015: All comments for log files are now in english
 C* MOD:VERSION:1.2: 23/05/2018: 
 C*      Routine OSOAA_ENREG_GRANU is changed in version VERSION:1.1    
-C*
-C*                                   
+C* MOD:VERSION:2.0: 02/08/2024 
+C*    - Correction of a column overflow (column 73 was used, obviously without impact on the simulations)
+C*      for the calculation of the slope of the truncated part of the phase function.
+C*    - Addition of zero initialisation for Greek coefficient arrays in SOS_DECOMPO_LEGENDRE subroutine.
+C*    - Correction of typo in logfile.
+C*    - Calculation of Z1_NOTR which is the value of BETA11(0) without truncation of the phase function
+C*      and before normalization ==> new output of SOS_DECOMPO_LEGENDRE                         
 C*   
 C******************************************************************************
 
@@ -169,6 +175,7 @@ C 						 (S) Copie de la fonction de phase (P11)
 C					 	 avant troncature.
 C	A (double)		     : (S) Coefficient de troncature.
 C	Z1 (double)		     : (S) Valeur de BETA11(0) avant normalisation.
+C	Z1_NOTR (double)	     : (S) Valeur de BETA11(0) sans troncature et avant normalisation.
 C	ALP(0:CTE_OS_NB_MAX) (double)     : (S) Paramètres alpha(k).
 C	BETA11(0:CTE_OS_NB_MAX) (double)  : (S) Paramètres beta11(k).
 C	BETA22(0:CTE_OS_NB_MAX) (double)  : (S) Paramètres beta22(k).
@@ -203,7 +210,8 @@ C
 C==============================================================================
       SUBROUTINE SOS_DECOMPO_LEGENDRE(ITRONC,MU1_TRONCA,MU2_TRONCA,
      &                                TRACE,MIE_NBMU,XMU,XHR,
-     &				      OS_NB,P11,TTT,P12,P22,P33,A,Z1,
+     &				      OS_NB,P11,TTT,P12,P22,P33,A,
+     &				      Z1,Z1_NOTR,
      &				      ALP,BETA11,BETA22,
      &                                GAMMA12,DELTA33,ZETA,IER)
 
@@ -267,7 +275,8 @@ C*-----------------------------------------
       DOUBLE PRECISION SOM3	!Variable pour le calcul des ALP(k) et ZETA(k).
       DOUBLE PRECISION SOM4	!Variable pour le calcul des ALP(k) et ZETA(k).
       
-      DOUBLE PRECISION Z1	!Valeur de BETA11(0) avant normalisation.
+      DOUBLE PRECISION Z1	!Valeur de BETA11(0) avec troncature éventuelle et avant normalisation.
+      DOUBLE PRECISION Z1_NOTR  !Valeur de BETA11(0) sans troncature et avant normalisation.
 
       DOUBLE PRECISION ALP(0:CTE_OS_NB_MAX)	! Paramètres alpha(k).
       DOUBLE PRECISION BETA11(0:CTE_OS_NB_MAX)	! Paramètres beta11(k).
@@ -304,7 +313,19 @@ C*-----------------------------------------
 
       LOGICAL TESS	   !Variable pour le calcul de Troncature. 
       LOGICAL TRACE	   !=vrai si écriture dans le fichier trace 
-      
+ 
+
+C* Initialisation de tableaux
+C----------------------------
+      DO K=0,OS_NB
+         ALP(K)	= 0.D+00
+         BETA11(K) = 0.D+00
+         BETA22(K) = 0.D+00
+         GAMMA12(K) = 0.D+00
+         ZETA(K) = 0.D+00
+         DELTA33(K) = 0.D+00
+      ENDDO
+
       
 C* Copie de la fonction de phase en intensité avant la troncature.
 C-----------------------------------------------------------------
@@ -358,7 +379,8 @@ C--------------------------------------------------------------------
 C* Détermination de la pente de la droite "log10(p(cos(teta))) = AA * teta + BB"
 C* passant par les valeurs de log10 (p) pour les mu de Gauss ci-dessus.
 C--------------------------------------------------------------------------
-      AA=(DLOG10(P11(KK))-DLOG10(P11(K)))/(DACOS(XMU(KK))-DACOS(XMU(K)))
+      AA=(DLOG10(P11(KK))-DLOG10(P11(K))) 
+     &   /(DACOS(XMU(KK))-DACOS(XMU(K)))
 
 C* Application de la troncature
 C-------------------------------
@@ -397,6 +419,17 @@ C------------------------------------------------------------------------
   62  CONTINUE
 
 
+C* Calcul du paramètre BETA11(0) de la décomposition de la fonction
+C* de phase (NON tronquée) en polynômes de Legendre.
+C------------------------------------------------------------------
+      Z1_NOTR=0.D+00
+      DO 63 J=-MIE_NBMU,MIE_NBMU
+         IF(J.EQ.0) GO TO 63
+         X=TTT(J)*XHR(J)
+         Z1_NOTR=Z1_NOTR+X
+  63  CONTINUE
+      Z1_NOTR=Z1_NOTR*.5
+
 
 C* Calcul du coefficient de troncature
 C--------------------------------------
@@ -406,14 +439,15 @@ C--------------------------------------
          A=0.0
       ENDIF
 
+
 C* Si le coefficient de troncature est inférieur au seuil Seuil_Tronca
 C* la troncature est annulée.   
 C----------------------------------------------------------------------	
       IF((ITRONC.EQ.1).AND.(A.LT.CTE_PH_SEUIL_TRONCA)) THEN
       
          IF (TRACE) THEN
-            WRITE(IDLOG,*,err=921) 'Troncation coefficient A = ',A,
-     &            ' Value too weak : TRONCATION IS CANCELED'
+            WRITE(IDLOG,*,err=921) 'Truncation coefficient A = ',A,
+     &            ' Value too weak : TRUNCATION IS CANCELED'
    
 	 ENDIF
 	 
@@ -1044,10 +1078,10 @@ C-------------------------------------------
      &	                                VARGRANU2/DLOG(10.D+00)
 	 ENDIF
 	 IF (IGRANU.EQ.2) THEN
-	      WRITE(IDLOG,*,err=921) "  Model 2 : Junge's Law "
-	      WRITE(IDLOG,*,err=921) '	   R0 in microns : ',VARGRANU1
-	      WRITE(IDLOG,*,err=921) '     Slope  : ',VARGRANU2	
-	      WRITE(IDLOG,*,err=921) '	   RMAX in microns : ',VARGRANU3    	   
+	     WRITE(IDLOG,*,err=921) "  Model 2 : Junge's Law "
+	     WRITE(IDLOG,*,err=921) '	  R0 in microns : ',VARGRANU1
+	     WRITE(IDLOG,*,err=921) '     Slope  : ',VARGRANU2	
+	     WRITE(IDLOG,*,err=921) '	  RMAX in microns : ',VARGRANU3
 	 ENDIF
 	 WRITE(IDLOG,*,err=921) ' '
          WRITE(IDLOG,*,err=921) 'Last effective used value of R : ', R
@@ -1080,7 +1114,8 @@ C-------------------------------------------
          WRITE(IDLOG,*,err=921) 
      &	     '  Effective variance of the size distribution : ',VEFF
          WRITE(IDLOG,*,err=921) ' '
-	 WRITE(IDLOG,*,err=921) '  1st column : Scattering angle '
+	 WRITE(IDLOG,*,err=921) 
+     &       '  1st column : Scattering angle (in degree)'
 	 WRITE(IDLOG,*,err=921) 
      &       '  2nd column : Original phase function '
          WRITE(IDLOG,*,err=921) '                 P11(mu) '

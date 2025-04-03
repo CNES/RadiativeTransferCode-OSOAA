@@ -157,7 +157,7 @@ public class GeometricConditionsModelJPanel extends AbstractForm {
 				"ANG.Rad.NbGauss *:");
 		getFormFieldsPanel().add(ANGRadNbGauss_title, "2, 1, right, default");
 		
-		ANGRadNbGauss_spinner = new JSpinnerRangedValue(new SpinnerNumberModel(new Integer(0), new Integer(0), null, new Integer(1)));
+		ANGRadNbGauss_spinner = new JSpinnerRangedValue(new SpinnerNumberModel(Integer.valueOf(0), Integer.valueOf(0), null, Integer.valueOf(1)));
         PropertiesManager.getInstance().register(ANGRadNbGauss_title, ANGRadNbGauss_spinner);
 		ANGRadNbGauss_spinner.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
@@ -168,9 +168,9 @@ public class GeometricConditionsModelJPanel extends AbstractForm {
 		getFormFieldsPanel().add(ANGRadNbGauss_spinner, "4, 1");
 
 		ANGRadNbGauss_desc = DefaultComponentFactory.getInstance()
-				.createLabel("Number of Gauss angles for radiance and BRDF/BPDF simulations");
+				.createLabel("Number of Gauss angles for radiance simulation and BRDF/BPDF calculations at sea interface");
 		ANGRadNbGauss_desc
-				.setToolTipText("Number of Gauss angles for radiance and BRDF/BPDF simulations");
+				.setToolTipText("Number of Gauss angles for radiance simulation and BRDF/BPDF calculations at sea interface");
 		getFormFieldsPanel().add(ANGRadNbGauss_desc, "9, 1");
 
 		ANGRadUserAngFile_title = new JLabel("ANG.Rad.UserAngFile :");
@@ -188,12 +188,12 @@ public class GeometricConditionsModelJPanel extends AbstractForm {
 		getFormFieldsPanel().add(ANGRadUserAngFile_textField, "4, 3, fill, default");
 
 		ANGRadUserAngFile_desc = DefaultComponentFactory.getInstance()
-				.createLabel("File name of additional user-defined angles for radiance computations.");
+				.createLabel("File name of user-defined supplementary angles for radiance computations");
 		ANGRadUserAngFile_desc
-				.setToolTipText("File name of additional user-defined angles for radiance computations.");
+				.setToolTipText("File name of user-defined supplementary angles for radiance computations");
 		getFormFieldsPanel().add(ANGRadUserAngFile_desc, "9, 3");
 
-		ANGRadResFile_title = new JLabel("ANG.Rad.ResFile *:");
+		ANGRadResFile_title = new JLabel("ANG.Rad.ResFile :");
 		ANGRadResFile_title.setHorizontalAlignment(SwingConstants.RIGHT);
 		getFormFieldsPanel().add(ANGRadResFile_title, "2, 5, right, default");
 		
@@ -207,16 +207,16 @@ public class GeometricConditionsModelJPanel extends AbstractForm {
 				getFormFieldsPanel().add(ANGRadResFile_textField, "4, 5, fill, default");
 				ANGRadResFile_textField.setColumns(10);
 
-		ANGRadResFile_desc = new JLabel("Output file name of angles and maximum orders of series expansion to be used for radiance computations");
+		ANGRadResFile_desc = new JLabel("Output file name of angles and maximum orders of series expansion to be used for radiance calculations");
 		ANGRadResFile_desc
-				.setToolTipText("Output file name of angles and maximum orders of series expansion to be used for radiance computations");
+				.setToolTipText("Output file name of angles and maximum orders of series expansion to be used for radiance calculations");
 		getFormFieldsPanel().add(ANGRadResFile_desc, "9, 5");
 
 		ANGMieNbGauss_title = DefaultComponentFactory.getInstance().createLabel(
 				"ANG.Mie.NbGauss *:");
 		getFormFieldsPanel().add(ANGMieNbGauss_title, "2, 7, right, default");
 		
-		ANGMieNbGauss_textField = new JSpinnerRangedValue(new SpinnerNumberModel(new Integer(0), new Integer(0), null, new Integer(1)));
+		ANGMieNbGauss_textField = new JSpinnerRangedValue(new SpinnerNumberModel(Integer.valueOf(0),Integer.valueOf(0), null, Integer.valueOf(1)));
         PropertiesManager.getInstance().register(ANGMieNbGauss_title, ANGMieNbGauss_textField);
 		ANGMieNbGauss_textField.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
@@ -229,7 +229,7 @@ public class GeometricConditionsModelJPanel extends AbstractForm {
 		ANGMieNbGauss_desc = new JLabel(
 				"Number of Gauss angles for phase functions ");
 		ANGMieNbGauss_desc
-				.setToolTipText("Number of Gauss angles for phase functions ");
+				.setToolTipText("Number of Gauss angles for phase functions");
 		getFormFieldsPanel().add(ANGMieNbGauss_desc, "9, 7");
 		
 		ANGMieUserAngFile_title = new JLabel("ANG.Mie.UserAngFile :");
@@ -246,11 +246,11 @@ public class GeometricConditionsModelJPanel extends AbstractForm {
 		ANGMieUserAngFile_textField.setColumns(10);
 		getFormFieldsPanel().add(ANGMieUserAngFile_textField, "4, 9, fill, default");
 		
-		ANGMieUserAngFile_desc = new JLabel("File name of additional user-defined angles for phase functions.");
-		ANGMieUserAngFile_desc.setToolTipText("File name of additional user-defined angles for phase functions.");
+		ANGMieUserAngFile_desc = new JLabel("File name of user-defined supplementary angles for phase functions");
+		ANGMieUserAngFile_desc.setToolTipText("File name of user-defined supplementary angles for phase functions");
 		getFormFieldsPanel().add(ANGMieUserAngFile_desc, "9, 9");
 		
-		ANGMieResFile_title = new JLabel("ANG.Mie.ResFile *:");
+		ANGMieResFile_title = new JLabel("ANG.Mie.ResFile :");
 		ANGMieResFile_title.setToolTipText("");
 		getFormFieldsPanel().add(ANGMieResFile_title, "2, 11, right, default");
 		
@@ -264,8 +264,8 @@ public class GeometricConditionsModelJPanel extends AbstractForm {
 		ANGMieResFile_textField.setColumns(10);
 		getFormFieldsPanel().add(ANGMieResFile_textField, "4, 11, fill, default");
 		
-		ANGMieResFile_desc = new JLabel("Output file name of angles and maximum orders of series expansion to be used for phase functions.");
-		ANGMieResFile_desc.setToolTipText("Output file name of angles and maximum orders of series expansion to be used for phase functions.");
+		ANGMieResFile_desc = new JLabel("Output file name of angles and maximum orders of series expansion to be used for phase function calculations");
+		ANGMieResFile_desc.setToolTipText("Output file name of angles and maximum orders of series expansion to be used for phase function calculations");
 		getFormFieldsPanel().add(ANGMieResFile_desc, "9, 11");
 		
 		ANGLog_title = new JLabel("ANG.Log :");
@@ -282,8 +282,8 @@ public class GeometricConditionsModelJPanel extends AbstractForm {
 		ANGLog_textField.setColumns(10);
 		getFormFieldsPanel().add(ANGLog_textField, "4, 13, fill, default");
 		
-		ANGLog_desc = new JLabel("Log filename of angle calculus");
-		ANGLog_desc.setToolTipText("Log filename of angle calculus");
+		ANGLog_desc = new JLabel("Name of log file for angle calculation");
+		ANGLog_desc.setToolTipText("Name of log file for angle calculation");
 		getFormFieldsPanel().add(ANGLog_desc, "9, 13");
 
 	}

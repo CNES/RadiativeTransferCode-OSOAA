@@ -29,6 +29,8 @@ public class HydrogroundModel implements IHydrogroundModel {
 		setPHYTOResFile(getPHYTOResFile());
 
 		setMLPResFile(getMLPResFile());
+		
+		setHYDResFileOP(getHYDResFileOP());
 
 		setHYDModel(getHYDModel());
 
@@ -57,6 +59,8 @@ public class HydrogroundModel implements IHydrogroundModel {
 		setSEDJDrate(getSEDJDrate());
 
 		setHYDExtData(getHYDExtData());
+
+		setHYDUserProfile(getHYDUserProfile());
 	}
 
 	@Override
@@ -112,6 +116,15 @@ public class HydrogroundModel implements IHydrogroundModel {
 		return StringUtils.asStringValue(dalPreferences.getProperty("MLP.ResFile", String.class, PropertiesManager.getInstance().getCteDefaultFicgranuMlp()));
 	}
 
+	@Override
+	public void setHYDResFileOP(String value_) {
+	    dalPreferences.putProperty("HYD.ResFile.IOP", value_);
+	}
+	
+	@Override
+	public String getHYDResFileOP() {
+		return StringUtils.asStringValue(dalPreferences.getProperty("HYD.ResFile.IOP", String.class, ""));
+	}
 
 	@Override
 	public void setHYDModel(Integer value_) {
@@ -137,7 +150,9 @@ public class HydrogroundModel implements IHydrogroundModel {
                 setAllSED();
 	    		
 	    		setHYDExtData(getHYDExtData());
+	    		setHYDUserProfile(getHYDUserProfile());
 	    		dalPreferences.disablePreferences("HYD.ExtData");
+				dalPreferences.disablePreferences("HYD.UserProfile");
 	    		
 	    		dalPreferences.enablePreferences("PHYTO.JD");
 	    		dalPreferences.enablePreferences("PHYTO.LND");
@@ -147,11 +162,31 @@ public class HydrogroundModel implements IHydrogroundModel {
 	    		
 	    	case 2:
 	    		dalPreferences.enablePreferences("HYD.ExtData");
+				dalPreferences.disablePreferences("HYD.UserProfile");
 	    		
 	    		dalPreferences.disablePreferences("PHYTO.JD");
 	    		dalPreferences.disablePreferences("PHYTO.LND");
 	    		dalPreferences.disablePreferences("SED.JD");
 	    		dalPreferences.disablePreferences("SED.LND");
+	    		
+	    		setHYDExtData(getHYDExtData());
+	    		setHYDUserProfile(getHYDUserProfile());
+
+				unsetSED();
+	    		unsetPhyto();
+	    		
+	    		break;
+			case 3:
+				dalPreferences.enablePreferences("HYD.UserProfile");
+				dalPreferences.enablePreferences("HYD.ExtData");
+	    		
+	    		dalPreferences.disablePreferences("PHYTO.JD");
+	    		dalPreferences.disablePreferences("PHYTO.LND");
+	    		dalPreferences.disablePreferences("SED.JD");
+	    		dalPreferences.disablePreferences("SED.LND");
+
+				setHYDExtData(getHYDExtData());
+	    		setHYDUserProfile(getHYDUserProfile());
 	    		
 	    		unsetSED();
 	    		unsetPhyto();
@@ -254,7 +289,7 @@ public class HydrogroundModel implements IHydrogroundModel {
 
 	@Override
 	public BigDecimal getPHYTOJDMRwa() {
-		return (BigDecimal)dalPreferences.getProperty("PHYTO.JD.MRwa", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("PHYTO.JD.MRwa", BigDecimal.class, "1.05");
 	}
 
 
@@ -265,7 +300,7 @@ public class HydrogroundModel implements IHydrogroundModel {
 
 	@Override
 	public BigDecimal getPHYTOJDMIwa() {
-		return (BigDecimal)dalPreferences.getProperty("PHYTO.JD.MIwa", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("PHYTO.JD.MIwa", BigDecimal.class, "0");
 	}
 
 
@@ -276,7 +311,7 @@ public class HydrogroundModel implements IHydrogroundModel {
 
 	@Override
 	public BigDecimal getPHYTOJDslope() {
-		return (BigDecimal)dalPreferences.getProperty("PHYTO.JD.slope", BigDecimal.class, "3.0");
+		return (BigDecimal)dalPreferences.getProperty("PHYTO.JD.slope", BigDecimal.class, "4");
 	}
 
 
@@ -309,7 +344,7 @@ public class HydrogroundModel implements IHydrogroundModel {
 
 	@Override
 	public BigDecimal getPHYTOJDrate() {
-		return (BigDecimal)dalPreferences.getProperty("PHYTO.JD.rate", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("PHYTO.JD.rate", BigDecimal.class, "1");
 	}
 
 
@@ -430,7 +465,7 @@ public class HydrogroundModel implements IHydrogroundModel {
 
 	@Override
 	public BigDecimal getSEDJDMRwa() {
-		return (BigDecimal)dalPreferences.getProperty("SED.JD.MRwa", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("SED.JD.MRwa", BigDecimal.class, "1.15");
 	}
 
 
@@ -441,7 +476,7 @@ public class HydrogroundModel implements IHydrogroundModel {
 
 	@Override
 	public BigDecimal getSEDJDMIwa() {
-		return (BigDecimal)dalPreferences.getProperty("SED.JD.MIwa", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("SED.JD.MIwa", BigDecimal.class, "0");
 	}
 
 
@@ -452,7 +487,7 @@ public class HydrogroundModel implements IHydrogroundModel {
 
 	@Override
 	public BigDecimal getSEDJDslope() {
-		return (BigDecimal)dalPreferences.getProperty("SED.JD.slope", BigDecimal.class, "3.0");
+		return (BigDecimal)dalPreferences.getProperty("SED.JD.slope", BigDecimal.class, "4");
 	}
 
 
@@ -485,7 +520,7 @@ public class HydrogroundModel implements IHydrogroundModel {
 
 	@Override
 	public BigDecimal getSEDJDrate() {
-		return (BigDecimal)dalPreferences.getProperty("SED.JD.rate", BigDecimal.class, "0.0");
+		return (BigDecimal)dalPreferences.getProperty("SED.JD.rate", BigDecimal.class, "1");
 	}
 
 
@@ -607,6 +642,16 @@ public class HydrogroundModel implements IHydrogroundModel {
 	@Override
 	public String getHYDExtData() {
 		return StringUtils.asStringValue(dalPreferences.getProperty("HYD.ExtData", String.class, ""));
+	}
+
+	@Override
+	public void setHYDUserProfile(String value_) {
+	    dalPreferences.putProperty("HYD.UserProfile", value_);
+	}
+
+	@Override
+	public String getHYDUserProfile() {
+		return StringUtils.asStringValue(dalPreferences.getProperty("HYD.UserProfile", String.class, ""));
 	}
 
 	@Override

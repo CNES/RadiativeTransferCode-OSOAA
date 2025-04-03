@@ -4,9 +4,8 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
-C*   Copyright (c) 2016, Université Pierre et Marie Curie - Paris 6
-C*                       and Communications & Systemes (CS SI)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
 C*   it under the terms of the GNU General Public License as published by
@@ -53,6 +52,10 @@ C*    - Adjustment of the string length for the filename of FICANGLES_USER_LUM
 C*      and FICANGLES_USER_MIE written in the result files.
 C*    - Modification to avoid duplicating the angle 0 degree in the list of angles
 C*      in case of the user defines this value in a list of user's angles.
+C* MOD:VERSION:1.3: 29/02/2024: 
+C*    - Change of location of the max order OS_NM calculation (applied for Fourier expansions of BRDF matrices)
+C*      to allow using a number of Mie Gauss angles (to calculate aerosol phase functions) higher than the default value.
+C*      The block 1020 is suppressed as it has become obsolete.
 C*                                      
 C******************************************************************************
 
@@ -383,7 +386,7 @@ C     --> Affectation de la valeur par défaut si NBMU_GAUSS_LUM non renseigné
       IF (NBMU_GAUSS_LUM.EQ.CTE_NOT_DEFINED_VALUE_INT) THEN
           NBMU_GAUSS_LUM = CTE_DEFAULT_NBMU_LUM
 	  OS_NS = CTE_DEFAULT_OS_NS
-	  OS_NM = CTE_DEFAULT_OS_NM
+	  !OS_NM = CTE_DEFAULT_OS_NM ==> Obsolète
       ELSE
           !Pour un champs de luminance discrétisé en NBMU_GAUSS_LUM angles de Gauss
 	  !(positifs), la décomposition en polynômes de Legendre des fonctions de réflexion
@@ -391,17 +394,17 @@ C     --> Affectation de la valeur par défaut si NBMU_GAUSS_LUM non renseigné
 	  !au moins 2 fois le nb d'angles de Gauss utilisés pour discrétiser les directions
 	  !de propagation.
           OS_NS = 2*NBMU_GAUSS_LUM
-	  
-	  !Le calcul de la fonction G des calculs de BRDF (glitter, ...) impose un ordre 
-	  ! maximal des développements en séries de Fourier tel que OS_NM >= OS_NB + OS_NS
-	  OS_NM = OS_NB + OS_NS
       ENDIF 
+
+C     --> Le calcul de la fonction G des calculs de BRDF (glitter, ...) impose un ordre 
+C         maximal des développements en séries de Fourier tel que OS_NM >= OS_NB + OS_NS
+      OS_NM = OS_NB + OS_NS
 
 C     --> Contrôle des ordres limites des développements pour les calculs 
 C         des coefficients des matrices de phase et de réflexion
       IF (OS_NB.LT.2*NBMU_GAUSS_MIE) GOTO 1000
       IF (OS_NS.LT.2*NBMU_GAUSS_LUM) GOTO 1010
-      IF (OS_NM.LT.(OS_NB+OS_NS))    GOTO 1020
+      !IF (OS_NM.LT.(OS_NB+OS_NS))    GOTO 1020 ==> Obsolète
        
       IF (OS_NB.GT.CTE_OS_NB_MAX) GOTO 1030
       IF (OS_NS.GT.CTE_OS_NS_MAX) GOTO 1040
@@ -591,11 +594,11 @@ C----------------------------------------------
       WRITE(6,*) '  --> check value in OSOAA.h and compile again'
       GOTO 9998   
 
- 1020 WRITE(6,*) '  OSOAA_ANGLES : ERROR_1020 : '
-      WRITE(6,*) '=> ', 
-     & 'CTE_DEFAULT_OS_NM < CTE_DEFAULT_OS_NB + CTE_DEFAULT_OS_NS'
-      WRITE(6,*) '  --> check value in OSOAA.h and compile again'
-      GOTO 9998                
+! 1020 WRITE(6,*) '  OSOAA_ANGLES : ERROR_1020 : '
+!      WRITE(6,*) '=> ', 
+!     & 'CTE_DEFAULT_OS_NM < CTE_DEFAULT_OS_NB + CTE_DEFAULT_OS_NS'
+!      WRITE(6,*) '  --> check value in OSOAA.h and compile again'
+!      GOTO 9998                
 
  1030 WRITE(6,*) '  OSOAA_ANGLES : ERROR_1030 : '
       WRITE(6,*) '  => OS_NB =',OS_NB,' > CTE_OS_NB_MAX'

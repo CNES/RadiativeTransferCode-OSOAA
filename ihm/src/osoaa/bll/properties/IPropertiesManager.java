@@ -29,6 +29,7 @@ public interface IPropertiesManager {
 	String getCteFicPhytoSpectralData();
 	Integer getCteDefaultNbmuMie();
 	BigDecimal getCteDefaultSpectralYs();
+	BigDecimal getCteDefaultAPPressure();
 	String getCteDefaultFicgranuMlp();
 	BigDecimal getCteSeaDepthStep();
 	BigDecimal getCteDefaultSpectralDet();
@@ -57,7 +58,7 @@ public interface IPropertiesManager {
 	Integer getCteNbanglesMax();
     BigDecimal getCteDefaultAerJungeRmax();
 	Integer getCteNtAtm();
-	BigDecimal getCteCoefNrmax();
+	Double getCteCoefNrmax();
 	Integer getCteLenfic2();
 	Integer getCteLenfic1();
 	String getCteDefaultFicprofilSeaRes();

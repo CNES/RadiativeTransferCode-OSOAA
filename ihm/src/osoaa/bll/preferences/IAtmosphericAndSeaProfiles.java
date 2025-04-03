@@ -65,6 +65,10 @@ public interface IAtmosphericAndSeaProfiles {
 
 	void setCteDefaultSpectralYs(BigDecimal value_);
 
+	BigDecimal getCteDefaultAPPressure();
+
+	void setCteDefaultAPPressure(BigDecimal value_);
+
 	BigDecimal getCteDefaultSpectralDet();
 
 	void setCteDefaultSpectralDet(BigDecimal value_);
@@ -84,6 +88,8 @@ public interface IAtmosphericAndSeaProfiles {
 	void setPhytoprofileType(Integer phytoprofileType);
 
 	void setPhytoGPChlbg(BigDecimal phytoGPChlbg);
+
+	void setPhytoGPChlzmax(BigDecimal phytoGPChlzmax);
 
 	void setPhytoGPWidth(BigDecimal phytoGPWidth);
 
@@ -131,6 +137,7 @@ public interface IAtmosphericAndSeaProfiles {
 	BigDecimal getPhytoChl();
 	Integer getPhytoprofileType();
 	BigDecimal getPhytoGPChlbg();
+	BigDecimal getPhytoGPChlzmax();
 	
 	BigDecimal getPhytoGPWidth();
 	

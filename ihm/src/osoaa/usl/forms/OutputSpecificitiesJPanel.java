@@ -86,6 +86,8 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 	private JLabel OSOAAResFileAdvDown_desc;
 	private JLabel OSOAAResFileAdvDown_title;
 
+	private Integer currentY = 1;
+
 	public void init() {
 		outputSpecificities = PreferencesFactory.getInstance().getOutputSpecificities();
 		
@@ -119,7 +121,9 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 		validateForm();
 	}
 	
-
+	private String getStr(String mask) {
+		return String.format(mask,currentY);
+	}
 
 	private void validateFormInitToFalse() {
 		FormUtils.setFieldState(false, OSOAAViewPhi_title);
@@ -201,9 +205,15 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 				FormFactory.DEFAULT_ROWSPEC,
 				FormFactory.RELATED_GAP_ROWSPEC,
 				FormFactory.DEFAULT_ROWSPEC,
+				FormFactory.RELATED_GAP_ROWSPEC,
+				FormFactory.DEFAULT_ROWSPEC,
                 FormFactory.RELATED_GAP_ROWSPEC,
                 FormFactory.DEFAULT_ROWSPEC,
                 FormFactory.RELATED_GAP_ROWSPEC,
+                FormFactory.DEFAULT_ROWSPEC,
+                FormFactory.RELATED_GAP_ROWSPEC,
+                FormFactory.DEFAULT_ROWSPEC,
+				FormFactory.RELATED_GAP_ROWSPEC,
                 FormFactory.DEFAULT_ROWSPEC,
 				FormFactory.RELATED_GAP_ROWSPEC,
 				FormFactory.DEFAULT_ROWSPEC,});
@@ -211,10 +221,10 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 		
 		SOSIGmax_title = new JLabel("SOS.IGmax :");
 		SOSIGmax_title.setToolTipText("");
-		getFormFieldsPanel().add(SOSIGmax_title, "2, 1, right, default");
+		getFormFieldsPanel().add(SOSIGmax_title, getStr("2, %d, right, default"));
 
-        SOSIGmax_spinner = new JSpinnerRangedValue(new SpinnerNumberModel(new Integer(1),
-                new Integer(1), null, new Integer(1)));
+        SOSIGmax_spinner = new JSpinnerRangedValue(new SpinnerNumberModel(Integer.valueOf(1),
+		Integer.valueOf(1), null, Integer.valueOf(1)));
         PropertiesManager.getInstance().register(SOSIGmax_title, SOSIGmax_spinner);
 		SOSIGmax_spinner.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
@@ -223,25 +233,27 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 			}
 		});
 
-		getFormFieldsPanel().add(SOSIGmax_spinner, "4, 1, fill, default");
+		getFormFieldsPanel().add(SOSIGmax_spinner, getStr("4, %d, fill, default"));
 		
 		SOSIGmax_desc = new JLabel("Scattering maximum order");
 		SOSIGmax_desc.setToolTipText("Scattering maximum order");
-		getFormFieldsPanel().add(SOSIGmax_desc, "9, 1");
+		getFormFieldsPanel().add(SOSIGmax_desc, getStr("9, %d"));
 
+		currentY += 2;
 		lblChoiceOf = new JLabel("    |--> Choice of output type");
 		lblChoiceOf.setHorizontalAlignment(SwingConstants.LEFT);
 		lblChoiceOf.setForeground(Color.BLUE);
 		lblChoiceOf.setFont(new Font("Tahoma", Font.BOLD, 11));
-		getFormFieldsPanel().add(lblChoiceOf, "2, 3, 3, 1");
+		getFormFieldsPanel().add(lblChoiceOf, getStr("2, %d, 3, 1"));
 		
 		separator = new JSeparator();
 		separator.setForeground(UIManager.getColor("InternalFrame.inactiveTitleGradient"));
-		getFormFieldsPanel().add(separator, "9, 3");
+		getFormFieldsPanel().add(separator, getStr("9, %d"));
 
+		currentY += 2;
 		OSOAAViewPhi_title = DefaultComponentFactory.getInstance().createLabel(
 				"OSOAA.View.Phi *:");
-		getFormFieldsPanel().add(OSOAAViewPhi_title, "2, 5, right, default");
+		getFormFieldsPanel().add(OSOAAViewPhi_title, getStr("2, %d, right, default"));
 		
 		OSOAAViewPhi_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"), null, null, new BigDecimal("1.0")));
         PropertiesManager.getInstance().register(OSOAAViewPhi_title, OSOAAViewPhi_spinner);
@@ -251,19 +263,20 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		getFormFieldsPanel().add(OSOAAViewPhi_spinner, "4, 5");
+		getFormFieldsPanel().add(OSOAAViewPhi_spinner, getStr("4, %d"));
 
 		OSOAAViewPhi_desc = DefaultComponentFactory.getInstance()
 				.createLabel("Relative azimuth angle  (degrees)");
 		OSOAAViewPhi_desc
 				.setToolTipText("Relative azimuth angle  (degrees)");
-		getFormFieldsPanel().add(OSOAAViewPhi_desc, "9, 5");
+		getFormFieldsPanel().add(OSOAAViewPhi_desc, getStr("9, %d"));
 
         // here there is the OSOAA.View.Level combobox
 
+		currentY += 4;
 		OSOAAViewZ_title = new JLabel("OSOAA.View.Z *:");
 		OSOAAViewZ_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(OSOAAViewZ_title, "2, 9, right, default");
+		getFormFieldsPanel().add(OSOAAViewZ_title, getStr("2, %d, right, default"));
 		
 		OSOAAViewZ_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"), null, null, new BigDecimal("1.0")));
         PropertiesManager.getInstance().register(OSOAAViewZ_title, OSOAAViewZ_spinner);
@@ -273,17 +286,18 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		getFormFieldsPanel().add(OSOAAViewZ_spinner, "4, 9");
+		getFormFieldsPanel().add(OSOAAViewZ_spinner, getStr("4, %d"));
 
 		OSOAAViewZ_desc = DefaultComponentFactory.getInstance()
-				.createLabel("Altitude or depth (meters) for which the radiance has to be given versus the viewing zenith angle (for the given relative azimuth angle)");
+				.createLabel("Altitude or depth (meters) for which the radiance will be provided as a function of the viewing zenith angle (for the given relative azimuth angle)");
 		OSOAAViewZ_desc
-				.setToolTipText("Altitude or depth (meters) for which the radiance has to be given versus the viewing zenith angle (for the given relative azimuth angle)");
-		getFormFieldsPanel().add(OSOAAViewZ_desc, "9, 9");
+				.setToolTipText("Altitude or depth (meters) for which the radiance will be provided as a function of the viewing zenith angle (for the given relative azimuth angle)");
+		getFormFieldsPanel().add(OSOAAViewZ_desc, getStr("9, %d"));
 
+		currentY += 2;
 		OSOAAViewVZA_title = new JLabel("OSOAA.View.VZA :");
 		OSOAAViewVZA_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		getFormFieldsPanel().add(OSOAAViewVZA_title, "2, 11, right, default");
+		getFormFieldsPanel().add(OSOAAViewVZA_title, getStr("2, %d, right, default"));
 		
 		OSOAAViewVZA_spinner = new JSpinnerOptionalRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"),
                 null, null, new BigDecimal("0.1")));
@@ -294,26 +308,28 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		getFormFieldsPanel().add(OSOAAViewVZA_spinner, "4, 11");
+		getFormFieldsPanel().add(OSOAAViewVZA_spinner, getStr("4, %d"));
 
-		OSOAAViewVZA_desc = new JLabel("Viewing zenith angle (from 0 to 180 degrees) for which the radiance has to be given versus the altitude or depth (for the given relative azimuth angle)");
+		OSOAAViewVZA_desc = new JLabel("Viewing zenith angle (from 0 to 180 degrees) for which the radiance will be provided as function of the depth (for the given relative azimuth angle)");
 		OSOAAViewVZA_desc
-				.setToolTipText("Viewing zenith angle (from 0 to 180 degrees) for which the radiance has to be given versus the altitude or depth (for the given relative azimuth angle)");
-		getFormFieldsPanel().add(OSOAAViewVZA_desc, "9, 11");
+				.setToolTipText("Viewing zenith angle (from 0 to 180 degrees) for which the radiance will be provided as function of the depth (for the given relative azimuth angle)");
+		getFormFieldsPanel().add(OSOAAViewVZA_desc, getStr("9, %d"));
 		
+		currentY += 2;
 		lblOutputFiles = new JLabel("    |--> Output files");
 		lblOutputFiles.setHorizontalAlignment(SwingConstants.LEFT);
 		lblOutputFiles.setForeground(Color.BLUE);
 		lblOutputFiles.setFont(new Font("Tahoma", Font.BOLD, 11));
-		getFormFieldsPanel().add(lblOutputFiles, "2, 13, 3, 1");
+		getFormFieldsPanel().add(lblOutputFiles, getStr("2, %d, 3, 1"));
 		
 		separator_1 = new JSeparator();
 		separator_1.setForeground(UIManager.getColor("InternalFrame.inactiveTitleGradient"));
-		getFormFieldsPanel().add(separator_1, "9, 13");
+		getFormFieldsPanel().add(separator_1, getStr("9, %d"));
 		
+		currentY += 2;
 		SOSLog_title = new JLabel("SOS.Log :");
 		SOSLog_title.setToolTipText("");
-		getFormFieldsPanel().add(SOSLog_title, "2, 15, right, default");
+		getFormFieldsPanel().add(SOSLog_title, getStr("2, %d, right, default"));
 		
 		SOSLog_textField = new JTextField();
 		SOSLog_textField.addCaretListener(new CaretListener() {
@@ -323,15 +339,16 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 			}
 		});
 		SOSLog_textField.setColumns(10);
-		getFormFieldsPanel().add(SOSLog_textField, "4, 15, fill, default");
+		getFormFieldsPanel().add(SOSLog_textField, getStr("4, %d, fill, default"));
 		
-		SOSLog_desc = new JLabel("SOS log filename ");
-		SOSLog_desc.setToolTipText("SOS log filename ");
-		getFormFieldsPanel().add(SOSLog_desc, "9, 15");
+		SOSLog_desc = new JLabel("Name of log file for model core radiative transfer calculations");
+		SOSLog_desc.setToolTipText("Name of log file for model core radiative transfer calcultations");
+		getFormFieldsPanel().add(SOSLog_desc, getStr("9, %d"));
 		
+		currentY += 2;
 		SOSResFileBin_title = new JLabel("SOS.ResFile.Bin *:");
 		SOSResFileBin_title.setToolTipText("");
-		getFormFieldsPanel().add(SOSResFileBin_title, "2, 17, right, default");
+		getFormFieldsPanel().add(SOSResFileBin_title, getStr("2, %d, right, default"));
 		
 		SOSResFileBin_textField = new JTextField();
 		SOSResFileBin_textField.addCaretListener(new CaretListener() {
@@ -341,14 +358,14 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 			}
 		});
 		SOSResFileBin_textField.setColumns(10);
-		getFormFieldsPanel().add(SOSResFileBin_textField, "4, 17, fill, default");
+		getFormFieldsPanel().add(SOSResFileBin_textField, getStr("4, %d, fill, default"));
 		
-		SOSResFileBin_desc = new JLabel("Filename of SOS binary output for Fourier series ");
-		SOSResFileBin_desc.setToolTipText("Filename of SOS binary output for Fourier series ");
-		getFormFieldsPanel().add(SOSResFileBin_desc, "9, 17");
+		SOSResFileBin_desc = new JLabel("Filename of the SOS binary output including Fourier series expansions");
+		SOSResFileBin_desc.setToolTipText("Filename of SOS binary output including Fourier series expansions");
+		getFormFieldsPanel().add(SOSResFileBin_desc, getStr("9, %d"));
         
                 
-		
+		currentY += 2;
 		OSOAAResFilevsVZA_textField = new JTextField();
 		OSOAAResFilevsVZA_textField.addCaretListener(new CaretListener() {
 			public void caretUpdate(CaretEvent e) {
@@ -357,19 +374,20 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 			}
 		});
 		
-				OSOAAResFilevsVZA_title = DefaultComponentFactory.getInstance().createLabel(
-						"OSOAA.ResFile.vsVZA *:");
-				getFormFieldsPanel().add(OSOAAResFilevsVZA_title, "2, 19, right, default");
+		OSOAAResFilevsVZA_title = DefaultComponentFactory.getInstance().createLabel(
+			"OSOAA.ResFile.vsVZA *:");
+		getFormFieldsPanel().add(OSOAAResFilevsVZA_title, getStr("2, %d, right, default"));
 		OSOAAResFilevsVZA_textField.setColumns(10);
-		getFormFieldsPanel().add(OSOAAResFilevsVZA_textField, "4, 19, fill, default");
+		getFormFieldsPanel().add(OSOAAResFilevsVZA_textField, getStr("4, %d, fill, default"));
 		
-		OSOAAResFilevsVZA_desc = new JLabel("Filename of the result ascii file given the radiance field versus the viewing zenith angle (for the given relative azimuth angle and given altitude or depth)");
-		OSOAAResFilevsVZA_desc.setToolTipText("Filename of the result ascii file given the radiance field versus the viewing zenith angle (for the given relative azimuth angle and given altitude or depth)");
-		getFormFieldsPanel().add(OSOAAResFilevsVZA_desc, "9, 19");
+		OSOAAResFilevsVZA_desc = new JLabel("Output ascii file providing the radiance versus the viewing zenith angle (for the given level defined by OSOAA.View.Z)");
+		OSOAAResFilevsVZA_desc.setToolTipText("Output ascii file providing the radiance versus the viewing zenith angle (for the given level defined by OSOAA.View.Z)");
+		getFormFieldsPanel().add(OSOAAResFilevsVZA_desc, getStr("9, %d"));
 		
+		currentY += 2;
 		OSOAAResFilevsZ_title = new JLabel("OSOAA.ResFile.vsZ :");
 		OSOAAResFilevsZ_title.setToolTipText("");
-		getFormFieldsPanel().add(OSOAAResFilevsZ_title, "2, 21, right, default");
+		getFormFieldsPanel().add(OSOAAResFilevsZ_title, getStr("2, %d, right, default"));
 		
 		OSOAAResFilevsZ_textField = new JTextField();
 		OSOAAResFilevsZ_textField.addCaretListener(new CaretListener() {
@@ -379,53 +397,17 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
 			}
 		});
 		OSOAAResFilevsZ_textField.setColumns(10);
-		getFormFieldsPanel().add(OSOAAResFilevsZ_textField, "4, 21, fill, default");
+		getFormFieldsPanel().add(OSOAAResFilevsZ_textField, getStr("4, %d, fill, default"));
 		
-		OSOAAResFilevsZ_desc = new JLabel("Filename of the result ascii file given the radiance field versus the  altitude or depth (for the given relative azimuth angle and given viewing zenith angle)");
-		OSOAAResFilevsZ_desc.setToolTipText("Filename of the result ascii file given the radiance field versus the  altitude or depth (for the given relative azimuth angle and given viewing zenith angle)");
-		getFormFieldsPanel().add(OSOAAResFilevsZ_desc, "9, 21");
-		
-		OSOAAResFileAdv_title = new JLabel("OSOAA.ResFile.Adv.Up :");
-		OSOAAResFileAdv_title.setToolTipText("");
-		getFormFieldsPanel().add(OSOAAResFileAdv_title, "2, 23, right, default");
-		
-		OSOAAResFileAdv_textField = new JTextField();
-		OSOAAResFileAdv_textField.addCaretListener(new CaretListener() {
-			public void caretUpdate(CaretEvent e) {
-				saveOSOAAResFileAdv();
-				validateForm();
-			}
-		});
-		OSOAAResFileAdv_textField.setColumns(10);
-		getFormFieldsPanel().add(OSOAAResFileAdv_textField, "4, 23, fill, default");
-		
-		OSOAAResFileAdv_desc = new JLabel("Filename of the result ascii file giving the advanced outputs: UPWARD radiance field versus the  altitude or depth  and versus the viewing zenith angle (for the fixed relative azimuth angle)");
-		OSOAAResFileAdv_desc.setToolTipText("Filename of the result ascii file giving the advanced outputs: UPWARD radiance field versus the  altitude or depth  and versus the viewing zenith angle (for the fixed relative azimuth angle)");
-		getFormFieldsPanel().add(OSOAAResFileAdv_desc, "9, 23");
+		OSOAAResFilevsZ_desc = new JLabel("Output ascii file providing the radiance versus the depth (for the given viewing zenith angle defined by OSOAA.View.VZA)");
+		OSOAAResFilevsZ_desc.setToolTipText("Output ascii file providing the radiance versus the depth (for the given viewing zenith angle defined by OSOAA.View.VZA)");
+		getFormFieldsPanel().add(OSOAAResFilevsZ_desc, getStr("9, %d"));
 
-		OSOAAResFileAdvDown_title = new JLabel("OSOAA.ResFile.Adv.Down :");
-		OSOAAResFileAdvDown_title.setToolTipText("");
-		getFormFieldsPanel().add(OSOAAResFileAdvDown_title, "2, 25, right, default");
-		
-		OSOAAResFileAdvDown_textField = new JTextField();
-		OSOAAResFileAdvDown_textField.addCaretListener(new CaretListener() {
-			public void caretUpdate(CaretEvent e) {
-				saveOSOAAResFileAdvDown();
-				validateForm();
-			}
-		});
-		OSOAAResFileAdvDown_textField.setColumns(10);
-		getFormFieldsPanel().add(OSOAAResFileAdvDown_textField, "4, 25, fill, default");
-		
-		OSOAAResFileAdvDown_desc = new JLabel("Filename of the result ascii file giving the advanced outputs: DOWNWARD radiance field versus the  altitude or depth  and versus the viewing zenith angle (for the fixed relative azimuth angle)");
-		OSOAAResFileAdvDown_desc.setToolTipText("Filename of the result ascii file giving the advanced outputs: DOWNWARD radiance field versus the  altitude or depth  and versus the viewing zenith angle (for the fixed relative azimuth angle)");
-		getFormFieldsPanel().add(OSOAAResFileAdvDown_desc, "9, 25");
-
-
+		currentY += 2;
         // OSOAA.Log begin
         OSOAALog_title = new JLabel("OSOAA.Log :");
         OSOAALog_title.setToolTipText("");
-        getFormFieldsPanel().add(OSOAALog_title, "2, 27, right, default");
+        getFormFieldsPanel().add(OSOAALog_title, getStr("2, %d, right, default"));
 
         OSOAALog_textField = new JTextField();
         OSOAALog_textField.addCaretListener(new CaretListener() {
@@ -435,19 +417,76 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
             }
         });
         OSOAALog_textField.setColumns(10);
-        getFormFieldsPanel().add(OSOAALog_textField, "4, 27, fill, default");
+        getFormFieldsPanel().add(OSOAALog_textField, getStr("4, %d, fill, default"));
 
-        OSOAALog_desc = new JLabel("OSOAA log filename ");
-        OSOAALog_desc.setToolTipText("OSOAA log filename ");
-        getFormFieldsPanel().add(OSOAALog_desc, "9, 27");
+        OSOAALog_desc = new JLabel("Name of the main log file");
+        OSOAALog_desc.setToolTipText("Name of the main log file");
+        getFormFieldsPanel().add(OSOAALog_desc, getStr("9, %d"));
 
         // OSOAA.Log end
 
-        // OSOAA View.Level combobox begin
+		currentY += 2;
+		lblOutputFiles = new JLabel("    |--> Advanced outputs");
+		lblOutputFiles.setHorizontalAlignment(SwingConstants.LEFT);
+		lblOutputFiles.setForeground(Color.BLUE);
+		lblOutputFiles.setFont(new Font("Tahoma", Font.BOLD, 11));
+		getFormFieldsPanel().add(lblOutputFiles, getStr("2, %d, 3, 1"));
 
+		separator_1 = new JSeparator();
+		separator_1.setForeground(UIManager.getColor("InternalFrame.inactiveTitleGradient"));
+		getFormFieldsPanel().add(separator_1, getStr("9, %d"));
+		
+		currentY += 2;
+		lblOutputFiles = new JLabel("files providing the radiance as a function of the altitude or depth, and viewing zenith angle (for the given relative azimuth angle)");
+		lblOutputFiles.setHorizontalAlignment(SwingConstants.LEFT);
+		lblOutputFiles.setForeground(Color.BLUE);
+		lblOutputFiles.setFont(new Font("Tahoma", Font.BOLD, 11));
+		getFormFieldsPanel().add(lblOutputFiles, getStr("9, %d"));
+
+		currentY += 2;
+		OSOAAResFileAdv_title = new JLabel("OSOAA.ResFile.Adv.Up :");
+		OSOAAResFileAdv_title.setToolTipText("");
+		getFormFieldsPanel().add(OSOAAResFileAdv_title, getStr("2, %d, right, default"));
+		
+		OSOAAResFileAdv_textField = new JTextField();
+		OSOAAResFileAdv_textField.addCaretListener(new CaretListener() {
+			public void caretUpdate(CaretEvent e) {
+				saveOSOAAResFileAdv();
+				validateForm();
+			}
+		});
+		OSOAAResFileAdv_textField.setColumns(10);
+		getFormFieldsPanel().add(OSOAAResFileAdv_textField, getStr("4, %d, fill, default"));
+		
+		OSOAAResFileAdv_desc = new JLabel("Filename of the output as an ascii file that provides the UPWARD radiance field");
+		OSOAAResFileAdv_desc.setToolTipText("Filename of the output as an ascii file that provides the UPWARD radiance field");
+		getFormFieldsPanel().add(OSOAAResFileAdv_desc, getStr("9, %d"));
+
+		currentY += 2;
+		OSOAAResFileAdvDown_title = new JLabel("OSOAA.ResFile.Adv.Down :");
+		OSOAAResFileAdvDown_title.setToolTipText("");
+		getFormFieldsPanel().add(OSOAAResFileAdvDown_title, getStr("2, %d, right, default"));
+		
+		OSOAAResFileAdvDown_textField = new JTextField();
+		OSOAAResFileAdvDown_textField.addCaretListener(new CaretListener() {
+			public void caretUpdate(CaretEvent e) {
+				saveOSOAAResFileAdvDown();
+				validateForm();
+			}
+		});
+		OSOAAResFileAdvDown_textField.setColumns(10);
+		getFormFieldsPanel().add(OSOAAResFileAdvDown_textField, getStr("4, %d, fill, default"));
+		
+		OSOAAResFileAdvDown_desc = new JLabel("Filename of the output as an ascii file that provides the DOWNWARD radiance field");
+		OSOAAResFileAdvDown_desc.setToolTipText("Filename of the output as an ascii file that provides the DOWNWARD radiance field");
+		getFormFieldsPanel().add(OSOAAResFileAdvDown_desc, getStr("9, %d"));
+
+		// OSOAA View.Level combobox begin
+
+		currentY = 7;
         ViewLevel_title = new JLabel("OSOAA.View.Level *:");
         ViewLevel_title.setHorizontalAlignment(SwingConstants.RIGHT);
-        getFormFieldsPanel().add(ViewLevel_title, "2, 7, right, default");
+        getFormFieldsPanel().add(ViewLevel_title, getStr("2, %d, right, default"));
 
         ViewLevel_combobox = new JComboBox();
         ViewLevel_combobox.addItemListener(new ItemListener() {
@@ -472,10 +511,10 @@ public class OutputSpecificitiesJPanel extends AbstractForm {
         ViewLevel_combobox.setModel(new DefaultComboBoxModel(
                 aMap.values().toArray()));
 
-        getFormFieldsPanel().add(ViewLevel_combobox, "4, 7, fill, default");
+        getFormFieldsPanel().add(ViewLevel_combobox, getStr("4, %d, fill, default"));
 
         JLabel ViewLevel_title = new JLabel("Output level definition");
-        getFormFieldsPanel().add(ViewLevel_title, "9, 7");
+        getFormFieldsPanel().add(ViewLevel_title, getStr("9, %d"));
         // OSOAA View.Level combobox end
 
 	}

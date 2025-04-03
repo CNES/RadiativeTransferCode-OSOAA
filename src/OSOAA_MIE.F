@@ -4,6 +4,7 @@ C*
 C*------------------------------------------------------------------------ 
 C* OSOAA Licence
 C*   Copyright (c) 2015, Université Pierre et Marie Curie - Paris 6
+C*                       (renamed as Sorbonne Université since 2018)
 C*                       and Centre National d'Etudes Spatiales (CNES)
 C* 
 C*   This program is free software: you can redistribute it and/or modify
@@ -41,7 +42,7 @@ C*
 C*      
 C* MOD:VERSION:1.0: 02/04/2015: Initial version of the OSOAA code
 C* MOD:VERSION:1.1: 15/06/2015: All comments for log files are now in english
-C*
+C* MOD:VERSION:1.2: 20/01/2025: Change obsolete end of loop in SOS_XERO
 C*                                
 C******************************************************************************
 
@@ -706,9 +707,10 @@ C---------------------------
       
 C*   Initialisation du tableau 
 C-----------------------------           
-      DO 1 I=N,M  
-    1 IT(I)=0.D+00
-    
+      DO  I=N,M  
+          IT(I)=0.D+00
+      ENDDO
+
       RETURN 
       END  	!FIN DE LA PROCEDURE SOS_XERO       
       

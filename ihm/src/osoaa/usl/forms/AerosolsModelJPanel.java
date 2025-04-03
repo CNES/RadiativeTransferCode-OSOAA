@@ -1,5 +1,7 @@
 package osoaa.usl.forms;
 
+import java.io.File;
+
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -9,6 +11,8 @@ import java.awt.SystemColor;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.math.BigDecimal;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
@@ -31,6 +35,7 @@ import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.JFileChooser;
 
 import org.apache.log4j.Logger;
 
@@ -96,6 +101,11 @@ public class AerosolsModelJPanel extends AbstractForm {
 	private JLabel AERBMDCMMRwa_desc;
 	private JLabel AERResFile_title;
 	private JLabel AERLog_title;
+	
+	private JLabel AERResFileIOP_title;
+	private JTextField AERResFileIOP_textField;
+	private JLabel lblAERResFileIOP;
+
 	private JLabel AERMMDMRwa_title;
 	private JLabel AERModel_title;
 	private JLabel AERMMDMIwaref_title;
@@ -194,6 +204,27 @@ public class AerosolsModelJPanel extends AbstractForm {
 	private JSpinner AERSFRH_spinner;
 	private JLabel AERSFRH_desc;
 
+	Integer currentY = 1;
+
+	private String getStr(String mask) {
+		return String.format(mask,currentY);
+	}
+
+	protected void onExtDataClicked() {
+		final JFileChooser fc = new JFileChooser();
+		fc.setApproveButtonText("OK");
+		fc.setDialogTitle("Select your file");
+		fc.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		int returnVal = fc.showOpenDialog(this);
+
+        if (returnVal == JFileChooser.APPROVE_OPTION) {
+            File file = fc.getSelectedFile();
+            //This is where a real application would open the file.
+            AERExtData_textField.setText(file.getAbsolutePath());
+            AERExtData_textField.setToolTipText(file.getAbsolutePath());
+        }
+	}
+
 	public void init() {
 		aerosolsModel = PreferencesFactory.getInstance().getAerosolsModel();
 		atmosphericAndSeaProfiles = PreferencesFactory.getInstance()
@@ -205,6 +236,7 @@ public class AerosolsModelJPanel extends AbstractForm {
 		AERDirMie_textField.setText(aerosolsModel.getAERDirMie());
 		AERMieLog_textField.setText(aerosolsModel.getAERMieLog());
 		AERLog_textField.setText(aerosolsModel.getAERLog());
+		AERResFileIOP_textField.setText(aerosolsModel.getAERResFileIOP());
 		AERTronca_checkbox.setSelected(aerosolsModel.getAERTronca());
 		AERModel_combobox.setSelectedIndex( aerosolsModel.getAERModel() );
 		AERMMDMRwa_spinner.setValue(aerosolsModel.getAERMMDMRwa());
@@ -422,6 +454,9 @@ public class AerosolsModelJPanel extends AbstractForm {
 		} else if (AERModelIndex == 4) {
 			isValid &= FormUtils.setFieldState(
 					getAERExtData().trim().length() <= 0, AERExtData_title);
+			// Force display to black
+			FormUtils.setFieldState(false, AERExtData_title);
+
 		}
 
 		return isValid;
@@ -464,12 +499,14 @@ public class AerosolsModelJPanel extends AbstractForm {
 				FormFactory.DEFAULT_ROWSPEC,
 				FormFactory.RELATED_GAP_ROWSPEC,
 				FormFactory.DEFAULT_ROWSPEC,
+				FormFactory.RELATED_GAP_ROWSPEC,
+				FormFactory.DEFAULT_ROWSPEC,
 				FormFactory.RELATED_GAP_ROWSPEC,}); //RELATED_GAP_ROWSPEC
 		jpTopFormPanel.setLayout(formLayout);
 				
 		AERResFile_title = DefaultComponentFactory.getInstance().createLabel(
-				"AER.ResFile *:");
-		jpTopFormPanel.add(AERResFile_title, "2, 1, right, default");
+				"AER.ResFile :");
+		jpTopFormPanel.add(AERResFile_title, getStr("2, %d, right, default"));
 
 		AERResFile_txtField = new JTextField();
 		AERResFile_txtField.addCaretListener(new CaretListener() {
@@ -478,16 +515,17 @@ public class AerosolsModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		jpTopFormPanel.add(AERResFile_txtField, "4, 1, fill, default");
+		jpTopFormPanel.add(AERResFile_txtField, getStr("4, %d, fill, default"));
 		AERResFile_txtField.setColumns(10);
 
 		JLabel lblSeaSurfaceAlbedo = DefaultComponentFactory.getInstance()
-				.createLabel("Filename for the aerosol radiative properties");
-		jpTopFormPanel.add(lblSeaSurfaceAlbedo, "9, 1");
+				.createLabel("Filename for the radiative properties calculated for aerosols (result file)");
+		jpTopFormPanel.add(lblSeaSurfaceAlbedo, getStr("9, %d"));
 
+		currentY += 2;
 		AERDirMie_title = new JLabel("AER.DirMie *:");
 		AERDirMie_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		jpTopFormPanel.add(AERDirMie_title, "2, 3, right, default");
+		jpTopFormPanel.add(AERDirMie_title, getStr("2, %d, right, default"));
 
 		AERDirMie_textField = new JTextField();
 		AERDirMie_textField.addCaretListener(new CaretListener() {
@@ -497,15 +535,17 @@ public class AerosolsModelJPanel extends AbstractForm {
 			}
 		});
 		AERDirMie_textField.setColumns(10);
-		jpTopFormPanel.add(AERDirMie_textField, "4, 3, fill, default");
+		jpTopFormPanel.add(AERDirMie_textField, getStr("4, %d, fill, default"));
 
 		JLabel lblTypeOfSea = DefaultComponentFactory.getInstance()
 				.createLabel("Mie files repository directory (full path)");
-		jpTopFormPanel.add(lblTypeOfSea, "9, 3");
+		jpTopFormPanel.add(lblTypeOfSea, getStr("9, %d"));
+
+		currentY += 2;
 
 		AERMieLog_title = new JLabel("AER.MieLog :");
 		AERMieLog_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		jpTopFormPanel.add(AERMieLog_title, "2, 5, right, default");
+		jpTopFormPanel.add(AERMieLog_title, getStr("2, %d, right, default"));
 
 		AERMieLog_textField = new JTextField();
 		AERMieLog_textField.addCaretListener(new CaretListener() {
@@ -515,15 +555,16 @@ public class AerosolsModelJPanel extends AbstractForm {
 			}
 		});
 		AERMieLog_textField.setColumns(10);
-		jpTopFormPanel.add(AERMieLog_textField, "4, 5, fill, default");
+		jpTopFormPanel.add(AERMieLog_textField, getStr("4, %d, fill, default"));
 
-		SEABotType_Desc = new JLabel("Log filename of Mie calculations");
-		SEABotType_Desc.setToolTipText("Log filename of Mie calculations");
-		jpTopFormPanel.add(SEABotType_Desc, "9, 5");
+		SEABotType_Desc = new JLabel("Name of log file for aerosol Mie calculations");
+		SEABotType_Desc.setToolTipText("Name of log file for aerosol Mie calculations");
+		jpTopFormPanel.add(SEABotType_Desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERLog_title = DefaultComponentFactory.getInstance().createLabel(
 				"AER.Log:");
-		jpTopFormPanel.add(AERLog_title, "2, 7, right, default");
+		jpTopFormPanel.add(AERLog_title, getStr("2, %d, right, default"));
 
 		AERLog_textField = new JTextField();
 		AERLog_textField.addCaretListener(new CaretListener() {
@@ -533,17 +574,37 @@ public class AerosolsModelJPanel extends AbstractForm {
 			}
 		});
 		AERLog_textField.setColumns(10);
-		jpTopFormPanel.add(AERLog_textField, "4, 7, fill, default");
+		jpTopFormPanel.add(AERLog_textField, getStr("4, %d, fill, default"));
 
 		lblLogFilenameOf = new JLabel(
 				"Log filename of the OSOAA_PHASE_MATRIX routine ");
 		lblLogFilenameOf
-				.setToolTipText("Log filename of the OSOAA_PHASE_MATRIX routine ");
-		jpTopFormPanel.add(lblLogFilenameOf, "9, 7");
+				.setToolTipText("Name of log file for calculations of aerosol radiative properties");
+		jpTopFormPanel.add(lblLogFilenameOf, getStr("9, %d"));
 
+		currentY += 2;
+		AERResFileIOP_title = new JLabel("AER.ResFile.IOP:");
+		AERResFileIOP_title.setHorizontalAlignment(SwingConstants.RIGHT);
+		jpTopFormPanel.add(AERResFileIOP_title, getStr("2, %d, right, default"));
+
+		AERResFileIOP_textField = new JTextField();
+		AERResFileIOP_textField.addCaretListener(new CaretListener() {
+			public void caretUpdate(CaretEvent arg0) {
+				saveAERResFileIOP();
+				validateForm();
+			}
+		});
+		AERResFileIOP_textField.setColumns(10);
+		jpTopFormPanel.add(AERResFileIOP_textField, getStr("4, %d, fill, default"));
+
+		JLabel lblAERResFileIOP = DefaultComponentFactory.getInstance()
+				.createLabel("Filename for the IOPs aerosols (result file)");
+		jpTopFormPanel.add(lblAERResFileIOP, getStr("9, %d"));
+
+		currentY += 2;
 		AERTronca_title = new JLabel("AER.Tronca :");
 		AERTronca_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		jpTopFormPanel.add(AERTronca_title, "2, 9, right, default");
+		jpTopFormPanel.add(AERTronca_title, getStr("2, %d, right, default"));
 
 		AERTronca_checkbox = new JCheckBox("YES");
 		AERTronca_checkbox.addChangeListener(new ChangeListener() {
@@ -559,27 +620,29 @@ public class AerosolsModelJPanel extends AbstractForm {
 			}
 		});
 		AERTronca_checkbox.setBackground(Color.WHITE);
-		jpTopFormPanel.add(AERTronca_checkbox, "4, 9");
+		jpTopFormPanel.add(AERTronca_checkbox, getStr("4, %d"));
 
 		lblPhaseFunctionTruncation = new JLabel("Phase function truncation");
 		lblPhaseFunctionTruncation.setToolTipText("Phase function truncation");
-		jpTopFormPanel.add(lblPhaseFunctionTruncation, "9, 9");
+		jpTopFormPanel.add(lblPhaseFunctionTruncation, getStr("9, %d"));
 
+		currentY += 2;
 		lblAerosols_1 = new JLabel(
 				"    |--> Aerosols : size distribution model");
 		lblAerosols_1.setHorizontalAlignment(SwingConstants.LEFT);
 		lblAerosols_1.setForeground(Color.BLUE);
 		lblAerosols_1.setFont(new Font("Tahoma", Font.BOLD, 11));
-		jpTopFormPanel.add(lblAerosols_1, "2, 11, 5, 1");
+		jpTopFormPanel.add(lblAerosols_1, getStr("2, %d, 5, 1"));
 
 		JSeparator separator = new JSeparator();
 		separator.setForeground(UIManager
 				.getColor("InternalFrame.inactiveTitleGradient"));
-		jpTopFormPanel.add(separator, "9, 11");
+		jpTopFormPanel.add(separator, getStr("9, %d"));
 
+		currentY += 2;
 		AERModel_title = new JLabel("AER.Model *:");
 		AERModel_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		jpTopFormPanel.add(AERModel_title, "2, 13, right, default");
+		jpTopFormPanel.add(AERModel_title, getStr("2, %d, right, default"));
 
 		AERModel_combobox = new JComboBox();
 		AERModel_combobox.addItemListener(new ItemListener() {
@@ -596,10 +659,10 @@ public class AerosolsModelJPanel extends AbstractForm {
 		getFormFieldsPanel().setLayout(new BorderLayout(0, 0));
 		AERModel_combobox.setModel(new DefaultComboBoxModel(
 				AerosolModelTypeEnum.values()));
-		jpTopFormPanel.add(AERModel_combobox, "4, 13, fill, default");
+		jpTopFormPanel.add(AERModel_combobox, getStr("4, %d, fill, default"));
 
 		JLabel AERModel_Desc = new JLabel("Type of aerosol models");
-		jpTopFormPanel.add(AERModel_Desc, "9, 13");
+		jpTopFormPanel.add(AERModel_Desc, getStr("9, %d"));
 
 		
 		getFormFieldsPanel().add(jpTopFormPanel, BorderLayout.NORTH);
@@ -643,14 +706,16 @@ public class AerosolsModelJPanel extends AbstractForm {
 				FormFactory.RELATED_GAP_ROWSPEC,
 				FormFactory.DEFAULT_ROWSPEC,
 				FormFactory.RELATED_GAP_ROWSPEC,}); //RELATED_GAP_ROWSPEC
+
+		currentY = 1;
 		aerModelMonoModalFormJp.setLayout( aerModelMonoModalFormLayout );
 		aerModelContentFormJp.add(aerModelMonoModalFormJp, AerosolModelTypeEnum.MONO_MODAL.name());
 		
 		AERMMDMRwa_title = new JLabel("                AER.MMD.MRwa *:");
-		aerModelMonoModalFormJp.add(AERMMDMRwa_title, "2, 1, right, default");
+		aerModelMonoModalFormJp.add(AERMMDMRwa_title, getStr("2, %d, right, default"));
 
 		AERMMDMRwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal("0.000"), null, new BigDecimal("0.001")));
-		aerModelMonoModalFormJp.add(AERMMDMRwa_spinner, "4, 1");
+		aerModelMonoModalFormJp.add(AERMMDMRwa_spinner, getStr("4, %d"));
         PropertiesManager.getInstance().register(AERMMDMRwa_title, AERMMDMRwa_spinner);
 		AERMMDMRwa_spinner.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
@@ -661,10 +726,11 @@ public class AerosolsModelJPanel extends AbstractForm {
 
 		AERMMDMRwa_desc = new JLabel(
 				"Real part of the refractive index for the simulation wavelength");
-		aerModelMonoModalFormJp.add(AERMMDMRwa_desc, "9, 1");
+		aerModelMonoModalFormJp.add(AERMMDMRwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERMMDMIwa_title = new JLabel("AER.MMD.MIwa *:");
-		aerModelMonoModalFormJp.add(AERMMDMIwa_title, "2, 3, right, default");
+		aerModelMonoModalFormJp.add(AERMMDMIwa_title, getStr("2, %d, right, default"));
 
 		AERMMDMIwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal(-1),	new BigDecimal("0.000"), new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(AERMMDMIwa_title, AERMMDMIwa_spinner);
@@ -674,14 +740,58 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelMonoModalFormJp.add(AERMMDMIwa_spinner, "4, 3");
+		aerModelMonoModalFormJp.add(AERMMDMIwa_spinner, getStr("4, %d"));
 
 		AERMMDMIwa_desc = new JLabel(
 				"Imaginary part of the refractive index (negative value) for the simulation wavelength  ");
-		aerModelMonoModalFormJp.add(AERMMDMIwa_desc, "9, 3");
+		aerModelMonoModalFormJp.add(AERMMDMIwa_desc, getStr("9, %d"));
 
+		// HERE
+		currentY += 2;
+		AERMMDMRwaref_title = new JLabel("AER.MMD.MRwaref *:");
+		AERMMDMRwaref_title.setHorizontalAlignment(SwingConstants.RIGHT);
+		aerModelMonoModalFormJp.add(AERMMDMRwaref_title, getStr("2, %d, right, default"));
+
+		AERMMDMRwaref_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal("0.000"), null, new BigDecimal("0.001")));
+        PropertiesManager.getInstance().register(AERMMDMRwaref_title, AERMMDMRwaref_spinner);
+		AERMMDMRwaref_spinner.addChangeListener(new ChangeListener() {
+            public void stateChanged(ChangeEvent e) {
+                saveAERMMDMRwaref();
+                validateForm();
+            }
+        });
+		aerModelMonoModalFormJp.add(AERMMDMRwaref_spinner, getStr("4, %d"));
+
+		AERMMDMRwaref_desc = new JLabel(
+				"Real part of the refractive index for the reference wavelength");
+		AERMMDMRwaref_desc
+				.setToolTipText("Real part of the refractive index for the reference wavelength");
+		aerModelMonoModalFormJp.add(AERMMDMRwaref_desc, getStr("9, %d"));
+
+		currentY += 2;
+		AERMMDMIwaref_title = new JLabel("AER.MMD.MIwaref *:");
+		AERMMDMIwaref_title.setHorizontalAlignment(SwingConstants.RIGHT);
+		aerModelMonoModalFormJp.add(AERMMDMIwaref_title, getStr("2, %d"));
+
+		AERMMDMIwaref_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
+        PropertiesManager.getInstance().register(AERMMDMIwaref_title, AERMMDMIwaref_spinner);
+		AERMMDMIwaref_spinner.addChangeListener(new ChangeListener() {
+			public void stateChanged(ChangeEvent e) {
+				saveAERMMDMIwaref();
+				validateForm();
+			}
+		});
+		aerModelMonoModalFormJp.add(AERMMDMIwaref_spinner, getStr("4, %d"));
+
+		AERMMDMIwaref_desc = new JLabel(
+				"Imaginary part of the refractive index for the reference wavelength");
+		AERMMDMIwaref_desc
+				.setToolTipText("Imaginary part of the refractive index for the reference wavelength");
+		aerModelMonoModalFormJp.add(AERMMDMIwaref_desc, getStr("9, %d"));
+
+		currentY += 2;
 		AERMMDSDType_title = new JLabel("AER.MMD.SDtype *:");
-		aerModelMonoModalFormJp.add(AERMMDSDType_title, "2, 5, right, default");
+		aerModelMonoModalFormJp.add(AERMMDSDType_title, getStr("2, %d, right, default"));
 
 		AERMMDSDType_combo = new JComboBox();
 		AERMMDSDType_combo.addItemListener(new ItemListener() {
@@ -697,13 +807,14 @@ public class AerosolsModelJPanel extends AbstractForm {
 		});
 		AERMMDSDType_combo.setModel(new DefaultComboBoxModel(AERMMDSDTypeEnum
 				.values()));
-		aerModelMonoModalFormJp.add(AERMMDSDType_combo, "4, 5, fill, default");
+		aerModelMonoModalFormJp.add(AERMMDSDType_combo, getStr("4, %d, fill, default"));
 
 		AERMMDSDType_desc = new JLabel("Model index");
-		aerModelMonoModalFormJp.add(AERMMDSDType_desc, "9, 5");
+		aerModelMonoModalFormJp.add(AERMMDSDType_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERMMDLNDradius_title = new JLabel("AER.MMD.LNDradius *:");
-		aerModelMonoModalFormJp.add(AERMMDLNDradius_title, "2, 7");
+		aerModelMonoModalFormJp.add(AERMMDLNDradius_title, getStr("2, %d, right, default"));
 
 		AERMMDLNDradius_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERMMDLNDradius_title, AERMMDLNDradius_spinner);
@@ -713,14 +824,15 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelMonoModalFormJp.add(AERMMDLNDradius_spinner, "4, 7");
+		aerModelMonoModalFormJp.add(AERMMDLNDradius_spinner, getStr("4, %d"));
 
 		AERMMDLNDradius_desc = new JLabel(
 				"Modal radius (microns) of the Log-Normal size distribution");
-		aerModelMonoModalFormJp.add(AERMMDLNDradius_desc, "9, 7");
+		aerModelMonoModalFormJp.add(AERMMDLNDradius_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERMMDLNDvar_title = new JLabel("AER.MMD.LNDvar *:");
-		aerModelMonoModalFormJp.add(AERMMDLNDvar_title, "2, 9, right, default");
+		aerModelMonoModalFormJp.add(AERMMDLNDvar_title, getStr("2, %d, right, default"));
 
 		AERMMDLNDvar_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERMMDLNDvar_title, AERMMDLNDvar_spinner);
@@ -730,14 +842,17 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelMonoModalFormJp.add(AERMMDLNDvar_spinner, "4, 9");
+
+		aerModelMonoModalFormJp.add(AERMMDLNDvar_spinner, getStr("4, %d"));
 
 		AERMMDLNDvar_desc = new JLabel(
 				"Standard deviation of the Log-Normal size distribution");
-		aerModelMonoModalFormJp.add(AERMMDLNDvar_desc, "9, 9");
+		aerModelMonoModalFormJp.add(AERMMDLNDvar_desc, getStr("9, %d"));
+
+		currentY += 2;
 
 		AERMMDJDslope_title = new JLabel("AER.MMD.JD.slope *:");
-		aerModelMonoModalFormJp.add(AERMMDJDslope_title, "2, 11, right, default");
+		aerModelMonoModalFormJp.add(AERMMDJDslope_title, getStr("2, %d, right, default"));
 
 		AERMMDJDslope_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("3.0"), new BigDecimal("3.0"), new BigDecimal("5.0"), new BigDecimal("0.1")));
         PropertiesManager.getInstance().register(AERMMDJDslope_title, AERMMDJDslope_spinner);
@@ -747,20 +862,21 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelMonoModalFormJp.add(AERMMDJDslope_spinner, "4, 11");
+		aerModelMonoModalFormJp.add(AERMMDJDslope_spinner, getStr("4, %d"));
 
 		AERMMDJDslope_desc = DefaultComponentFactory
 				.getInstance()
 				.createLabel(
-						"Slope of the Junge\u2019s law (3 is a singular value), a positive value in the range 3.0-5.0");
-		AERMMDJDslope_desc.setToolTipText("Slope of the Junge\u2019s law (3 is a singular value), a positive value in the range 3.0-5.0");
-		aerModelMonoModalFormJp.add(AERMMDJDslope_desc, "9, 11");
+						"Slope of the Junge\u2019s law (positive value. Warning: 3 is a singular value)");
+		AERMMDJDslope_desc.setToolTipText("Slope of the Junge\\u2019s law (positive value. Warning: 3 is a singular value)");
+		aerModelMonoModalFormJp.add(AERMMDJDslope_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERMMDJDrmin_title = new JLabel("AER.MMD.JD.rmin *:");
-		aerModelMonoModalFormJp.add(AERMMDJDrmin_title, "2, 13, right, default");
+		aerModelMonoModalFormJp.add(AERMMDJDrmin_title, getStr("2, %d, right, default"));
 
 		panel_2 = new JPanel();
-		aerModelMonoModalFormJp.add(panel_2, "4, 13, fill, fill");
+		aerModelMonoModalFormJp.add(panel_2, getStr("4, %d, fill, fill"));
 		panel_2.setLayout(new BorderLayout(0, 0));
 
 		AERMMDJDrmin_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
@@ -774,13 +890,14 @@ public class AerosolsModelJPanel extends AbstractForm {
 		});
 
 		AERMMDJDrmin_desc = new JLabel(
-				"Minimal radius of the Junge\u2019s law (microns)");
-		AERMMDJDrmin_desc.setToolTipText("Minimal radius of the Junge\u2019s law (microns)");
-		aerModelMonoModalFormJp.add(AERMMDJDrmin_desc, "9, 13");
+				"Minimum radius of the Junge\u2019s law (\u00B5m)");
+		AERMMDJDrmin_desc.setToolTipText("Minimum radius of the Junge\u2019s law (\u00B5m)");
+		aerModelMonoModalFormJp.add(AERMMDJDrmin_desc, getStr("9, %d"));
 
+		currentY+= 2;
 		AERMMDJDrmax_title = new JLabel("AER.MMD.JD.rmax *:");
 		AERMMDJDrmax_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelMonoModalFormJp.add(AERMMDJDrmax_title, "2, 15");
+		aerModelMonoModalFormJp.add(AERMMDJDrmax_title, getStr("2, %d"));
 
 		AERMMDJDrmax_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERMMDJDrmax_title, AERMMDJDrmax_spinner);
@@ -790,52 +907,12 @@ public class AerosolsModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		aerModelMonoModalFormJp.add(AERMMDJDrmax_spinner, "4, 15");
+		aerModelMonoModalFormJp.add(AERMMDJDrmax_spinner, getStr("4, %d"));
 
 		AERMMDJDrmax_desc = new JLabel(
-				"Maximal radius of the Junge\u2019s law (microns)");
-		AERMMDJDrmax_desc.setToolTipText("Maximal radius of the Junge\u2019s law (microns)");
-		aerModelMonoModalFormJp.add(AERMMDJDrmax_desc, "9, 15");
-
-		AERMMDMRwaref_title = new JLabel("AER.MMD.MRwaref *:");
-		AERMMDMRwaref_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelMonoModalFormJp.add(AERMMDMRwaref_title, "2, 17, right, default");
-
-		AERMMDMRwaref_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal("0.000"), null, new BigDecimal("0.001")));
-        PropertiesManager.getInstance().register(AERMMDMRwaref_title, AERMMDMRwaref_spinner);
-		AERMMDMRwaref_spinner.addChangeListener(new ChangeListener() {
-            public void stateChanged(ChangeEvent e) {
-                saveAERMMDMRwaref();
-                validateForm();
-            }
-        });
-		aerModelMonoModalFormJp.add(AERMMDMRwaref_spinner, "4, 17");
-
-		AERMMDMRwaref_desc = new JLabel(
-				"Real part of the refractive index for the reference wavelength");
-		AERMMDMRwaref_desc
-				.setToolTipText("Real part of the refractive index for the reference wavelength");
-		aerModelMonoModalFormJp.add(AERMMDMRwaref_desc, "9, 17");
-
-		AERMMDMIwaref_title = new JLabel("AER.MMD.MIwaref *:");
-		AERMMDMIwaref_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelMonoModalFormJp.add(AERMMDMIwaref_title, "2, 19");
-
-		AERMMDMIwaref_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
-        PropertiesManager.getInstance().register(AERMMDMIwaref_title, AERMMDMIwaref_spinner);
-		AERMMDMIwaref_spinner.addChangeListener(new ChangeListener() {
-			public void stateChanged(ChangeEvent e) {
-				saveAERMMDMIwaref();
-				validateForm();
-			}
-		});
-		aerModelMonoModalFormJp.add(AERMMDMIwaref_spinner, "4, 19");
-
-		AERMMDMIwaref_desc = new JLabel(
-				"Imaginary part of the refractive index for the reference wavelength");
-		AERMMDMIwaref_desc
-				.setToolTipText("Imaginary part of the refractive index for the reference wavelength");
-		aerModelMonoModalFormJp.add(AERMMDMIwaref_desc, "9, 19");
+				"Maximum radius of the Junge\u2019s law (\u00B5m)");
+		AERMMDJDrmax_desc.setToolTipText("Maximum radius of the Junge\u2019s law (\u00B5m)");
+		aerModelMonoModalFormJp.add(AERMMDJDrmax_desc, getStr("9, %d"));
 
 		///////////////////////////////////////////////////
 		JPanel aerModelWmoMultiModalFormJp = new JPanel();
@@ -864,9 +941,10 @@ public class AerosolsModelJPanel extends AbstractForm {
 		aerModelWmoMultiModalFormJp.setLayout( aerModelWmoMultiModalFormLayout );
 		aerModelContentFormJp.add(aerModelWmoMultiModalFormJp, AerosolModelTypeEnum.WMO_MULTI_MODAL.name());
 		
+		currentY = 1;
 		AERWMOModel_title = new JLabel("AER.WMO.Model l*:");
 		AERWMOModel_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelWmoMultiModalFormJp.add(AERWMOModel_title, "2, 1, right, default");
+		aerModelWmoMultiModalFormJp.add(AERWMOModel_title, getStr("2, %d, right, default"));
 
 		AERWMOModel_comboBox = new JComboBox();
 		AERWMOModel_comboBox.addItemListener(new ItemListener() {
@@ -882,15 +960,16 @@ public class AerosolsModelJPanel extends AbstractForm {
 		});
 		AERWMOModel_comboBox.setModel(new DefaultComboBoxModel(AERWMOModelEnum
 				.values()));
-		aerModelWmoMultiModalFormJp.add(AERWMOModel_comboBox, "4, 1, fill, default");
+		aerModelWmoMultiModalFormJp.add(AERWMOModel_comboBox, getStr("4, %d, fill, default"));
 
 		AERWMOModel_desc = new JLabel(
 				"Type of WMO model ");
-		aerModelWmoMultiModalFormJp.add(AERWMOModel_desc, "9, 1");
+		aerModelWmoMultiModalFormJp.add(AERWMOModel_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERWMODL_title = new JLabel("AER.WMO.DL *:");
 		AERWMODL_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelWmoMultiModalFormJp.add(AERWMODL_title, "2, 3, default, top");
+		aerModelWmoMultiModalFormJp.add(AERWMODL_title, getStr("2, %d, default, top"));
 
 		AERWMODL_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"), new BigDecimal("0.0"), new BigDecimal("1.0"), new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERWMODL_title, AERWMODL_spinner);
@@ -900,17 +979,18 @@ public class AerosolsModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		aerModelWmoMultiModalFormJp.add(AERWMODL_spinner, "4, 3");
+		aerModelWmoMultiModalFormJp.add(AERWMODL_spinner, getStr("4, %d"));
 
 		AERWMODL_desc = new JLabel(
 				"Volumetric concentration of  \u00AB Dust-Like \u00BB components(value between 0 and 1)");
 		AERWMODL_desc
 				.setToolTipText("Volumetric concentration of  \u00AB Dust-Like \u00BB components(value between 0 and 1)");
-		aerModelWmoMultiModalFormJp.add(AERWMODL_desc, "9, 3");
+		aerModelWmoMultiModalFormJp.add(AERWMODL_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERWMOWS_title = new JLabel("AER.WMO.WS *:");
 		AERWMOWS_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelWmoMultiModalFormJp.add(AERWMOWS_title, "2, 5");
+		aerModelWmoMultiModalFormJp.add(AERWMOWS_title, getStr("2, %d"));
 
 		AERWMOWS_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"), new BigDecimal("0.0"), new BigDecimal("1.0"), new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERWMOWS_title, AERWMOWS_spinner);
@@ -920,17 +1000,18 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelWmoMultiModalFormJp.add(AERWMOWS_spinner, "4, 5");
+		aerModelWmoMultiModalFormJp.add(AERWMOWS_spinner, getStr("4, %d"));
 
 		AERWMOWS_desc = new JLabel(
 				"Volumetric concentration of  \u00AB Water Soluble \u00BB components(value between 0 and 1)");
 		AERWMOWS_desc
 				.setToolTipText("Volumetric concentration of  \u00AB Water Soluble \u00BB components(value between 0 and 1)");
-		aerModelWmoMultiModalFormJp.add(AERWMOWS_desc, "9, 5");
+		aerModelWmoMultiModalFormJp.add(AERWMOWS_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERWMOOC_title = new JLabel("AER.WMO.OC *:");
 		AERWMOOC_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelWmoMultiModalFormJp.add(AERWMOOC_title, "2, 7");
+		aerModelWmoMultiModalFormJp.add(AERWMOOC_title, getStr("2, %d"));
 
 		AERWMOOC_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"), new BigDecimal("0.0"), new BigDecimal("1.0"), new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERWMOOC_title, AERWMOOC_spinner);
@@ -940,17 +1021,18 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelWmoMultiModalFormJp.add(AERWMOOC_spinner, "4, 7");
+		aerModelWmoMultiModalFormJp.add(AERWMOOC_spinner, getStr("4, %d"));
 
 		AERWMOOC_desc = new JLabel(
 				"Volumetric concentration of  \u00AB Oceanic \u00BB components(value between 0 and 1)");
 		AERWMOOC_desc
 				.setToolTipText("Volumetric concentration of  \u00AB Oceanic \u00BB components(value between 0 and 1)");
-		aerModelWmoMultiModalFormJp.add(AERWMOOC_desc, "9, 7");
+		aerModelWmoMultiModalFormJp.add(AERWMOOC_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERWMOSO_title = new JLabel("AER.WMO.SO *:");
 		AERWMOSO_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelWmoMultiModalFormJp.add(AERWMOSO_title, "2, 9");
+		aerModelWmoMultiModalFormJp.add(AERWMOSO_title, getStr("2, %d"));
 
 		AERWMOSO_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.0"), new BigDecimal("0.0"), new BigDecimal("1.0"), new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERWMOSO_title, AERWMOSO_spinner);
@@ -960,13 +1042,13 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelWmoMultiModalFormJp.add(AERWMOSO_spinner, "4, 9");
+		aerModelWmoMultiModalFormJp.add(AERWMOSO_spinner, getStr("4, %d"));
 
 		AERWMOSO_desc = new JLabel(
 				"Volumetric concentration of  \u00AB Soot \u00BB components\t(value between 0 and 1)");
 		AERWMOSO_desc
 				.setToolTipText("Volumetric concentration of  \u00AB Soot \u00BB components\t(value between 0 and 1)");
-		aerModelWmoMultiModalFormJp.add(AERWMOSO_desc, "9, 9");
+		aerModelWmoMultiModalFormJp.add(AERWMOSO_desc, getStr("9, %d"));
 
 		
 		//////////////////////////////////////////////////////////////////
@@ -990,8 +1072,9 @@ public class AerosolsModelJPanel extends AbstractForm {
 		aerModelShettleAndFennBiModalFormJp.setLayout( aerModelShettleAndFennBiModalFormLayout );
 		aerModelContentFormJp.add(aerModelShettleAndFennBiModalFormJp, AerosolModelTypeEnum.SHETTLE_AND_FENN_BI_MODAL.name());
 
+		currentY = 1;
 		AERSFModel_title = new JLabel("AER.SF.Model *:");
-		aerModelShettleAndFennBiModalFormJp.add(AERSFModel_title, "2, 1, right, default");
+		aerModelShettleAndFennBiModalFormJp.add(AERSFModel_title, getStr("2, %d, right, default"));
 
 		AERSFModel_comboBox = new JComboBox();
 		AERSFModel_comboBox.addItemListener(new ItemListener() {
@@ -1002,14 +1085,15 @@ public class AerosolsModelJPanel extends AbstractForm {
 		});
 		AERSFModel_comboBox.setModel(new DefaultComboBoxModel(AERSFModelEnum
 				.values()));
-		aerModelShettleAndFennBiModalFormJp.add(AERSFModel_comboBox, "4, 1, fill, default");
+		aerModelShettleAndFennBiModalFormJp.add(AERSFModel_comboBox, getStr("4, %d, fill, default"));
 
-		AERSFModel_desc = new JLabel("Shettle & Fenn model");
-		aerModelShettleAndFennBiModalFormJp.add(AERSFModel_desc, "9, 1");
+		AERSFModel_desc = new JLabel("Type of Shettle & Fenn model");
+		aerModelShettleAndFennBiModalFormJp.add(AERSFModel_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERSFRH_title = new JLabel("AER.SF.RH *:");
 		AERSFRH_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelShettleAndFennBiModalFormJp.add(AERSFRH_title, "2, 3");
+		aerModelShettleAndFennBiModalFormJp.add(AERSFRH_title, getStr("2, %d"));
 
 		AERSFRH_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal(0), new BigDecimal(0), new BigDecimal(99), new BigDecimal(1)));
         PropertiesManager.getInstance().register(AERSFRH_title, AERSFRH_spinner);
@@ -1019,13 +1103,13 @@ public class AerosolsModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		aerModelShettleAndFennBiModalFormJp.add(AERSFRH_spinner, "4, 3");
+		aerModelShettleAndFennBiModalFormJp.add(AERSFRH_spinner, getStr("4, %d"));
 
 		AERSFRH_desc = new JLabel(
 				"Percentage of relative humidity (from 0 to 99%)");
 		AERSFRH_desc
 				.setToolTipText("Percentage of relative humidity (from 0 to 99%)");
-		aerModelShettleAndFennBiModalFormJp.add(AERSFRH_desc, "9, 3");
+		aerModelShettleAndFennBiModalFormJp.add(AERSFRH_desc, getStr("9, %d"));
 
 		
 		/////////////////////////////////////////////////////////
@@ -1081,13 +1165,14 @@ public class AerosolsModelJPanel extends AbstractForm {
 		aerModelLogNormalBiModalFormJp.setLayout( aerModelLogNormalBiModalFormLayout );
 		aerModelContentFormJp.add(aerModelLogNormalBiModalFormJp, AerosolModelTypeEnum.LOG_NORMAL_BI_MODAL.name());
 		
+		currentY = 1;
 		AERBMDVCdef_title = new JLabel("AER.BMD.VCdef *:");
 		AERBMDVCdef_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDVCdef_title, "2, 1, right, default");
+		aerModelLogNormalBiModalFormJp.add(AERBMDVCdef_title, getStr("2, %d, right, default"));
 
 		panel_1 = new JPanel();
 		panel_1.setBackground(Color.WHITE);
-		aerModelLogNormalBiModalFormJp.add(panel_1, "4, 1, fill, fill");
+		aerModelLogNormalBiModalFormJp.add(panel_1, getStr("4, %d, fill, fill"));
 		panel_1.setLayout(new BoxLayout(panel_1, BoxLayout.Y_AXIS));
 
 		AERBMDVCdef_choice1_RadioButton = new JRadioButton(
@@ -1121,10 +1206,11 @@ public class AerosolsModelJPanel extends AbstractForm {
 
 		AERBMDVCdef_desc = new JLabel("Choice of mixture description type");
 		AERBMDVCdef_desc.setToolTipText("Choice of mixture description type");
-		aerModelLogNormalBiModalFormJp.add(AERBMDVCdef_desc, "9, 1");
+		aerModelLogNormalBiModalFormJp.add(AERBMDVCdef_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDCoarseVC_title = new JLabel("AER.BMD.CoarseVC *:");
-		aerModelLogNormalBiModalFormJp.add(AERBMDCoarseVC_title, "2, 3, right, default");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCoarseVC_title, getStr("2, %d, right, default"));
 
 		AERBMDCoarseVC_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERBMDCoarseVC_title, AERBMDCoarseVC_spinner);
@@ -1134,15 +1220,16 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDCoarseVC_spinner, "4, 3");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCoarseVC_spinner, getStr("4, %d"));
 
 		AERBMDCoarseVC_desc = new JLabel(
 				"Volumetric concentration of the coarse mode");
-		aerModelLogNormalBiModalFormJp.add(AERBMDCoarseVC_desc, "9, 3");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCoarseVC_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDFineVC_title = new JLabel("AER.BMD.FineVC *:");
 		AERBMDFineVC_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDFineVC_title, "2, 5");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFineVC_title, getStr("2, %d"));
 
 		AERBMDFineVC_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERBMDFineVC_title, AERBMDFineVC_spinner);
@@ -1152,15 +1239,16 @@ public class AerosolsModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		aerModelLogNormalBiModalFormJp.add(AERBMDFineVC_spinner, "4, 5");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFineVC_spinner, getStr("4, %d"));
 
 		AERBMDFineVC_desc = new JLabel(
 				"Volumetric concentration of the fine mode");
-		aerModelLogNormalBiModalFormJp.add(AERBMDFineVC_desc, "9, 5");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFineVC_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDRAOT_title = new JLabel("AER.BMD.RAOT *:");
 		AERBMDRAOT_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDRAOT_title, "2, 7");
+		aerModelLogNormalBiModalFormJp.add(AERBMDRAOT_title, getStr("2, %d"));
 
 		AERBMDRAOT_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), new BigDecimal("1.00"), new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERBMDRAOT_title, AERBMDRAOT_spinner);
@@ -1170,25 +1258,27 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDRAOT_spinner, "4, 7");
+		aerModelLogNormalBiModalFormJp.add(AERBMDRAOT_spinner, getStr("4, %d"));
 
 		AERBMDRAOT_desc = new JLabel(
 				"Ratio of coarse mode optical thickness over total one for the reference wavelength");
-		aerModelLogNormalBiModalFormJp.add(AERBMDRAOT_desc, "9, 7");
+		aerModelLogNormalBiModalFormJp.add(AERBMDRAOT_desc, getStr("9, %d"));
 		
+		currentY += 2;
 		labelSeparator1_AerModel3 = new JLabel("    |--> Coarse mode LND parameters");
 		labelSeparator1_AerModel3.setHorizontalAlignment(SwingConstants.LEFT);
 		labelSeparator1_AerModel3.setForeground(Color.BLUE);
 		labelSeparator1_AerModel3.setFont(new Font("Tahoma", Font.PLAIN, 11));
-		aerModelLogNormalBiModalFormJp.add(labelSeparator1_AerModel3, "2, 9, 3, 1");
+		aerModelLogNormalBiModalFormJp.add(labelSeparator1_AerModel3, getStr("2, %d, 3, 1"));
 		
 		jseparator1_AerModel3 = new JSeparator();
 		jseparator1_AerModel3.setForeground(SystemColor.inactiveCaption);
-		aerModelLogNormalBiModalFormJp.add(jseparator1_AerModel3, "9, 9");
+		aerModelLogNormalBiModalFormJp.add(jseparator1_AerModel3, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDCMMRwa_title = new JLabel("AER.BMD.CM.MRwa *:");
 		AERBMDCMMRwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwa_title, "2, 11");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwa_title, getStr("2, %d"));
 
 		AERBMDCMMRwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal("0.000"), null, new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(AERBMDCMMRwa_title, AERBMDCMMRwa_spinner);
@@ -1198,16 +1288,17 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwa_spinner, "4, 11");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwa_spinner, getStr("4, %d"));
 
 		AERBMDCMMRwa_desc = new JLabel(
-				"Real part of the refractive index at simulation wavelength");
+				"Real part of the refractive index at the simulation wavelength");
 		AERBMDCMMRwa_desc
-				.setToolTipText("Real part of the refractive index at simulation wavelength");
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwa_desc, "9, 11");
+				.setToolTipText("Real part of the refractive index at the simulation wavelength");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDCMMIwa_title = new JLabel("AER.BMD.CM.MIwa *:");
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwa_title, "2, 13, right, default");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwa_title, getStr("2, %d, right, default"));
 
 		AERBMDCMMIwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(AERBMDCMMIwa_title, AERBMDCMMIwa_spinner);
@@ -1217,17 +1308,18 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwa_spinner, "4, 13");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwa_spinner, getStr("4, %d"));
 
 		AERBMDCMMIwa_desc = new JLabel(
-				"Imaginary part of the refractive index at simulation wavelength");
+				"Imaginary part of the refractive index at the simulation wavelength");
 		AERBMDCMMIwa_desc
-				.setToolTipText("Imaginary part of the refractive index at simulation wavelength");
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwa_desc, "9, 13");
+				.setToolTipText("Imaginary part of the refractive index at the simulation wavelength");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDCMSDradius_title = new JLabel("AER.BMD.CM.SDradius *:");
 		AERBMDCMSDradius_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDradius_title, "2, 15");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDradius_title, getStr("2, %d"));
 
 		AERBMDCMSDradius_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERBMDCMSDradius_title, AERBMDCMSDradius_spinner);
@@ -1237,17 +1329,18 @@ public class AerosolsModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDradius_spinner, "4, 15");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDradius_spinner, getStr("4, %d"));
 
 		AERBMDCMSDradius_desc = new JLabel(
-				"Modal radius of LND size distribution (\u00B5m)");
+				"Modal radius (\u00B5m) of the Log-Normal size distribution");
 		AERBMDCMSDradius_desc
-				.setToolTipText("Modal radius of LND size distribution (\u00B5m)");
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDradius_desc, "9, 15");
+				.setToolTipText("Modal radius (\u00B5m) of the Log-Normal size distribution");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDradius_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDCMSDvar_title = new JLabel("AER.BMD.CM.SDvar *:");
 		AERBMDCMSDvar_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDvar_title, "2, 17");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDvar_title, getStr("2, %d"));
 
 		AERBMDCMSDvar_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
         PropertiesManager.getInstance().register(AERBMDCMSDvar_title, AERBMDCMSDvar_spinner);
@@ -1257,17 +1350,18 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDvar_spinner, "4, 17");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDvar_spinner, getStr("4, %d"));
 
 		AERBMDCMSDvar_desc = new JLabel(
-				"Standard deviation of LND size distribution");
+				"Standard deviation of the Log-Normal size distribution (\u00B5m)");
 		AERBMDCMSDvar_desc
-				.setToolTipText("Standard deviation of LND size distribution");
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDvar_desc, "9, 17");
+				.setToolTipText("Standard deviation of the Log-Normal size distribution (\u00B5m)");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMSDvar_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDCMMRwaref_title = new JLabel("AER.BMD.CM.MRwaref *:");
 		AERBMDCMMRwaref_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwaref_title, "2, 19");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwaref_title, getStr("2, %d"));
 
 		AERBMDCMMRwaref_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal("0.000"), null, new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(AERBMDCMMRwaref_title, AERBMDCMMRwaref_spinner);
@@ -1277,17 +1371,18 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwaref_spinner, "4, 19");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwaref_spinner, getStr("4, %d"));
 
 		AERBMDCMMRwaref_desc = new JLabel(
-				"Real part of the refractive index at reference wavelength");
+				"Real part of the refractive index at the reference wavelength");
 		AERBMDCMMRwaref_desc
-				.setToolTipText("Real part of the refractive index at reference wavelength");
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwaref_desc, "9, 19");
+				.setToolTipText("Real part of the refractive index at the reference wavelength");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMRwaref_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDCMMIwaref_title = new JLabel("AER.BMD.CM.MIwaref *:");
 		AERBMDCMMIwaref_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwaref_title, "2, 21");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwaref_title, getStr("2, %d"));
 
 		AERBMDCMMIwaref_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(AERBMDCMMIwaref_title, AERBMDCMMIwaref_spinner);
@@ -1297,27 +1392,29 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwaref_spinner, "4, 21");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwaref_spinner, getStr("4, %d"));
 
 		AERBMDCMMIwaref_desc = new JLabel(
-				"Imaginary part of the refractive index at reference wavelength");
+				"Imaginary part of the refractive index at the reference wavelength");
 		AERBMDCMMIwaref_desc
-				.setToolTipText("Imaginary part of the refractive index at reference wavelength");
-		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwaref_desc, "9, 21");
+				.setToolTipText("Imaginary part of the refractive index at the reference wavelength");
+		aerModelLogNormalBiModalFormJp.add(AERBMDCMMIwaref_desc, getStr("9, %d"));
 
+		currentY += 2;
 		labelSeparator2_AerModel3 = new JLabel("    |--> Fine mode LND parameters");
 		labelSeparator2_AerModel3.setHorizontalAlignment(SwingConstants.LEFT);
 		labelSeparator2_AerModel3.setForeground(Color.BLUE);
 		labelSeparator2_AerModel3.setFont(new Font("Tahoma", Font.PLAIN, 11));
-		aerModelLogNormalBiModalFormJp.add(labelSeparator2_AerModel3, "2, 23, 3, 1");
+		aerModelLogNormalBiModalFormJp.add(labelSeparator2_AerModel3, getStr("2, %d, 3, 1"));
 		
 		jseparator2_AerModel3 = new JSeparator();
 		jseparator2_AerModel3.setForeground(SystemColor.inactiveCaption);
-		aerModelLogNormalBiModalFormJp.add(jseparator2_AerModel3, "9, 23");
+		aerModelLogNormalBiModalFormJp.add(jseparator2_AerModel3, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDFMMRwa_title = new JLabel("AER.BMD.FM.MRwa *:");
 		AERBMDFMMRwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwa_title, "2, 25");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwa_title, getStr("2, %d"));
 
 		AERBMDFMMRwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal("0.000"), null, new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(AERBMDFMMRwa_title, AERBMDFMMRwa_spinner);
@@ -1327,17 +1424,18 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwa_spinner, "4, 25");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwa_spinner, getStr("4, %d"));
 
 		AERBMDFMMRwa_desc = new JLabel(
-				"Real part of the refractive index at simulation wavelength");
+				"Real part of the refractive index at the simulation wavelength");
 		AERBMDFMMRwa_desc
-				.setToolTipText("Real part of the refractive index at simulation wavelength");
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwa_desc, "9, 25");
+				.setToolTipText("Real part of the refractive index at the simulation wavelength");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwa_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDFMMIwa_title = new JLabel("AER.BMD.FM.MIwa *:");
 		AERBMDFMMIwa_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwa_title, "2, 27");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwa_title, getStr("2, %d"));
 
 		AERBMDFMMIwa_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(AERBMDFMMIwa_title, AERBMDFMMIwa_spinner);
@@ -1347,57 +1445,18 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwa_spinner, "4, 27");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwa_spinner, getStr("4, %d"));
 
 		AERBMDFMMIwa_desc = new JLabel(
-				"Imaginary part of the refractive index at simulation wavelength");
+				"Imaginary part of the refractive index at the simulation wavelength");
 		AERBMDFMMIwa_desc
-				.setToolTipText("Imaginary part of the refractive index at simulation wavelength");
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwa_desc, "9, 27");
+				.setToolTipText("Imaginary part of the refractive index at the simulation wavelength");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwa_desc, getStr("9, %d"));
 
-		AERBMDFMSDradius_title = new JLabel("AER.BMD.FM.SDradius *:");
-		AERBMDFMSDradius_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDradius_title, "2, 29");
-
-		AERBMDFMSDradius_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
-        PropertiesManager.getInstance().register(AERBMDFMSDradius_title, AERBMDFMSDradius_spinner);
-		AERBMDFMSDradius_spinner.addChangeListener(new ChangeListener() {
-            public void stateChanged(ChangeEvent e) {
-                saveAERBMDFMSDradius();
-                validateForm();
-            }
-        });
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDradius_spinner, "4, 29");
-
-		AERBMDFMSDradius_desc = new JLabel(
-				"Modal radius of LND size distribution (\u00B5m)");
-		AERBMDFMSDradius_desc
-				.setToolTipText("Modal radius of LND size distribution (\u00B5m)");
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDradius_desc, "9, 29");
-
-		AERBMDFMSDvar_title = new JLabel("AER.BMD.FM.SDvar *:");
-		AERBMDFMSDvar_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDvar_title, "2, 31");
-
-		AERBMDFMSDvar_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
-        PropertiesManager.getInstance().register(AERBMDFMSDvar_title, AERBMDFMSDvar_spinner);
-		AERBMDFMSDvar_spinner.addChangeListener(new ChangeListener() {
-            public void stateChanged(ChangeEvent e) {
-                saveAERBMDFMSDvar();
-                validateForm();
-            }
-        });
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDvar_spinner, "4, 31");
-
-		AERBMDFMSDvar_desc = new JLabel(
-				"Standard deviation of LND size distribution ");
-		AERBMDFMSDvar_desc
-				.setToolTipText("Standard deviation of LND size distribution ");
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDvar_desc, "9, 31");
-
+		currentY += 2;
 		AERBMDFMMRwaref_title = new JLabel("AER.BMD.FM.MRwaref *:");
 		AERBMDFMMRwaref_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwaref_title, "2, 33");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwaref_title, getStr("2, %d"));
 
 		AERBMDFMMRwaref_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal("0.000"), null, new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(AERBMDFMMRwaref_title, AERBMDFMMRwaref_spinner);
@@ -1407,17 +1466,18 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwaref_spinner, "4, 33");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwaref_spinner, getStr("4, %d"));
 
 		AERBMDFMMRwaref_desc = new JLabel(
-				"Real part of the refractive index at reference wavelength");
+				"Real part of the refractive index at the reference wavelength");
 		AERBMDFMMRwaref_desc
-				.setToolTipText("Real part of the refractive index at reference wavelength");
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwaref_desc, "9, 33");
+				.setToolTipText("Real part of the refractive index at the reference wavelength");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMRwaref_desc, getStr("9, %d"));
 
+		currentY += 2;
 		AERBMDFMMIwaref_title = new JLabel("AER.BMD.FM.MIwaref *:");
 		AERBMDFMMIwaref_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwaref_title, "2, 35");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwaref_title, getStr("2, %d"));
 
 		AERBMDFMMIwaref_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.000"), new BigDecimal(-1), new BigDecimal("0.000"), new BigDecimal("0.001")));
         PropertiesManager.getInstance().register(AERBMDFMMIwaref_title, AERBMDFMMIwaref_spinner);
@@ -1427,13 +1487,56 @@ public class AerosolsModelJPanel extends AbstractForm {
                 validateForm();
             }
         });
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwaref_spinner, "4, 35");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwaref_spinner, getStr("4, %d"));
 
 		AERBMDFMMIwaref_desc = new JLabel(
-				"Imaginary part of the refractive index at reference wavelength");
+				"Imaginary part of the refractive index at the reference wavelength");
 		AERBMDFMMIwaref_desc
-				.setToolTipText("Imaginary part of the refractive index at reference wavelength");
-		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwaref_desc, "9, 35");
+				.setToolTipText("Imaginary part of the refractive index at the reference wavelength");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMMIwaref_desc, getStr("9, %d"));
+		
+		currentY += 2;
+		AERBMDFMSDradius_title = new JLabel("AER.BMD.FM.SDradius *:");
+		AERBMDFMSDradius_title.setHorizontalAlignment(SwingConstants.RIGHT);
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDradius_title, getStr("2, %d"));
+
+		AERBMDFMSDradius_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
+        PropertiesManager.getInstance().register(AERBMDFMSDradius_title, AERBMDFMSDradius_spinner);
+		AERBMDFMSDradius_spinner.addChangeListener(new ChangeListener() {
+            public void stateChanged(ChangeEvent e) {
+                saveAERBMDFMSDradius();
+                validateForm();
+            }
+        });
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDradius_spinner, getStr("4, %d"));
+
+		AERBMDFMSDradius_desc = new JLabel(
+				"Modal radius (\u00B5m) of the Log-Normal size distribution");
+		AERBMDFMSDradius_desc
+				.setToolTipText("Modal radius (\u00B5m) of the Log-Normal size distribution");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDradius_desc, getStr("9, %d"));
+
+		currentY += 2;
+		AERBMDFMSDvar_title = new JLabel("AER.BMD.FM.SDvar *:");
+		AERBMDFMSDvar_title.setHorizontalAlignment(SwingConstants.RIGHT);
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDvar_title, getStr("2, %d"));
+
+		AERBMDFMSDvar_spinner = new JSpinnerRangedValue(new SpinnerBigDecimalModel(new BigDecimal("0.00"), new BigDecimal("0.00"), null, new BigDecimal("0.01")));
+        PropertiesManager.getInstance().register(AERBMDFMSDvar_title, AERBMDFMSDvar_spinner);
+		AERBMDFMSDvar_spinner.addChangeListener(new ChangeListener() {
+            public void stateChanged(ChangeEvent e) {
+                saveAERBMDFMSDvar();
+                validateForm();
+            }
+        });
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDvar_spinner, getStr("4, %d"));
+
+		AERBMDFMSDvar_desc = new JLabel(
+				"Standard deviation of the Log-Normal size distribution (\u00B5m)");
+		AERBMDFMSDvar_desc
+				.setToolTipText("Standard deviation of the Log-Normal size distribution (\u00B5m)");
+		aerModelLogNormalBiModalFormJp.add(AERBMDFMSDvar_desc, getStr("9, %d"));
+
 
 		/////////////////////////////////////////
 		JPanel aerModelPhaseFctFromAnExternalSrcFormJp = new JPanel();
@@ -1454,9 +1557,10 @@ public class AerosolsModelJPanel extends AbstractForm {
 		aerModelPhaseFctFromAnExternalSrcFormJp.setLayout( aerModelPhaseFctFromAnExternalSrcFormLayout );
 		aerModelContentFormJp.add(aerModelPhaseFctFromAnExternalSrcFormJp, AerosolModelTypeEnum.PHASE_FUNCTIONS_FROM_AN_EXTERNAL_SOURCE.name());
 		
+		currentY = 1;
 		AERExtData_title = new JLabel("AER.ExtData *:");
 		AERExtData_title.setHorizontalAlignment(SwingConstants.RIGHT);
-		aerModelPhaseFctFromAnExternalSrcFormJp.add(AERExtData_title, "2, 1");
+		aerModelPhaseFctFromAnExternalSrcFormJp.add(AERExtData_title, getStr("2, %d"));
 
 		AERExtData_textField = new JTextField();
 		AERExtData_textField.addCaretListener(new CaretListener() {
@@ -1465,13 +1569,19 @@ public class AerosolsModelJPanel extends AbstractForm {
 				validateForm();
 			}
 		});
-		aerModelPhaseFctFromAnExternalSrcFormJp.add(AERExtData_textField, "4, 1");
+		AERExtData_textField.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				onExtDataClicked();
+				validateForm();
+			}
+		});
+		aerModelPhaseFctFromAnExternalSrcFormJp.add(AERExtData_textField, getStr("4, %d"));
 
 		AERExtData_desc = new JLabel(
 				"Filename of external phase function data (full path)");
 		AERExtData_desc
 				.setToolTipText("Filename of external phase function data (full path)");
-		aerModelPhaseFctFromAnExternalSrcFormJp.add(AERExtData_desc, "9, 1");
+		aerModelPhaseFctFromAnExternalSrcFormJp.add(AERExtData_desc, getStr("9, %d"));
 		
 		
 		
@@ -1612,6 +1722,17 @@ public class AerosolsModelJPanel extends AbstractForm {
 	private void saveAERLog() {
 		if (getAERLog() != null) {
 			aerosolsModel.setAERLog(getAERLog());
+		}
+	}
+
+	public String getAERResFileIOP() {
+		AERResFileIOP_textField.validate();
+		return AERResFileIOP_textField.getText();
+	}
+
+	private void saveAERResFileIOP() {
+		if (getAERResFileIOP() != null) {
+			aerosolsModel.setAERResFileIOP(getAERResFileIOP());
 		}
 	}
 

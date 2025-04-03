@@ -30,7 +30,7 @@ public class CommonPreferences implements ICommonPreferences {
 
 	@Override
 	public BigDecimal getRadianceWaveLength() {
-		return (BigDecimal) dalPreferences.getProperty("OSOAA.Wa", BigDecimal.class, "0.0");
+		return (BigDecimal) dalPreferences.getProperty("OSOAA.Wa", BigDecimal.class, "0.443");
 	}
 
 	@Override
